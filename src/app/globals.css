@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* TRUELOGER navigation palette — light amethyst / lavender / pearl / deep violet. No gold. */
+  --color-nav-ivory: #fbf6ec;
+  --color-nav-pearl: #fdfcff;
+  --color-nav-lavender-mist: #f6f1fb;
+  --color-nav-lavender-soft: #ece1f9;
+  --color-nav-lavender-line: #e4d7f4;
+  --color-nav-orchid: #a480cf;
+  --color-nav-amethyst: #7c4dc4;
+  --color-nav-amethyst-deep: #6a3cb0;
+  --color-nav-violet: #2c1b4a;
+  --color-nav-plum: #3d2154;
+
+  /* Sparing accent only — used for tiny ornament details in Explore
+     Services (dividers, artwork highlights), never for cards/buttons. */
+  --color-nav-gold: #b9925a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-playfair);
+
+  --color-nav-ivory: var(--color-nav-ivory);
+  --color-nav-pearl: var(--color-nav-pearl);
+  --color-nav-lavender-mist: var(--color-nav-lavender-mist);
+  --color-nav-lavender-soft: var(--color-nav-lavender-soft);
+  --color-nav-lavender-line: var(--color-nav-lavender-line);
+  --color-nav-orchid: var(--color-nav-orchid);
+  --color-nav-amethyst: var(--color-nav-amethyst);
+  --color-nav-amethyst-deep: var(--color-nav-amethyst-deep);
+  --color-nav-violet: var(--color-nav-violet);
+  --color-nav-plum: var(--color-nav-plum);
+  --color-nav-gold: var(--color-nav-gold);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* hide scrollbar on mobile menu panel while keeping it scrollable */
+.nav-scroll-hidden {
+  scrollbar-width: thin;
+}
