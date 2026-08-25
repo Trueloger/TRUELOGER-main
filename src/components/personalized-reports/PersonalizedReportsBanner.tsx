@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { storageImage } from "@/lib/storage-image";
 
 // Native dimensions of the supplied banner artwork — used to reserve exact
 // aspect-ratio space (no layout shift) and to compute a correct height for
@@ -25,7 +26,7 @@ export function PersonalizedReportsBanner() {
           ExploreServices together. */}
       <div className="relative mx-auto max-w-[1320px] overflow-hidden rounded-2xl md:rounded-3xl">
         <Image
-          src="/personalized-reports/banner.png"
+          src={storageImage("/personalized-reports/banner.png")}
           alt="TRUELOGER Personalized Reports, written for you. Go beyond general predictions with detailed readings shaped by your birth chart, planetary patterns and personal life themes — 100% Personalized, In-Depth Analysis, Easy to Understand, Private &amp; Secure. Kundli, Marriage, Career, Love &amp; Relationship, Finance and Life reports. Explore All Personalized Reports."
           width={BANNER_WIDTH}
           height={BANNER_HEIGHT}

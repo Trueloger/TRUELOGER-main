@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
+import { storageImage } from "@/lib/storage-image";
 
 // Cropped from public/LOGO.png (transparent bbox + small pad) so the mark
 // sits flush in the nav instead of the source file's huge canvas margins.
-const LOGO_SRC = "/logo-nav.png";
+const LOGO_SRC = storageImage("/logo-nav.png");
 const LOGO_ASPECT = 1318 / 373;
 
 export function Logo({ className = "" }: { className?: string }) {

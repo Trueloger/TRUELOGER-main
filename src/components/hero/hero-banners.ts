@@ -1,3 +1,5 @@
+import { storageImage } from "@/lib/storage-image";
+
 // Slide data kept separate from rendering. Each banner is a complete,
 // pre-designed artwork (logo, headline, copy, CTAs baked into the image) —
 // the carousel only ever presents these images, never overlays HTML text.
@@ -15,27 +17,27 @@ export const HERO_BANNER_HEIGHT = 941;
 export const HERO_BANNERS: HeroBanner[] = [
   {
     id: "banner-1",
-    src: "/banner/banner-1.png",
+    src: storageImage("/banner/banner-1.png"),
     alt: "TRUELOGER — Get clarity on life's biggest questions. Vedic astrology, personalized guidance.",
   },
   {
     id: "banner-2",
-    src: "/banner/banner-2.png",
+    src: storageImage("/banner/banner-2.png"),
     alt: "TRUELOGER — Create your free Kundli. Your birth chart holds the key to your destiny.",
   },
   {
     id: "banner-3",
-    src: "/banner/banner-3.png",
+    src: storageImage("/banner/banner-3.png"),
     alt: "TRUELOGER — Your chart is unique, your reading should be too. Personalized astrology reports.",
   },
   {
     id: "banner-4",
-    src: "/banner/banner-4.png",
+    src: storageImage("/banner/banner-4.png"),
     alt: "TRUELOGER — Guidance that begins with you. Book a private consultation.",
   },
   {
     id: "banner-5",
-    src: "/banner/banner-5.png",
+    src: storageImage("/banner/banner-5.png"),
     alt: "TRUELOGER — A little guidance for every day. Daily, weekly and monthly horoscope.",
   },
 ];

@@ -1,13 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { PujaService } from "./puja-data";
+import { storageImage } from "@/lib/storage-image";
 
 // The approved card artwork (border, puja photo, "Book Now →" button,
 // corner ornaments, bottom lotus) — one shared asset, reused unscaled
 // across all six cards. Its native ratio is preserved via CARD_ASPECT so
 // nothing stretches; the browser only ever downloads it once regardless
 // of how many cards render.
-const CARD_SRC = "/puja cards.png";
+const CARD_SRC = storageImage("/puja cards.png");
 const CARD_ASPECT = "512 / 768";
 
 // The blank lavender band on the template, measured off the reference
