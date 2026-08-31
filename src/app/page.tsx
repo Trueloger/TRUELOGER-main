@@ -31,7 +31,7 @@ export default function Home() {
       <div className="relative z-10 -mt-px">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 top-[calc(clamp(1.75rem,4vw,3rem)-6px)]"
+          className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
               "linear-gradient(to bottom, var(--color-nav-ivory) 0%, var(--color-nav-ivory) 28%, var(--color-nav-lavender-mist) 38%, var(--color-nav-pearl) 48%, var(--color-nav-lavender-mist) 58%, var(--color-nav-ivory) 68%, var(--color-nav-lavender-mist) 82%, var(--color-nav-lavender-soft) 100%)",
