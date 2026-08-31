@@ -53,22 +53,26 @@ export default async function ZodiacHoroscopePage({
 
   if (!doc) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-20 text-center">
-        <h1 className="font-serif text-2xl text-nav-plum">{meta.name}</h1>
-        <p className="mt-4 text-nav-plum/70">
-          The stars are aligning — today&apos;s reading will be ready shortly.
-          Please check back in a few minutes.
-        </p>
-      </div>
+      <section className="min-h-screen bg-nav-ivory">
+        <div className="mx-auto max-w-lg px-4 py-20 text-center">
+          <h1 className="font-serif text-2xl text-nav-plum">{meta.name}</h1>
+          <p className="mt-4 text-nav-plum/70">
+            The stars are aligning — today&apos;s reading will be ready shortly.
+            Please check back in a few minutes.
+          </p>
+        </div>
+      </section>
     );
   }
 
   return (
-    <HoroscopeReading
-      meta={meta}
-      Icon={card.Icon}
-      reading={doc.signs[sign]}
-      dateLabel={date}
-    />
+    <section className="min-h-screen bg-nav-ivory">
+      <HoroscopeReading
+        meta={meta}
+        Icon={card.Icon}
+        reading={doc.signs[sign]}
+        dateLabel={date}
+      />
+    </section>
   );
 }
