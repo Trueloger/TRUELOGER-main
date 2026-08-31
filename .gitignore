@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# git worktrees (per-plan isolated workspaces)
+.worktrees/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
