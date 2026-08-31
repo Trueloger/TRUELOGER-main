@@ -1,4 +1,5 @@
 import { LotusIcon } from "@/components/quick-services/icons";
+import { ZodiacGrid } from "./ZodiacGrid";
 
 /** Homepage zodiac section — sits directly under HeroToServicesCurve,
  * taking over the "tuck under the dome" negative-margin that used to
@@ -31,6 +32,9 @@ export function HoroscopeSection() {
           <p className="mx-auto mt-4 max-w-sm text-[0.95rem] leading-relaxed text-nav-plum/80 sm:max-w-md sm:text-base">
             Your stars, refreshed every day.
           </p>
+        </div>
+        <div className="mt-10 md:mt-14">
+          <ZodiacGrid />
         </div>
       </div>
     </section>
