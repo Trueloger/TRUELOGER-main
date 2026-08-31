@@ -39,17 +39,36 @@ export async function generateDailyHoroscopes(
     // same missing date, or two visitors at once) won the race.
     await ref.create(doc);
     return doc;
-  } catch {
+  } catch (err) {
+    console.error("[horoscope] create failed for", date, err);
     const existing = await getDailyHoroscopes(date);
     if (existing) return existing;
     throw new Error(`Failed to create or read daily horoscope doc for ${date}`);
   }
 }
 
-export async function getOrGenerateDailyHoroscopes(
+// In-process, same-date in-flight promise cache: prevents concurrent
+// build-time SSG renders (generateStaticParams returns 12 slugs, all
+// prerendered concurrently) from each independently passing the
+// getDailyHoroscopes null-check before any .create() lands and each
+// triggering their own redundant full 12-sign OpenRouter generation.
+// .create() alone only prevents duplicate Firestore *writes*, not
+// duplicate *generations* within this race window.
+const inFlight = new Map<string, Promise<DailyHoroscopeDoc>>();
+
+export function getOrGenerateDailyHoroscopes(
   date: string
 ): Promise<DailyHoroscopeDoc> {
-  const existing = await getDailyHoroscopes(date);
-  if (existing) return existing;
-  return generateDailyHoroscopes(date);
+  const pending = inFlight.get(date);
+  if (pending) return pending;
+
+  const promise = (async () => {
+    const existing = await getDailyHoroscopes(date);
+    return existing ?? generateDailyHoroscopes(date);
+  })().finally(() => {
+    inFlight.delete(date);
+  });
+
+  inFlight.set(date, promise);
+  return promise;
 }

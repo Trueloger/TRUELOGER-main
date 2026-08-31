@@ -14,7 +14,7 @@ export function HeroToServicesCurve() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative z-20 h-[clamp(1.75rem,4vw,3rem)] w-full"
+      className="pointer-events-none relative z-20 -mt-[clamp(1.75rem,4vw,3rem)] h-[clamp(1.75rem,4vw,3rem)] w-full"
     >
       <svg
         viewBox="0 0 1440 200"

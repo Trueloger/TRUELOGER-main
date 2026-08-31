@@ -33,3 +33,9 @@ export const ZODIAC_CARDS: ZodiacCardData[] = ZODIAC_ORDER.map((slug) => ({
   dateRange: ZODIAC_META[slug].dateRange,
   Icon: ICON_BY_SLUG[slug],
 }));
+
+/** Same data as ZODIAC_CARDS, keyed by slug for O(1) lookup (e.g. the
+ * horoscope reading page) instead of an array .find(). */
+export const CARD_BY_SLUG: Record<ZodiacSlug, ZodiacCardData> = Object.fromEntries(
+  ZODIAC_CARDS.map((card) => [card.slug, card])
+) as Record<ZodiacSlug, ZodiacCardData>;

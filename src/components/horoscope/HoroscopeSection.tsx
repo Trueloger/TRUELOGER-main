@@ -6,16 +6,12 @@ import { ZodiacCarousel } from "./ZodiacCarousel";
  * taking over the "tuck under the dome" negative-margin that used to
  * belong to the wash div wrapping QuickServices (see page.tsx). Static:
  * cards show symbol/name/date-range only, no daily content, so this
- * section needs no data fetch — see spec §3.
- *
- * Cards (ZodiacGrid for desktop, ZodiacCarousel for mobile) land here
- * in Tasks 12-13; this task only establishes the placement/background
- * seam with the heading alone. */
+ * section needs no data fetch — see spec §3. */
 export function HoroscopeSection() {
   return (
     <section
       aria-labelledby="horoscope-heading"
-      className="relative -mt-[clamp(1.75rem,4vw,3rem)] bg-nav-ivory pb-12 pt-10 md:pb-20 md:pt-14"
+      className="relative -mt-px bg-nav-ivory pb-12 pt-10 md:pb-20 md:pt-14"
     >
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">

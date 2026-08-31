@@ -14,7 +14,13 @@ export function isValidSignReading(value: unknown): value is SignReading {
     }
   }
 
-  if (typeof v.luckyNumber !== "number" || !Number.isFinite(v.luckyNumber)) {
+  const luckyNumber = v.luckyNumber;
+  if (
+    typeof luckyNumber !== "number" ||
+    !Number.isInteger(luckyNumber) ||
+    luckyNumber < 1 ||
+    luckyNumber > 99
+  ) {
     return false;
   }
 

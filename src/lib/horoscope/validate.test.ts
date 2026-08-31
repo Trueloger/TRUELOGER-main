@@ -25,6 +25,9 @@ assert.strictEqual(
   "optional fields, when present as strings, must pass"
 );
 assert.strictEqual(isValidSignReading({ ...goodReading, mood: 5 }), false, "optional field with wrong type must fail");
+assert.strictEqual(isValidSignReading({ ...goodReading, luckyNumber: 150 }), false, "luckyNumber above 99 must fail");
+assert.strictEqual(isValidSignReading({ ...goodReading, luckyNumber: 7.5 }), false, "luckyNumber must be an integer");
+assert.strictEqual(isValidSignReading({ ...goodReading, luckyNumber: 0 }), false, "luckyNumber below 1 must fail");
 
 const fullSet: Record<string, unknown> = {};
 for (const slug of ZODIAC_ORDER) fullSet[slug] = goodReading;

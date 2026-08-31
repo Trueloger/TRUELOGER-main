@@ -16,12 +16,8 @@ const CARD_WIDTH = `calc((100% - ${GAP_REM * 3}rem) / 4)`;
  * rubber-band scrolling from leaking into the page. */
 export function ZodiacCarousel() {
   return (
-    <div className="md:hidden">
-      <ul
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        role="group"
-        aria-label="Zodiac signs — swipe to browse"
-      >
+    <div className="md:hidden" role="group" aria-label="Zodiac signs — swipe to browse">
+      <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {ZODIAC_CARDS.map((card) => (
           <li
             key={card.slug}

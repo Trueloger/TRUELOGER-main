@@ -59,6 +59,7 @@ async function callOpenRouter(prompt: string): Promise<unknown> {
       response_format: { type: "json_object" },
       temperature: 0.9,
     }),
+    signal: AbortSignal.timeout(120_000),
   });
 
   if (!res.ok) {

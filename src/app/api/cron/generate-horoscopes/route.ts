@@ -5,10 +5,12 @@ import { getOrGenerateDailyHoroscopes } from "@/lib/horoscope/store";
 // Never statically evaluate this route — it must run fresh on every
 // invocation (both the daily cron trigger and any manual check).
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -4,11 +4,12 @@ import type { Metadata } from "next";
 import { ZODIAC_ORDER, ZODIAC_META, isZodiacSlug } from "@/lib/horoscope/zodiac";
 import { getOrGenerateDailyHoroscopes } from "@/lib/horoscope/store";
 import { getTodayIST } from "@/lib/horoscope/date";
-import { ZODIAC_CARDS } from "@/components/horoscope/zodiac-ui-data";
+import { CARD_BY_SLUG } from "@/components/horoscope/zodiac-ui-data";
 import { HoroscopeReading } from "@/components/horoscope/HoroscopeReading";
 import type { DailyHoroscopeDoc } from "@/lib/horoscope/types";
 
 export const revalidate = 3600;
+export const maxDuration = 300;
 
 export function generateStaticParams() {
   return ZODIAC_ORDER.map((sign) => ({ sign }));
@@ -37,8 +38,12 @@ export default async function ZodiacHoroscopePage({
   if (!isZodiacSlug(sign)) notFound();
 
   const meta = ZODIAC_META[sign];
-  const card = ZODIAC_CARDS.find((c) => c.slug === sign)!;
+  const card = CARD_BY_SLUG[sign];
   const date = getTodayIST();
+  const dateLabel = new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "long",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date());
 
   // The Firestore fetch is isolated in try/catch, but the JSX return is
   // built outside it (react-hooks/error-boundaries flags constructing
@@ -47,7 +52,8 @@ export default async function ZodiacHoroscopePage({
   let doc: DailyHoroscopeDoc | null = null;
   try {
     doc = await getOrGenerateDailyHoroscopes(date);
-  } catch {
+  } catch (err) {
+    console.error("[horoscope] fetch failed for", sign, date, err);
     doc = null;
   }
 
@@ -71,7 +77,7 @@ export default async function ZodiacHoroscopePage({
         meta={meta}
         Icon={card.Icon}
         reading={doc.signs[sign]}
-        dateLabel={date}
+        dateLabel={dateLabel}
       />
     </section>
   );
