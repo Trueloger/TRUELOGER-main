@@ -1,5 +1,6 @@
 import { LotusIcon } from "@/components/quick-services/icons";
 import { ZodiacGrid } from "./ZodiacGrid";
+import { ZodiacCarousel } from "./ZodiacCarousel";
 
 /** Homepage zodiac section — sits directly under HeroToServicesCurve,
  * taking over the "tuck under the dome" negative-margin that used to
@@ -35,6 +36,7 @@ export function HoroscopeSection() {
         </div>
         <div className="mt-10 md:mt-14">
           <ZodiacGrid />
+          <ZodiacCarousel />
         </div>
       </div>
     </section>
