@@ -1,4 +1,6 @@
 import { HeroCarousel } from "@/components/hero/HeroCarousel";
+import { HeroToServicesCurve } from "@/components/hero/HeroToServicesCurve";
+import { HoroscopeSection } from "@/components/horoscope/HoroscopeSection";
 import { QuickServices } from "@/components/quick-services/QuickServices";
 import { ExploreServices } from "@/components/explore-services/ExploreServices";
 import { PersonalizedReportsBanner } from "@/components/personalized-reports/PersonalizedReportsBanner";
@@ -9,6 +11,8 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col">
       <HeroCarousel />
+      <HeroToServicesCurve />
+      <HoroscopeSection />
 
       {/* QuickServices, ExploreServices, PersonalizedReportsBanner and
           HealingSection share ONE continuous background wash instead of
@@ -20,8 +24,11 @@ export default function Home() {
           were overlapped. A single shared paint surface behind all four
           makes that seam structurally impossible rather than just
           visually unlikely. Ends on a soft lavender for Healing's own
-          "restorative" tone. */}
-      <div className="relative z-10 -mt-[clamp(1.75rem,4vw,3rem)]">
+          "restorative" tone. HoroscopeSection now owns the tuck-under-the-dome
+          negative margin that used to live here, so this wrapper just needs
+          the same plain -mt-px seam every other section boundary on this
+          page uses. */}
+      <div className="relative z-10 -mt-px">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-0 top-[calc(clamp(1.75rem,4vw,3rem)-6px)]"
