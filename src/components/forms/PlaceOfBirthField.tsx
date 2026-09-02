@@ -44,6 +44,16 @@ type PlaceOfBirthFieldProps = {
   onCityChange: (value: string) => void;
   onStateChange: (value: string) => void;
   onCountryChange: (value: string) => void;
+  /** Selecting a suggestion updates city AND state together. Calling
+   * onCityChange then onStateChange as two separate calls is NOT safe
+   * here: both route through the parent's `update(key, value)` closure
+   * (see BirthDetailsForm.tsx), which spreads the SAME stale `values`
+   * snapshot on each call — the second call's spread doesn't see the
+   * first call's change yet, so it silently overwrites city back to its
+   * pre-selection value. This callback lets the caller apply both
+   * fields in one atomic state update instead. Falls back to the two
+   * separate calls (best-effort) only if not provided. */
+  onCityAndStateChange?: (city: string, state: string) => void;
   errors?: PlaceOfBirthErrors;
   idPrefix?: string;
 };
@@ -106,6 +116,7 @@ export function PlaceOfBirthField({
   onCityChange,
   onStateChange,
   onCountryChange,
+  onCityAndStateChange,
   errors,
   idPrefix,
 }: PlaceOfBirthFieldProps) {
@@ -172,8 +183,14 @@ export function PlaceOfBirthField({
 
   function selectSuggestion(suggestion: Suggestion) {
     suppressNextSearch.current = true;
-    onCityChange(suggestion.name);
-    onStateChange(suggestion.state);
+    if (onCityAndStateChange) {
+      onCityAndStateChange(suggestion.name, suggestion.state);
+    } else {
+      // Best-effort fallback — see onCityAndStateChange's doc comment
+      // for why two separate calls can lose the city update.
+      onCityChange(suggestion.name);
+      onStateChange(suggestion.state);
+    }
     setOpen(false);
     setActiveIndex(-1);
     setSuggestions([]);

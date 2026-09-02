@@ -120,6 +120,7 @@ export function BirthDetailsForm({
         onCityChange={(value) => update("city", value)}
         onStateChange={(value) => update("state", value)}
         onCountryChange={(value) => update("country", value)}
+        onCityAndStateChange={(city, state) => onChange({ ...values, city, state })}
         errors={{ city: errors?.city, state: errors?.state, country: errors?.country }}
         idPrefix={idPrefix ? `${idPrefix}-place` : undefined}
       />
