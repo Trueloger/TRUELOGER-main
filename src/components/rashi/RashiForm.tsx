@@ -136,7 +136,7 @@ export function RashiForm() {
       <ErrorState
         message={errorMessage}
         onRetry={() => void generate()}
-        backHref="#rashi-form"
+        onBack={() => setStatus("idle")}
       />
     );
   }

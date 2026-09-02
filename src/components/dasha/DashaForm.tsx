@@ -141,7 +141,7 @@ export function DashaForm() {
 
   if (status === "error") {
     return (
-      <ErrorState message={errorMessage} onRetry={() => void generate()} backHref="#dasha-form" />
+      <ErrorState message={errorMessage} onRetry={() => void generate()} onBack={() => setStatus("idle")} />
     );
   }
 

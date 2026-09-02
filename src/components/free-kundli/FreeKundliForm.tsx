@@ -129,7 +129,7 @@ export function FreeKundliForm() {
 
   if (status === "error") {
     return (
-      <ErrorState message={errorMessage} onRetry={() => void generate()} backHref="#free-kundli-form" />
+      <ErrorState message={errorMessage} onRetry={() => void generate()} onBack={() => setStatus("idle")} />
     );
   }
 

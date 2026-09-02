@@ -124,7 +124,7 @@ export function MangalDoshaForm() {
 
   if (status === "error") {
     return (
-      <ErrorState message={errorMessage} onRetry={() => void generate()} backHref="#mangal-dosha-form" />
+      <ErrorState message={errorMessage} onRetry={() => void generate()} onBack={() => setStatus("idle")} />
     );
   }
 

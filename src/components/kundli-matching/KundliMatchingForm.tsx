@@ -169,7 +169,7 @@ export function KundliMatchingForm() {
       <ErrorState
         message={errorMessage}
         onRetry={() => void submitBoth()}
-        backHref="#kundli-matching-form"
+        onBack={() => setStatus("idle")}
       />
     );
   }

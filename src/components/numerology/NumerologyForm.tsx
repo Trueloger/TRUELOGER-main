@@ -120,7 +120,7 @@ export function NumerologyForm() {
       <ErrorState
         message={errorMessage}
         onRetry={() => void generate()}
-        backHref="#numerology-form"
+        onBack={() => setStatus("idle")}
       />
     );
   }

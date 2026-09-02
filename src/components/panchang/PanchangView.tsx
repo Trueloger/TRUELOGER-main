@@ -22,15 +22,14 @@ import type {
 
 type PanchangApiResponse = {
   date: string;
-  city: string;
+  source: string;
+  generatedAt: string;
   sunrise: string;
   sunset: string;
   panchang: PanchangResult;
 };
 
-type Status = "idle" | "loading" | "error" | "success";
-
-const DEFAULT_CITY = "New Delhi";
+type Status = "idle" | "loading" | "error" | "success" | "not-found";
 
 // ---------------------------------------------------------------------
 // Local time-formatting helpers — no date library. Every raw string
@@ -241,26 +240,34 @@ function TimeStrip<T extends TimeWindow>({
 // Main view
 // ---------------------------------------------------------------------
 
-/** Panchang tool — date + city only, no personal birth data. Fetches
- * `/api/panchang` (GET, cacheable) and renders the real returned
- * PanchangResult. Auto-loads once on mount with today's date + a
- * default city so the page "just works" immediately; the form above the
- * results lets a visitor change either and re-fetch. */
+/** Panchang tool — date only, no personal birth data and no city input.
+ * Fetches `/api/panchang?date=` (GET, backed by a once-daily generated
+ * archive — see src/lib/panchang/store.ts) and renders the real
+ * returned PanchangResult for the fixed reference location (New
+ * Delhi). Auto-loads once on mount with today's date so the page "just
+ * works" immediately; the date field above the results lets a visitor
+ * browse the archive of past days. A date with nothing archived yet
+ * (e.g. before this feature existed) renders a friendly empty state
+ * instead of an error. */
 export function PanchangView() {
   const [dateInput, setDateInput] = useState(todayISO());
-  const [cityInput, setCityInput] = useState(DEFAULT_CITY);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [result, setResult] = useState<PanchangApiResponse | null>(null);
   const hasAutoFetched = useRef(false);
 
-  async function generate(date: string, city: string) {
+  async function generate(date: string) {
     setStatus("loading");
     setErrorMessage("");
     try {
-      const params = new URLSearchParams({ date, city });
+      const params = new URLSearchParams({ date });
       const res = await fetch(`/api/panchang?${params.toString()}`);
       const data = (await res.json()) as PanchangApiResponse | { error: string };
+
+      if (res.status === 404) {
+        setStatus("not-found");
+        return;
+      }
 
       if (!res.ok || "error" in data) {
         setErrorMessage(
@@ -280,20 +287,19 @@ export function PanchangView() {
     }
   }
 
-  // Auto-load once on mount with the default date + city — a visitor
-  // sees a real, useful Panchang immediately without filling anything in.
+  // Auto-load once on mount with today's date — a visitor sees a real,
+  // useful Panchang immediately without filling anything in.
   useEffect(() => {
     if (hasAutoFetched.current) return;
     hasAutoFetched.current = true;
-    void generate(dateInput, cityInput);
+    void generate(dateInput);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const trimmedCity = cityInput.trim();
-    if (!trimmedCity || !dateInput) return;
-    void generate(dateInput, trimmedCity);
+    if (!dateInput) return;
+    void generate(dateInput);
   }
 
   const isToday = result?.date === todayISO();
@@ -314,10 +320,13 @@ export function PanchangView() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      {/* Date + city form */}
+      {/* Reference-location note + date picker for browsing the archive */}
+      <p className="mx-auto max-w-xl text-center text-xs text-nav-plum/60">
+        Panchang shown for New Delhi, India Standard Time.
+      </p>
       <form
         onSubmit={handleSubmit}
-        className="mx-auto flex max-w-xl flex-col gap-4 sm:flex-row sm:items-end"
+        className="mx-auto mt-4 flex max-w-xs flex-col gap-4 sm:flex-row sm:items-end"
       >
         <div className="flex-1">
           <label htmlFor="panchang-date" className="block text-sm font-medium text-nav-plum">
@@ -327,22 +336,9 @@ export function PanchangView() {
             id="panchang-date"
             type="date"
             value={dateInput}
+            max={todayISO()}
             onChange={(e) => setDateInput(e.target.value)}
             className="mt-1.5 min-h-11 w-full rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-nav-plum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst"
-          />
-        </div>
-        <div className="flex-1">
-          <label htmlFor="panchang-city" className="block text-sm font-medium text-nav-plum">
-            City
-          </label>
-          <input
-            id="panchang-city"
-            type="text"
-            value={cityInput}
-            onChange={(e) => setCityInput(e.target.value)}
-            placeholder="e.g. Mumbai"
-            maxLength={80}
-            className="mt-1.5 min-h-11 w-full rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-nav-plum placeholder:text-nav-plum/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst"
           />
         </div>
         <button
@@ -358,7 +354,15 @@ export function PanchangView() {
 
       {status === "error" && (
         <div className="mt-10">
-          <ErrorState message={errorMessage} onRetry={() => void generate(dateInput, cityInput)} />
+          <ErrorState message={errorMessage} onRetry={() => void generate(dateInput)} />
+        </div>
+      )}
+
+      {status === "not-found" && (
+        <div className="mx-auto mt-10 max-w-md rounded-2xl border border-dashed border-nav-lavender-line bg-nav-pearl/60 p-6 text-center">
+          <p className="text-sm text-nav-plum/70">
+            Panchang for this date isn&rsquo;t available in our archive.
+          </p>
         </div>
       )}
 
@@ -375,7 +379,7 @@ export function PanchangView() {
               <h2 className="mt-3 font-serif text-2xl text-nav-plum sm:text-3xl">
                 {formatDisplayDate(result.date)}
               </h2>
-              <p className="mt-1 text-sm text-nav-plum/70">Panchang for {result.city}</p>
+              <p className="mt-1 text-sm text-nav-plum/70">Panchang for {result.source}</p>
               <div className="mt-5 flex flex-wrap items-center justify-center gap-6">
                 <div className="flex items-center gap-2 text-nav-plum">
                   <Sunrise aria-hidden="true" className="h-5 w-5 text-nav-gold" strokeWidth={1.5} />

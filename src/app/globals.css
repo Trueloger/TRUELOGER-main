@@ -100,3 +100,34 @@ img {
     transform: none !important;
   }
 }
+
+/* DateOfBirthField / TimeOfBirthField custom pickers — mobile bottom
+   sheet slides up, desktop popover fades/drops in slightly. Reduced
+   motion collapses both to an instant show, same as every other
+   animation in this file. */
+@keyframes picker-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes picker-popover-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.picker-panel {
+  animation: picker-sheet-in 0.22s ease-out;
+}
+
+@media (min-width: 48rem) {
+  .picker-panel {
+    animation: picker-popover-in 0.16s ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .picker-panel {
+    animation: none !important;
+    transform: none !important;
+  }
+}

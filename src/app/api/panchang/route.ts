@@ -1,45 +1,31 @@
 // src/app/api/panchang/route.ts
 //
 // GET, not POST — deliberately different from every other tool route in
-// this codebase. Panchang takes no personal data (just a calendar date
-// + a city name), the result is identical for every visitor asking for
-// the same date+city, and it's cached server-side for 24h (see
-// getOrCompute below) — that's exactly the shape GET + query params is
-// for: a cacheable, idempotent read of a resource identified by its
-// URL. It also means the URL itself is shareable/bookmarkable
-// (?date=...&city=...), which a POST body never is.
+// this codebase. Panchang takes no personal data (just a calendar
+// date), the result is identical for every visitor asking for the same
+// date, and it's served from a daily-generated archive (see
+// src/lib/panchang/store.ts) — that's exactly the shape GET + query
+// params is for: a cacheable, idempotent read of a resource identified
+// by its URL. It also means the URL itself is shareable/bookmarkable
+// (?date=...).
+//
+// This route is a thin wrapper over the read-through store — it does
+// NOT call FreeAstrologyAPI directly. Panchang is generated at most
+// once per IST date by src/app/api/cron/generate-panchang/route.ts (or
+// on-demand for *today* only, via getOrGenerateDailyPanchang, if a
+// visitor arrives before that day's cron has run) and archived in
+// Firestore. A past date with nothing archived is a clean 404, never a
+// live API call — see store.ts's header comment for why (the shared
+// 50-req/day FreeAstrologyAPI budget across every tool on this site).
 import { NextResponse } from "next/server";
-import { getPanchang } from "@/lib/astrology/freeastrologyapi";
-import { resolveCityCoordinates } from "@/lib/astrology/geocode";
-import { getOrCompute } from "@/lib/cache/firestore-cache";
+import { getOrGenerateDailyPanchang } from "@/lib/panchang/store";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { getTodayIST } from "@/lib/horoscope/date";
-import type { PanchangResult } from "@/lib/astrology/types";
 
-// A cache miss fans out to 13 FreeAstrologyAPI calls in parallel (see
-// getPanchang) — slower than a typical single-endpoint call, so this
-// route needs real headroom even though most requests will be
-// near-instant cache hits.
+// Most requests are a single Firestore read (fast); the rare "today,
+// not yet generated" path fans out to 13 FreeAstrologyAPI calls — keep
+// some headroom for that case.
 export const maxDuration = 30;
-
-// This site's audience is overwhelmingly Indian and geocode.ts only
-// resolves Indian cities (all sharing one UTC+5:30 offset) — New Delhi
-// as the shared "just works" default keeps the first paint immediate
-// without asking the visitor for anything.
-const DEFAULT_CITY = "New Delhi";
-
-// Panchang timings (tithi/nakshatra/yoga/karana boundaries, hora,
-// choghadiya, muhurats) are date+location based — there is no "time of
-// birth" input for this tool. FreeAstrologyAPI's endpoints still require
-// an hours/minutes/seconds field, so a fixed reference time is used for
-// every request. Panchang elements are traditionally reckoned starting
-// from sunrise, and 06:00 local sits close to sunrise across the
-// supported cities/seasons while staying safely inside the requested
-// calendar date on both sides (unlike midnight, which risks the API
-// resolving tithi/nakshatra boundaries for the tail end of the previous
-// day in some edge cases) — a deliberate, documented choice, not an
-// arbitrary one.
-const REFERENCE_HOUR = 6;
 
 function isValidCalendarDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -56,11 +42,13 @@ function isValidCalendarDate(value: string): boolean {
 }
 
 export async function GET(request: Request) {
-  // Rate-limit first — protects against abuse even though the cache
-  // absorbs repeat legitimate traffic for the same date+city.
+  // Rate-limit first. This is now a cheap Firestore read for the
+  // overwhelming majority of requests (not a live external call), so
+  // the limit can be more generous than before — it's still here to
+  // protect against abuse of the Firestore reads themselves.
   const identifier = getClientIdentifier(request);
   const rateLimit = await checkRateLimit("panchang", identifier, {
-    limit: 20,
+    limit: 30,
     windowSeconds: 60,
   });
   if (!rateLimit.allowed) {
@@ -71,13 +59,15 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const cityParam = url.searchParams.get("city")?.trim() || DEFAULT_CITY;
-  // "Today" is resolved in IST (Asia/Kolkata) rather than the server's
-  // own timezone — every city this tool supports shares that one UTC
-  // offset (see geocode.ts), so there is no per-city timezone to branch
-  // on, and this matches the same IST-rollover rule the rest of the site
-  // already uses for "today's" content (src/lib/horoscope/date.ts).
+  // "Today" is resolved in IST (Asia/Kolkata), matching the same
+  // IST-rollover rule the rest of the site already uses for "today's"
+  // content (src/lib/horoscope/date.ts).
   const dateParam = url.searchParams.get("date")?.trim() || getTodayIST();
+  // `city` is no longer meaningful — Panchang is now generated once
+  // daily for a single fixed reference location (see store.ts). Old
+  // links carrying a `city` param are accepted harmlessly rather than
+  // erroring, just silently ignored; it's not advertised in the new
+  // contract.
 
   if (!isValidCalendarDate(dateParam)) {
     return NextResponse.json(
@@ -86,45 +76,20 @@ export async function GET(request: Request) {
     );
   }
 
-  // Never fabricate coordinates — a miss here is a hard 400, not a guess.
-  const coords = resolveCityCoordinates(cityParam);
-  if (!coords) {
+  const today = getTodayIST();
+  if (dateParam > today) {
     return NextResponse.json(
-      {
-        error: `We don't recognize "${cityParam}" yet — try a nearby major city.`,
-      },
+      { error: "Please choose today or a past date — future Panchang isn't available." },
       { status: 400 }
     );
   }
 
-  const [year, month, date] = dateParam.split("-").map(Number);
-  // Cache key is normalized (lowercase/trimmed) so "Mumbai" and "mumbai"
-  // share one cache entry; the response still echoes back the visitor's
-  // own casing via cityParam below.
-  const normalizedCityKey = cityParam.trim().toLowerCase();
-
-  let panchang: PanchangResult;
+  let doc;
   try {
-    panchang = await getOrCompute(
-      "panchang",
-      { date: dateParam, city: normalizedCityKey },
-      86400, // 24h — a given date's Panchang never changes once computed
-      () =>
-        getPanchang({
-          year,
-          month,
-          date,
-          hours: REFERENCE_HOUR,
-          minutes: 0,
-          seconds: 0,
-          latitude: coords.lat,
-          longitude: coords.lon,
-          timezone: coords.timezone,
-        })
-    );
+    doc = await getOrGenerateDailyPanchang(dateParam);
   } catch (err) {
     console.error(
-      "[panchang] getPanchang failed:",
+      "[panchang] getOrGenerateDailyPanchang failed:",
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(
@@ -133,11 +98,19 @@ export async function GET(request: Request) {
     );
   }
 
+  if (!doc) {
+    return NextResponse.json(
+      { error: "Panchang for this date isn't available in our archive." },
+      { status: 404 }
+    );
+  }
+
   return NextResponse.json({
-    date: dateParam,
-    city: cityParam,
-    sunrise: panchang.sunrise.sun_rise_time,
-    sunset: panchang.sunrise.sun_set_time,
-    panchang,
+    date: doc.date,
+    source: doc.source,
+    generatedAt: doc.generatedAt,
+    sunrise: doc.panchang.sunrise.sun_rise_time,
+    sunset: doc.panchang.sunrise.sun_set_time,
+    panchang: doc.panchang,
   });
 }

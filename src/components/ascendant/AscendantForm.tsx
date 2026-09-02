@@ -138,7 +138,7 @@ export function AscendantForm() {
       <ErrorState
         message={errorMessage}
         onRetry={() => void generate()}
-        backHref="#ascendant-form"
+        onBack={() => setStatus("idle")}
       />
     );
   }

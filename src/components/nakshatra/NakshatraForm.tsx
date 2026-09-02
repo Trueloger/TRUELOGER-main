@@ -136,7 +136,7 @@ export function NakshatraForm() {
       <ErrorState
         message={errorMessage}
         onRetry={() => void generate()}
-        backHref="#nakshatra-form"
+        onBack={() => setStatus("idle")}
       />
     );
   }

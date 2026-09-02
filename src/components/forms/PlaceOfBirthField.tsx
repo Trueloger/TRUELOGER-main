@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   fieldLabelClass,
   fieldInputClass,
@@ -48,13 +48,57 @@ type PlaceOfBirthFieldProps = {
   idPrefix?: string;
 };
 
-/** City/state/country text-input group for place of birth. Plain text
- * fields, not an autocomplete/geocoding widget — no places API is
- * configured in this project. A separate lookup
- * (src/lib/astrology/geocode.ts, built elsewhere) matches the collected
- * city text to a known location server-side; this component only
- * collects the text. City is required (blocking error); state/country
- * are optional and shown only as a soft, non-blocking notice. */
+// Compact client-side copy of the India cities dataset: rows of
+// [name, state, lat, lon] (no population — that's only needed for the
+// server-side resolveCityCoordinates tiebreak in geocode.ts). Fetched
+// once, lazily, and cached at module scope so every PlaceOfBirthField
+// instance on a page shares one download/parse. lat/lon aren't used by
+// this component (state is), but kept in the shared shape so this file
+// stays a straight subset of src/lib/astrology/india-cities.json.
+type CityRow = [name: string, state: string, lat: number, lon: number];
+
+let citiesPromise: Promise<CityRow[]> | null = null;
+function loadCities(): Promise<CityRow[]> {
+  if (!citiesPromise) {
+    citiesPromise = fetch("/data/india-cities.json")
+      .then((res) => (res.ok ? res.json() : []))
+      .catch(() => []);
+  }
+  return citiesPromise;
+}
+
+type Suggestion = { name: string; state: string };
+
+const MIN_QUERY_LENGTH = 2;
+const MAX_SUGGESTIONS = 8;
+const DEBOUNCE_MS = 200;
+
+function searchCityRows(rows: CityRow[], query: string): Suggestion[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < MIN_QUERY_LENGTH) return [];
+
+  const prefix: CityRow[] = [];
+  const substring: CityRow[] = [];
+  for (const row of rows) {
+    const nameLower = row[0].toLowerCase();
+    if (nameLower.startsWith(q)) prefix.push(row);
+    else if (nameLower.includes(q)) substring.push(row);
+  }
+
+  return [...prefix, ...substring]
+    .slice(0, MAX_SUGGESTIONS)
+    .map(([name, state]) => ({ name, state }));
+}
+
+/** City/state/country text-input group for place of birth. The city
+ * field is a hand-built WAI-ARIA combobox: as the user types (2+ chars),
+ * it debounces and searches a client-fetched India cities dataset
+ * (public/data/india-cities.json) and shows matching city+state
+ * suggestions; picking one fills city AND state. Typing a city that
+ * isn't in the suggestion list is still allowed — this is a UX aid, not
+ * a hard constraint — the authoritative match happens server-side via
+ * resolveCityCoordinates (src/lib/astrology/geocode.ts), which 400s if
+ * the typed city genuinely can't be resolved. */
 export function PlaceOfBirthField({
   city,
   state,
@@ -71,11 +115,105 @@ export function PlaceOfBirthField({
   const cityId = `${prefix}-city`;
   const stateId = `${prefix}-state`;
   const countryId = `${prefix}-country`;
+  const listboxId = `${prefix}-city-listbox`;
+
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const suppressNextSearch = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  // Close the dropdown on outside click.
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setActiveIndex(-1);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
+  function runSearch(query: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      const rows = await loadCities();
+      const results = searchCityRows(rows, query);
+      setSuggestions(results);
+      setOpen(results.length > 0);
+      setActiveIndex(-1);
+    }, DEBOUNCE_MS);
+  }
+
+  function handleCityInputChange(value: string) {
+    onCityChange(value);
+    if (suppressNextSearch.current) {
+      suppressNextSearch.current = false;
+      setOpen(false);
+      return;
+    }
+    if (value.trim().length < MIN_QUERY_LENGTH) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      setSuggestions([]);
+      setOpen(false);
+      setActiveIndex(-1);
+      return;
+    }
+    runSearch(value);
+  }
+
+  function selectSuggestion(suggestion: Suggestion) {
+    suppressNextSearch.current = true;
+    onCityChange(suggestion.name);
+    onStateChange(suggestion.state);
+    setOpen(false);
+    setActiveIndex(-1);
+    setSuggestions([]);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!open || suggestions.length === 0) return;
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveIndex((i) => (i + 1) % suggestions.length);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1));
+        break;
+      case "Enter":
+        if (activeIndex >= 0 && activeIndex < suggestions.length) {
+          e.preventDefault();
+          selectSuggestion(suggestions[activeIndex]);
+        }
+        break;
+      case "Escape":
+        setOpen(false);
+        setActiveIndex(-1);
+        break;
+      default:
+        break;
+    }
+  }
+
+  const activeDescendantId =
+    activeIndex >= 0 && activeIndex < suggestions.length
+      ? `${listboxId}-option-${activeIndex}`
+      : undefined;
 
   return (
     <div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
+        <div ref={containerRef} className="relative">
           <label htmlFor={cityId} className={fieldLabelClass}>
             City <span className="text-nav-amethyst-deep">*</span>
           </label>
@@ -83,11 +221,20 @@ export function PlaceOfBirthField({
             id={cityId}
             type="text"
             value={city}
-            onChange={(e) => onCityChange(e.target.value)}
+            onChange={(e) => handleCityInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (suggestions.length > 0) setOpen(true);
+            }}
             placeholder="e.g. Jaipur"
             required
             maxLength={80}
-            autoComplete="address-level2"
+            autoComplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={open}
+            aria-controls={listboxId}
+            aria-activedescendant={activeDescendantId}
             aria-invalid={errors?.city ? true : undefined}
             aria-describedby={errors?.city ? `${cityId}-error` : undefined}
             className={`mt-1.5 ${fieldInputClass} ${errors?.city ? fieldInputErrorClass : ""}`}
@@ -96,6 +243,43 @@ export function PlaceOfBirthField({
             <p id={`${cityId}-error`} role="alert" className={fieldErrorTextClass}>
               {errors.city}
             </p>
+          )}
+
+          {open && suggestions.length > 0 && (
+            <ul
+              id={listboxId}
+              role="listbox"
+              aria-label="City suggestions"
+              className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-64 overflow-y-auto rounded-xl border border-nav-lavender-line bg-nav-pearl p-1.5 shadow-[0_12px_32px_rgba(80,50,130,0.14)]"
+            >
+              {suggestions.map((suggestion, index) => (
+                <li
+                  key={`${suggestion.name}-${suggestion.state}-${index}`}
+                  id={`${listboxId}-option-${index}`}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  onMouseDown={(e) => {
+                    // mousedown (not click) so this fires before the
+                    // input's blur/outside-click handler closes the list.
+                    e.preventDefault();
+                    selectSuggestion(suggestion);
+                  }}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={`flex cursor-pointer items-baseline justify-between gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-150 ${
+                    index === activeIndex
+                      ? "bg-nav-lavender-soft text-nav-violet"
+                      : "text-nav-plum hover:bg-nav-lavender-soft hover:text-nav-violet"
+                  }`}
+                >
+                  <span className="font-medium">{suggestion.name}</span>
+                  {suggestion.state && (
+                    <span className="shrink-0 text-xs text-nav-plum/60">
+                      {suggestion.state}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 

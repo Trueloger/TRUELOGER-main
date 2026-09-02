@@ -177,7 +177,7 @@ export function CompatibilityForm() {
       <ErrorState
         message={errorMessage}
         onRetry={() => void submitBoth()}
-        backHref="#compatibility-form"
+        onBack={() => setStatus("idle")}
       />
     );
   }

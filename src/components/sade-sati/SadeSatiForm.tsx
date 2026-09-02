@@ -146,7 +146,7 @@ export function SadeSatiForm() {
 
   if (status === "error") {
     return (
-      <ErrorState message={errorMessage} onRetry={() => void generate()} backHref="#sade-sati-form" />
+      <ErrorState message={errorMessage} onRetry={() => void generate()} onBack={() => setStatus("idle")} />
     );
   }
 
