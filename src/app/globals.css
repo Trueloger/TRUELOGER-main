@@ -54,7 +54,49 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Image protection CSS backstop (paired with ImageProtection.tsx, which
+   blocks contextmenu/dragstart via JS). Handles what JS listeners can't:
+   iOS Safari's long-press "Save to Photos" callout, the native drag
+   ghost/cursor, and accidental text-selection highlighting on images. */
+img {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 /* hide scrollbar on mobile menu panel while keeping it scrollable */
 .nav-scroll-hidden {
   scrollbar-width: thin;
+}
+
+/* Testimonials — infinite marquee track. Track holds two back-to-back
+   copies of one row's cards; animating exactly -50% moves one full copy
+   out while its identical duplicate is already in position, so the loop
+   has no visible reset. Direction is flipped per-row via
+   animation-direction: reverse (see TestimonialMarqueeRow), not a second
+   keyframe. */
+@keyframes testimonial-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.testimonial-marquee-track {
+  animation-name: testimonial-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Pause on hover — desktop only in practice, since hover doesn't fire on
+   touch. Intentional, not a full stop: releases on mouseleave. */
+@media (hover: hover) {
+  .testimonial-row:hover .testimonial-marquee-track {
+    animation-play-state: paused;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .testimonial-marquee-track {
+    animation: none !important;
+    transform: none !important;
+  }
 }

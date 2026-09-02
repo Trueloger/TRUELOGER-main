@@ -22,7 +22,7 @@ export function HoroscopeSection() {
           </div>
           <h2
             id="horoscope-heading"
-            className="mt-3 font-serif text-[2rem] leading-[1.15] text-nav-plum sm:text-4xl md:text-5xl"
+            className="mt-3 scroll-mt-28 font-serif text-[2rem] leading-[1.15] text-nav-plum sm:text-4xl md:scroll-mt-32 md:text-5xl"
           >
             Daily <span className="text-nav-amethyst">Horoscope</span>
           </h2>

@@ -6,6 +6,9 @@ import { ExploreServices } from "@/components/explore-services/ExploreServices";
 import { PersonalizedReportsBanner } from "@/components/personalized-reports/PersonalizedReportsBanner";
 import { HealingSection } from "@/components/healing/HealingSection";
 import { PujaSection } from "@/components/puja/PujaSection";
+import { ProductsSection } from "@/components/products/ProductsSection";
+import { CoursesSection } from "@/components/courses/CoursesSection";
+import { TestimonialsSection } from "@/components/testimonials/TestimonialsSection";
 
 export default function Home() {
   return (
@@ -44,6 +47,9 @@ export default function Home() {
       </div>
 
       <PujaSection />
+      <ProductsSection />
+      <CoursesSection />
+      <TestimonialsSection />
     </main>
   );
 }

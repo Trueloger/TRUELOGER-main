@@ -23,7 +23,7 @@ export function QuickServices() {
           <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
             <h2
               id="quick-services-heading"
-              className="font-serif text-[1.7rem] leading-[1.15] text-nav-violet sm:text-3xl md:text-4xl lg:text-[2.75rem]"
+              className="scroll-mt-28 font-serif text-[1.7rem] leading-[1.15] text-nav-violet sm:text-3xl md:text-4xl md:scroll-mt-32 lg:text-[2.75rem]"
             >
               Explore Astrology, <span className="text-nav-amethyst">Instantly.</span>
             </h2>

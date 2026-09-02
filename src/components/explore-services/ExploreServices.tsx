@@ -25,7 +25,7 @@ export function ExploreServices() {
 
           <h2
             id="explore-services-heading"
-            className="mt-3 font-serif text-[2rem] leading-[1.15] text-nav-violet sm:text-4xl md:text-5xl"
+            className="mt-3 scroll-mt-28 font-serif text-[2rem] leading-[1.15] text-nav-violet sm:text-4xl md:scroll-mt-32 md:text-5xl"
           >
             Explore Your Path
             <br />

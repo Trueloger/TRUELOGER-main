@@ -23,7 +23,7 @@ export function HoroscopeReading({ meta, Icon, reading, dateLabel }: Props) {
   ];
 
   return (
-    <article className="mx-auto max-w-2xl px-4 py-10 sm:px-6 md:py-16">
+    <article className="mx-auto max-w-2xl px-4 pb-10 pt-28 sm:px-6 md:pb-16 md:pt-32">
       <div className="text-center">
         <Icon className="mx-auto h-12 w-12 text-nav-amethyst-deep" strokeWidth={1.3} />
         <h1 className="mt-3 font-serif text-3xl text-nav-plum sm:text-4xl">

@@ -18,7 +18,7 @@ export default function DailyHoroscopeIndexPage() {
   return (
     <section
       aria-labelledby="daily-horoscope-index-heading"
-      className="relative min-h-screen bg-nav-ivory px-4 py-12 sm:px-6 md:px-8 md:py-20"
+      className="relative min-h-screen bg-nav-ivory px-4 pb-12 pt-28 sm:px-6 md:px-8 md:pb-20 md:pt-32"
     >
       <div className="relative mx-auto max-w-[1320px]">
         <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
