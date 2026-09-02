@@ -20,14 +20,16 @@ export type QuickService = {
   featured?: boolean;
 };
 
-// hrefs match the slugs already used by the nav dropdowns, so this section
-// and the navbar point at the same routes for the same tools.
+// hrefs match the top-level routes used by the nav dropdown's "Free
+// Services" children (see nav-data.ts) — top-level, not nested under
+// /free-services, so this section and the navbar point at the same
+// routes for the same tools.
 export const QUICK_SERVICES: QuickService[] = [
   {
     id: "free-kundli",
     title: "Free Kundli",
     description: "Create your Vedic birth chart",
-    href: "/free-services/free-kundli",
+    href: "/free-kundli",
     Icon: KundliChartIcon,
     featured: true,
   },
@@ -35,7 +37,7 @@ export const QUICK_SERVICES: QuickService[] = [
     id: "kundli-matching",
     title: "Kundli Matching",
     description: "Explore compatibility with your partner",
-    href: "/free-services/kundli-matching",
+    href: "/kundli-matching",
     Icon: KundliMatchIcon,
   },
   {
@@ -49,35 +51,35 @@ export const QUICK_SERVICES: QuickService[] = [
     id: "numerology",
     title: "Numerology",
     description: "Discover the power of your numbers",
-    href: "/free-services/numerology",
+    href: "/numerology",
     Icon: NumerologyGridIcon,
   },
   {
     id: "mangal-dosha",
     title: "Mangal Dosha",
     description: "Check Mangal Dosha in your chart",
-    href: "/free-services/mangal-dosha",
+    href: "/mangal-dosha",
     Icon: MarsGlyphIcon,
   },
   {
     id: "sade-sati",
     title: "Sade Sati",
     description: "Understand Saturn's impact on your life",
-    href: "/free-services/sade-sati",
+    href: "/sade-sati",
     Icon: SaturnGlyphIcon,
   },
   {
     id: "nakshatra",
     title: "Nakshatra",
     description: "Explore your birth star and its significance",
-    href: "/free-services/nakshatra",
+    href: "/nakshatra",
     Icon: NakshatraStarsIcon,
   },
   {
     id: "panchang",
     title: "Panchang",
     description: "View today's tithi, muhurta & more",
-    href: "/free-services/panchang",
+    href: "/panchang",
     Icon: PanchangCalendarIcon,
   },
   {
