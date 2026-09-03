@@ -1,6 +1,8 @@
 // src/app/api/ascendant/route.ts
 import { NextResponse } from "next/server";
-import { getPlanetPositions } from "@/lib/astrology/freeastrologyapi";
+import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { deriveRashi } from "@/lib/astrology/derive";
+import type { BirthInput } from "@/lib/astrology/types";
 import {
   validateBirthRequestBody,
   buildBirthInput,
@@ -10,9 +12,23 @@ import { getRashiReference } from "@/lib/astrology/rashi-reference";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 
-// Calls a metered external API (FreeAstrologyAPI) plus the AI-report
-// layer, so give it real room — unlike numerology's pure-math route.
+// AI-report layer generation can take a few seconds even though chart
+// calculation itself is now local and instant.
 export const maxDuration = 30;
+
+/** BirthInput (`timezone` = the birth location's UTC offset in hours)
+ * -> the actual UTC instant, for calculateChart(). */
+function birthInputToUtc(input: BirthInput): Date {
+  const localMs = Date.UTC(
+    input.year,
+    input.month - 1,
+    input.date,
+    input.hours,
+    input.minutes,
+    input.seconds
+  );
+  return new Date(localMs - input.timezone * 60 * 60 * 1000);
+}
 
 export async function POST(request: Request) {
   let body: BirthRequestBody;
@@ -44,12 +60,18 @@ export async function POST(request: Request) {
     );
   }
 
-  let planets;
+  // The Ascendant comes straight from the local sidereal chart — already
+  // whole-sign consistent with the rest of the new engine, no separate
+  // tropical house-system call needed (that was the old FreeAstrologyAPI
+  // /western/houses distinction; not applicable here).
+  let ascendant;
   try {
-    planets = await getPlanetPositions(birthInput);
+    const birthUtc = birthInputToUtc(birthInput);
+    const chart = calculateChart(birthUtc, birthInput.latitude, birthInput.longitude);
+    ascendant = chart.ascendant;
   } catch (err) {
     console.error(
-      "[ascendant] planet position lookup failed:",
+      "[ascendant] chart calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(
@@ -58,31 +80,20 @@ export async function POST(request: Request) {
     );
   }
 
-  // The Ascendant IS one of the PlanetName keys in /planets/extended's
-  // response — no separate /western/houses call needed (that's a
-  // different, tropical house system; see freeastrologyapi.ts).
-  const ascendant = planets.output.Ascendant;
-  if (!ascendant) {
-    console.error("[ascendant] planet position response missing Ascendant entry");
-    return NextResponse.json(
-      { error: "We couldn't calculate your Ascendant right now. Please try again shortly." },
-      { status: 502 }
-    );
-  }
+  const rashiRef = getRashiReference(ascendant.sign);
+  const rashi = deriveRashi(ascendant.longitude);
 
-  const rashiRef = getRashiReference(ascendant.current_sign);
-
-  // Every value below is read straight off the real API response (or
-  // this project's own static, well-established sign reference table) —
-  // never invented.
+  // Every value below is read straight off the local chart calculation
+  // (or this project's own static, well-established sign reference
+  // table) — never invented.
   const calculated = {
-    signNumber: ascendant.current_sign,
-    signName: ascendant.zodiac_sign_name,
+    signNumber: ascendant.sign,
+    signName: rashi.signName,
     element: rashiRef?.element ?? null,
-    rulingPlanet: rashiRef?.rulingPlanet ?? ascendant.zodiac_sign_lord,
+    rulingPlanet: rashiRef?.rulingPlanet ?? "",
     traits: rashiRef?.traits ?? null,
-    degreeInSign: ascendant.normDegree,
-    fullDegree: ascendant.fullDegree,
+    degreeInSign: ascendant.degree,
+    fullDegree: ascendant.longitude,
     timeUnknown: validated.timeUnknown,
   };
 

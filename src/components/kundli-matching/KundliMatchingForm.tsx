@@ -194,9 +194,9 @@ export function KundliMatchingForm() {
 
         <ScoreCard
           label="Guna Milan Score"
-          score={ashtakoot.total_score}
-          maxScore={ashtakoot.out_of}
-          description={`${verdictFor(ashtakoot.total_score)} — traditional Ashtakoot guidance, not a guarantee of relationship success or failure.`}
+          score={ashtakoot.totalScore}
+          maxScore={ashtakoot.outOf}
+          description={`${verdictFor(ashtakoot.totalScore)} — traditional Ashtakoot guidance, not a guarantee of relationship success or failure.`}
         />
 
         <div className="space-y-3">

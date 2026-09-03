@@ -1,6 +1,8 @@
 // src/app/api/rashi/route.ts
 import { NextResponse } from "next/server";
-import { getPlanetPositions } from "@/lib/astrology/freeastrologyapi";
+import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { deriveRashi } from "@/lib/astrology/derive";
+import type { BirthInput } from "@/lib/astrology/types";
 import {
   validateBirthRequestBody,
   buildBirthInput,
@@ -10,9 +12,23 @@ import { getRashiReference } from "@/lib/astrology/rashi-reference";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 
-// Calls a metered external API (FreeAstrologyAPI) plus the AI-report
-// layer, so give it real room — unlike numerology's pure-math route.
+// AI-report layer generation can take a few seconds even though chart
+// calculation itself is now local and instant.
 export const maxDuration = 30;
+
+/** BirthInput (`timezone` = the birth location's UTC offset in hours)
+ * -> the actual UTC instant, for calculateChart(). */
+function birthInputToUtc(input: BirthInput): Date {
+  const localMs = Date.UTC(
+    input.year,
+    input.month - 1,
+    input.date,
+    input.hours,
+    input.minutes,
+    input.seconds
+  );
+  return new Date(localMs - input.timezone * 60 * 60 * 1000);
+}
 
 export async function POST(request: Request) {
   let body: BirthRequestBody;
@@ -41,12 +57,14 @@ export async function POST(request: Request) {
     );
   }
 
-  let planets;
+  let moon;
   try {
-    planets = await getPlanetPositions(birthInput);
+    const birthUtc = birthInputToUtc(birthInput);
+    const chart = calculateChart(birthUtc, birthInput.latitude, birthInput.longitude);
+    moon = chart.planets.Moon;
   } catch (err) {
     console.error(
-      "[rashi] planet position lookup failed:",
+      "[rashi] chart calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(
@@ -55,32 +73,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const moon = planets.output.Moon;
-  if (!moon) {
-    console.error("[rashi] planet position response missing Moon entry");
-    return NextResponse.json(
-      { error: "We couldn't calculate your Rashi right now. Please try again shortly." },
-      { status: 502 }
-    );
-  }
+  const rashiRef = getRashiReference(moon.sign);
+  const rashi = deriveRashi(moon.longitude);
 
-  const rashiRef = getRashiReference(moon.current_sign);
-
-  // Every value below is read straight off the real API response (or
-  // this project's own static, well-established sign reference table) —
-  // never invented.
+  // Every value below is read straight off the local chart calculation
+  // (or this project's own static, well-established sign reference
+  // table) — never invented.
   const calculated = {
-    signNumber: moon.current_sign,
-    signName: moon.zodiac_sign_name,
+    signNumber: moon.sign,
+    signName: rashi.signName,
     element: rashiRef?.element ?? null,
-    rulingPlanet: rashiRef?.rulingPlanet ?? moon.zodiac_sign_lord,
+    rulingPlanet: rashiRef?.rulingPlanet ?? "",
     traits: rashiRef?.traits ?? null,
-    degreeInSign: moon.normDegree,
-    fullDegree: moon.fullDegree,
-    nakshatraName: moon.nakshatra_name,
-    nakshatraPada: moon.nakshatra_pada,
-    moonHouse: moon.house_number,
-    isRetro: moon.isRetro === "true",
+    degreeInSign: moon.degree,
+    fullDegree: moon.longitude,
+    nakshatraName: moon.nakshatra.nakshatraName,
+    nakshatraPada: moon.nakshatra.pada,
+    moonHouse: moon.house,
+    isRetro: moon.isRetrograde,
     timeUnknown: validated.timeUnknown,
   };
 

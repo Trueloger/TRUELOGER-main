@@ -1,102 +1,68 @@
 // src/app/api/free-kundli/route.ts
 import { NextResponse } from "next/server";
-import { getPlanetPositions, getKundliChartSvg } from "@/lib/astrology/freeastrologyapi";
+import { calculateChart, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
+import { DASHA_LORD_SEQUENCE } from "@/lib/dasha/calculate";
+import { getRashiReference } from "@/lib/astrology/rashi-reference";
 import {
   validateBirthRequestBody,
   buildBirthInput,
   type BirthRequestBody,
 } from "@/lib/astrology/birth-request";
+import type { BirthInput } from "@/lib/astrology/types";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
-import type { PlanetExtendedEntry, PlanetName } from "@/lib/astrology/types";
-import type { FreeKundliCalculated, FreeKundliPlanetRow } from "@/components/free-kundli/types";
+import type {
+  FreeKundliCalculated,
+  FreeKundliChartData,
+  FreeKundliPlanetRow,
+} from "@/components/free-kundli/types";
 
-// This route does more work than most in this feature set: two external
-// FreeAstrologyAPI calls (planets + chart SVG, run concurrently) plus
-// the AI-interpretation call — give it real headroom.
-export const maxDuration = 45;
+// The chart itself is now pure local computation (src/lib/astro-engine)
+// — no network call, no rate limit on that step. The AI-interpretation
+// call is still a real network round trip, so this route keeps real
+// headroom for it.
+export const maxDuration = 30;
 
-// Canonical display order for the planetary table — every key
-// /planets/extended can return, in the traditional Vedic order (Lagna
-// first, then the classical grahas, then the outer/shadow points last).
-// Only keys actually present in a given response produce a row; nothing
-// here is fabricated when the API omits a point.
-const PLANET_DISPLAY_ORDER: PlanetName[] = [
-  "Ascendant",
-  "Sun",
-  "Moon",
-  "Mars",
-  "Mercury",
-  "Jupiter",
-  "Venus",
-  "Saturn",
-  "Rahu",
-  "Ketu",
-  "Uranus",
-  "Neptune",
-  "Pluto",
+// Canonical display order for the planetary table — every real body
+// this local engine produces, in the traditional Vedic order (the
+// classical grahas, then the shadow points, then the modern outer
+// planets). The Ascendant itself is prepended separately below since
+// it isn't a "planet" in ChartData.planets.
+const PLANET_DISPLAY_ORDER: ChartPlanetName[] = [
+  "Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn",
+  "Rahu", "Ketu", "Uranus", "Neptune", "Pluto",
 ];
 
 const ANGULAR_HOUSES = new Set([1, 4, 7, 10]);
 
-function formatDegree(entry: PlanetExtendedEntry): string {
-  const base = `${entry.degrees}°${entry.minutes}'`;
-  return entry.isRetro === "true" ? `${base} R` : base;
+/** Local BirthInput (numeric date/time fields + a UTC-offset-hours
+ * `timezone`, see src/lib/astrology/types.ts) -> the UTC instant
+ * calculateChart needs. `timezone` is hours EAST of UTC (e.g. 5.5 for
+ * India), so local time minus that offset is the UTC instant. */
+function birthInputToUtcDate(input: BirthInput): Date {
+  const utcMs =
+    Date.UTC(input.year, input.month - 1, input.date, input.hours, input.minutes, input.seconds) -
+    input.timezone * 60 * 60 * 1000;
+  return new Date(utcMs);
 }
 
-function buildPlanetaryRows(
-  output: Partial<Record<PlanetName, PlanetExtendedEntry>>
-): FreeKundliPlanetRow[] {
-  const rows: FreeKundliPlanetRow[] = [];
-  for (const name of PLANET_DISPLAY_ORDER) {
-    const entry = output[name];
-    if (!entry) continue;
-    rows.push({
-      planet: name,
-      sign: entry.zodiac_sign_name,
-      house: entry.house_number,
-      degree: formatDegree(entry),
-    });
+/** "12°34'" (optionally " R" appended when retrograde) — same display
+ * shape the old FreeAstrologyAPI-backed table used, now built from a
+ * real 0-30 decimal degree instead of the API's own pre-split
+ * degrees/minutes fields. */
+function formatDegree(degree: number, isRetrograde: boolean): string {
+  let wholeDeg = Math.floor(degree);
+  let minutes = Math.round((degree - wholeDeg) * 60);
+  if (minutes === 60) {
+    minutes = 0;
+    wholeDeg += 1;
   }
-  return rows;
+  const base = `${wholeDeg}°${minutes}'`;
+  return isRetrograde ? `${base} R` : base;
 }
 
-/** Real planets (never the Ascendant point itself) sitting in an
- * angular house (1st/4th/7th/10th from the Ascendant) — the one piece
- * of chart-shape context this tool's AI summary uses, per the project
- * spec's "don't dump all planets' raw data into the prompt" guidance. */
-function findAngularHousePlanets(
-  output: Partial<Record<PlanetName, PlanetExtendedEntry>>
-): { planet: string; house: number; sign: string }[] {
-  const result: { planet: string; house: number; sign: string }[] = [];
-  for (const name of PLANET_DISPLAY_ORDER) {
-    if (name === "Ascendant") continue;
-    const entry = output[name];
-    if (!entry) continue;
-    if (ANGULAR_HOUSES.has(entry.house_number)) {
-      result.push({ planet: name, house: entry.house_number, sign: entry.zodiac_sign_name });
-    }
-  }
-  return result;
-}
-
-// Shape sanity-check ONLY — not a security control. A substring denylist
-// (rejecting "<script") does not make markup safe to inject into the DOM:
-// SVG can execute script via onload/onerror/other event-handler
-// attributes on any element, <foreignObject> embedding HTML, an
-// xlink:href/href of "javascript:...", etc. The actual security boundary
-// is downstream: chartSvg is never handed to dangerouslySetInnerHTML —
-// it's base64-encoded into a data: URI and rendered via a plain <img
-// src>, which cannot execute embedded script/event-handlers regardless
-// of what this check does or doesn't catch. This function exists only to
-// avoid encoding and returning obvious garbage (a truncated response, an
-// HTML error page, etc.) as though it were a chart.
-function isPlausibleInlineSvg(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("<svg")) return false;
-  if (!trimmed.endsWith("</svg>")) return false;
-  return true;
+function signName(sign: number): string {
+  return getRashiReference(sign)?.signName ?? `Sign ${sign}`;
 }
 
 export async function POST(request: Request) {
@@ -133,77 +99,79 @@ export async function POST(request: Request) {
     );
   }
 
-  // Planets and the chart SVG are independent calls run concurrently.
-  // Deliberately Promise.allSettled, not Promise.all: a chart-endpoint
-  // failure must degrade gracefully (chartAvailable: false) rather than
-  // failing the whole request and hiding the real, already-available
-  // planetary/house data — Promise.all's fail-fast semantics can't do
-  // that, allSettled can while still dispatching both calls in parallel.
-  const [planetsSettled, chartSettled] = await Promise.allSettled([
-    getPlanetPositions(birthInput),
-    getKundliChartSvg(birthInput),
-  ]);
+  const birthUtc = birthInputToUtcDate(birthInput);
+  const chartData = calculateChart(birthUtc, birthInput.latitude, birthInput.longitude);
 
-  if (planetsSettled.status === "rejected") {
-    console.error(
-      "[free-kundli] getPlanetPositions failed:",
-      planetsSettled.reason instanceof Error ? planetsSettled.reason.message : "unknown error"
-    );
-    return NextResponse.json(
-      { error: "We couldn't calculate your birth chart right now. Please try again shortly." },
-      { status: 502 }
-    );
-  }
-  const planets = planetsSettled.value;
+  const ascendant = chartData.ascendant;
+  const moon = chartData.planets.Moon;
+  const sun = chartData.planets.Sun;
 
-  const ascendant = planets.output.Ascendant;
-  const moon = planets.output.Moon;
-  const sun = planets.output.Sun;
-  if (!ascendant) {
-    console.error("[free-kundli] planet position response missing Ascendant entry");
-    return NextResponse.json(
-      { error: "We couldn't calculate your birth chart right now. Please try again shortly." },
-      { status: 502 }
-    );
+  const moonNakshatraLord =
+    DASHA_LORD_SEQUENCE[(moon.nakshatra.nakshatraNumber - 1) % 9];
+
+  const angularHousePlanets: FreeKundliCalculated["angularHousePlanets"] = [];
+  for (const name of PLANET_DISPLAY_ORDER) {
+    const entry = chartData.planets[name];
+    if (ANGULAR_HOUSES.has(entry.house)) {
+      angularHousePlanets.push({ planet: name, house: entry.house, sign: signName(entry.sign) });
+    }
   }
 
-  let chartAvailable = false;
-  let chartDataUri: string | null = null;
-  if (chartSettled.status === "fulfilled" && isPlausibleInlineSvg(chartSettled.value.output)) {
-    chartAvailable = true;
-    // Base64-encode into a data: URI here, server-side, so the client
-    // only ever needs a plain <img src> — never raw markup handed to
-    // dangerouslySetInnerHTML. See isPlausibleInlineSvg's comment for
-    // why this, not the shape check above, is the real XSS boundary.
-    chartDataUri = `data:image/svg+xml;base64,${Buffer.from(chartSettled.value.output, "utf-8").toString("base64")}`;
-  } else if (chartSettled.status === "rejected") {
-    console.error(
-      "[free-kundli] getKundliChartSvg failed:",
-      chartSettled.reason instanceof Error ? chartSettled.reason.message : "unknown error"
-    );
-  } else {
-    console.error("[free-kundli] getKundliChartSvg returned an unexpected response shape");
-  }
-
-  const planetaryRows = buildPlanetaryRows(planets.output);
-
-  // Every value below is read straight off the real API response —
-  // never invented. This summarized subset (not all 9-13 planets' full
-  // raw data) is what goes to the AI-interpretation layer, per this
-  // tool's spec.
+  // Every value below is read straight off the real, locally-computed
+  // chart — never invented. This summarized subset (not all 12
+  // planets' full raw data) is what goes to the AI-interpretation
+  // layer, per this tool's spec.
   const calculated: FreeKundliCalculated = {
     ascendant: {
-      sign: ascendant.zodiac_sign_name,
-      signLord: ascendant.zodiac_sign_lord,
-      degreeInSign: ascendant.normDegree,
+      sign: signName(ascendant.sign),
+      signLord: getRashiReference(ascendant.sign)?.rulingPlanet ?? "",
+      degreeInSign: ascendant.degree,
     },
-    moonSign: moon?.zodiac_sign_name ?? null,
-    moonNakshatra: moon?.nakshatra_name ?? null,
-    moonNakshatraPada: moon?.nakshatra_pada ?? null,
-    moonNakshatraLord: moon?.nakshatra_vimsottari_lord ?? null,
-    sunSign: sun?.zodiac_sign_name ?? null,
-    angularHousePlanets: findAngularHousePlanets(planets.output),
+    moonSign: signName(moon.sign),
+    moonNakshatra: moon.nakshatra.nakshatraName,
+    moonNakshatraPada: moon.nakshatra.pada,
+    moonNakshatraLord,
+    sunSign: signName(sun.sign),
+    angularHousePlanets,
     timeUnknown: validated.timeUnknown,
+  };
+
+  const planetaryRows: FreeKundliPlanetRow[] = [
+    {
+      planet: "Ascendant",
+      sign: signName(ascendant.sign),
+      house: 1,
+      degree: formatDegree(ascendant.degree, false),
+    },
+    ...PLANET_DISPLAY_ORDER.map((name) => {
+      const entry = chartData.planets[name];
+      return {
+        planet: name,
+        sign: signName(entry.sign),
+        house: entry.house,
+        degree: formatDegree(entry.degree, entry.isRetrograde),
+      };
+    }),
+  ];
+
+  // Structured chart data for NorthIndianChart.tsx — a real React SVG
+  // component fed this shape, not third-party markup, so there is
+  // nothing to sanitize and no base64 data: URI needed.
+  const chart: FreeKundliChartData = {
+    ascendantSign: ascendant.sign,
+    planets: PLANET_DISPLAY_ORDER.reduce(
+      (acc, name) => {
+        const entry = chartData.planets[name];
+        acc[name] = {
+          sign: entry.sign,
+          house: entry.house,
+          isRetrograde: entry.isRetrograde,
+          degree: entry.degree,
+        };
+        return acc;
+      },
+      {} as FreeKundliChartData["planets"]
+    ),
   };
 
   // The real calculated chart above must always reach the client, even
@@ -230,8 +198,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     calculated,
     planetaryRows,
-    chartAvailable,
-    chartDataUri,
+    chart,
     report,
     reportError,
   });

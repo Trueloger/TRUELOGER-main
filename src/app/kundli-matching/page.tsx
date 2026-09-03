@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 /** Kundli Matching tool — traditional, Ashtakoot-first framing. Calls
- * getAshtakootMatch() via /api/kundli-matching, the SAME real
+ * calculateAshtakoot() via /api/kundli-matching, the SAME real local
  * calculation the Compatibility tool (src/app/compatibility/page.tsx)
  * uses — see that route's top comment for the shared-calculation
  * decision. Page shell matches src/app/numerology/page.tsx's structure. */

@@ -1,7 +1,8 @@
 // src/app/api/dasha/route.ts
 import { NextResponse } from "next/server";
 import { resolveCityCoordinates } from "@/lib/astrology/geocode";
-import { getVimshottariDasha } from "@/lib/astrology/freeastrologyapi";
+import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { vimshottariDasha } from "@/lib/dasha/calculate";
 import type { BirthInput } from "@/lib/astrology/types";
 import {
   findCurrentAntarDasha,
@@ -11,7 +12,8 @@ import {
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 
-// Vimshottari dasha calc + AI interpretation can take a few seconds.
+// Vimshottari dasha calc is now local/instant; AI interpretation can
+// still take a few seconds.
 export const maxDuration = 30;
 
 const ROUTE_KEY = "dasha";
@@ -175,11 +177,21 @@ export async function POST(request: Request) {
 
   let dasha;
   try {
-    dasha = await getVimshottariDasha(birthInput);
+    const localMs = Date.UTC(
+      birthInput.year,
+      birthInput.month - 1,
+      birthInput.date,
+      birthInput.hours,
+      birthInput.minutes,
+      birthInput.seconds
+    );
+    const birthUtc = new Date(localMs - birthInput.timezone * 60 * 60 * 1000);
+    const chart = calculateChart(birthUtc, birthInput.latitude, birthInput.longitude);
+    dasha = vimshottariDasha(chart.planets.Moon.longitude, birthUtc);
   } catch (err) {
     // Never log full name/DOB — only the failure.
     console.error(
-      "[dasha] getVimshottariDasha failed:",
+      "[dasha] dasha calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(

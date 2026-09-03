@@ -9,10 +9,10 @@ export const metadata: Metadata = {
 };
 
 /** Compatibility tool — modern relationship-dynamics framing. Calls
- * getAshtakootMatch() via /api/compatibility, the SAME real calculation
- * the Kundli Matching tool (src/app/kundli-matching/page.tsx) uses —
- * see that route's top comment for the shared-calculation decision.
- * Page shell matches src/app/numerology/page.tsx's structure. */
+ * calculateAshtakoot() via /api/compatibility, the SAME real local
+ * calculation the Kundli Matching tool (src/app/kundli-matching/page.tsx)
+ * uses — see that route's top comment for the shared-calculation
+ * decision. Page shell matches src/app/numerology/page.tsx's structure. */
 export default function CompatibilityPage() {
   return (
     <section

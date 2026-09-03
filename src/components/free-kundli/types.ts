@@ -4,6 +4,7 @@
 // pattern of src/components/numerology/types.ts and
 // src/components/mangal-dosha/types.ts.
 import type { StructuredReport } from "@/lib/ai/report";
+import type { ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 
 export type FreeKundliPlanetRow = {
   planet: string;
@@ -39,25 +40,30 @@ export type FreeKundliCalculated = {
   timeUnknown: boolean;
 };
 
+/** Structured chart data — the exact shape NorthIndianChart.tsx needs
+ * to render the North Indian style Rasi (D1) chart locally: the
+ * Ascendant's sidereal sign (fixes which sign occupies House 1) plus
+ * every planet's sign/house/retrograde state/degree. Computed entirely
+ * by src/lib/astro-engine/ephemeris.ts's calculateChart — no network
+ * call, no third-party SVG string, nothing here that needs sanitizing. */
+export type FreeKundliChartData = {
+  ascendantSign: number;
+  planets: Record<
+    ChartPlanetName,
+    { sign: number; house: number; isRetrograde: boolean; degree: number }
+  >;
+};
+
 export type FreeKundliApiResponse = {
   calculated: FreeKundliCalculated;
-  /** Every real entry from the API's planetary-positions response,
-   * mapped to a table row — never a fabricated or partial set. */
+  /** Every planet (plus the Ascendant itself as its own row), mapped to
+   * a table row — never a fabricated or partial set. */
   planetaryRows: FreeKundliPlanetRow[];
-  /** false when the chart-visualization call failed or returned a
-   * shape that didn't look like real SVG markup — the rest of the
-   * response (calculated + planetaryRows) is still real, complete data
-   * either way. */
-  chartAvailable: boolean;
-  /** `data:image/svg+xml;base64,...` — the Rasi (D1) chart SVG returned
-   * by a third-party API, base64-encoded server-side and rendered
-   * client-side via a plain `<img src>`, NEVER injected into the DOM as
-   * markup (no `dangerouslySetInnerHTML`). An `<img>`-loaded SVG cannot
-   * execute embedded script/event-handler attributes — that's the real
-   * XSS boundary here, not the shape sanity-check in the route (a
-   * denylist substring check is not a security control on its own).
-   * null when chartAvailable is false. */
-  chartDataUri: string | null;
+  /** Structured chart data for NorthIndianChart.tsx — always present:
+   * the chart is now computed entirely locally (src/lib/astro-engine),
+   * so there is no third-party call that can fail independently of the
+   * rest of this response. */
+  chart: FreeKundliChartData;
   report: StructuredReport | null;
   reportError: boolean;
 };

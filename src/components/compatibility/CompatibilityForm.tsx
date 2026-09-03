@@ -205,13 +205,13 @@ export function CompatibilityForm() {
             score below it, never a separate invented verdict. */}
         <SummaryCard
           heading="At a Glance"
-          body={plainLanguageSummary(ashtakoot.total_score, ashtakoot.out_of)}
+          body={plainLanguageSummary(ashtakoot.totalScore, ashtakoot.outOf)}
         />
 
         <ScoreCard
           label="Compatibility Score"
-          score={ashtakoot.total_score}
-          maxScore={ashtakoot.out_of}
+          score={ashtakoot.totalScore}
+          maxScore={ashtakoot.outOf}
           description="Calculated from the real Vedic Ashtakoot comparison between both birth charts."
         />
 

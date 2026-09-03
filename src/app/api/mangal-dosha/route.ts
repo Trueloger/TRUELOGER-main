@@ -1,7 +1,8 @@
 // src/app/api/mangal-dosha/route.ts
 import { NextResponse } from "next/server";
-import { getPlanetPositions } from "@/lib/astrology/freeastrologyapi";
+import { calculateChart } from "@/lib/astro-engine/ephemeris";
 import { deriveMangalDosha } from "@/lib/astrology/derive";
+import type { PlanetExtendedEntry, PlanetName } from "@/lib/astrology/types";
 import { resolveCityCoordinates } from "@/lib/astrology/geocode";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
@@ -12,9 +13,36 @@ import {
   validateCityServer,
 } from "@/lib/validation/birth-details";
 
-// getPlanetPositions + the AI-interpretation call can together take a
-// handful of seconds; give this route real headroom.
+// Chart calculation is now local/instant, but the AI-interpretation call
+// can still take a few seconds; give this route real headroom.
 export const maxDuration = 30;
+
+/** deriveMangalDosha() (src/lib/astrology/derive.ts, unmodified) is
+ * typed against FreeAstrologyAPI's PlanetExtendedEntry shape, but only
+ * ever reads `.current_sign` off the Ascendant/Moon/Mars entries it's
+ * given (see requirePlanet() there) — so this adapter fills in just
+ * that one real field and pads the rest of the type with inert
+ * placeholders, never fabricating anything deriveMangalDosha actually
+ * consults. */
+function toPlanetExtendedEntry(currentSign: number): PlanetExtendedEntry {
+  return {
+    current_sign: currentSign,
+    house_number: 0,
+    fullDegree: 0,
+    normDegree: 0,
+    isRetro: "false",
+    degrees: 0,
+    minutes: 0,
+    seconds: 0,
+    localized_name: "",
+    zodiac_sign_name: "",
+    zodiac_sign_lord: "",
+    nakshatra_number: 0,
+    nakshatra_name: "",
+    nakshatra_pada: 0,
+    nakshatra_vimsottari_lord: "",
+  };
+}
 
 type RequestBody = {
   name?: unknown;
@@ -113,36 +141,22 @@ export async function POST(request: Request) {
   const [year, month, date] = dateOfBirth.split("-").map(Number);
   const [hours, minutes] = timeOfBirth.split(":").map(Number);
 
-  let planets;
-  try {
-    planets = await getPlanetPositions({
-      year,
-      month,
-      date,
-      hours,
-      minutes,
-      seconds: 0,
-      latitude: coords.lat,
-      longitude: coords.lon,
-      timezone: coords.timezone,
-    });
-  } catch (err) {
-    console.error(
-      "[mangal-dosha] getPlanetPositions failed:",
-      err instanceof Error ? err.message : "unknown error"
-    );
-    return NextResponse.json(
-      { error: "We couldn't calculate your chart right now. Please try again shortly." },
-      { status: 502 }
-    );
-  }
-
   let calculated;
   try {
-    calculated = deriveMangalDosha(planets.output);
+    const localMs = Date.UTC(year, month - 1, date, hours, minutes, 0);
+    const birthUtc = new Date(localMs - coords.timezone * 60 * 60 * 1000);
+    const chart = calculateChart(birthUtc, coords.lat, coords.lon);
+
+    const adapterPlanets: Partial<Record<PlanetName, PlanetExtendedEntry>> = {
+      Ascendant: toPlanetExtendedEntry(chart.ascendant.sign),
+      Moon: toPlanetExtendedEntry(chart.planets.Moon.sign),
+      Mars: toPlanetExtendedEntry(chart.planets.Mars.sign),
+    };
+
+    calculated = deriveMangalDosha(adapterPlanets);
   } catch (err) {
     console.error(
-      "[mangal-dosha] deriveMangalDosha failed:",
+      "[mangal-dosha] chart calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(

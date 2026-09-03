@@ -1,6 +1,6 @@
 // src/app/api/sade-sati/route.ts
 import { NextResponse } from "next/server";
-import { getPlanetPositions } from "@/lib/astrology/freeastrologyapi";
+import { calculateChart } from "@/lib/astro-engine/ephemeris";
 import { deriveSadeSati } from "@/lib/astrology/derive";
 import { resolveCityCoordinates } from "@/lib/astrology/geocode";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
@@ -12,9 +12,9 @@ import {
   validateCityServer,
 } from "@/lib/validation/birth-details";
 
-// Two getPlanetPositions calls (natal + current transit) plus the
-// AI-interpretation call can together take a handful of seconds; give
-// this route real headroom.
+// Two chart calculations (natal + current transit) are now local and
+// instant, but the AI-interpretation call can still take a few seconds;
+// give this route real headroom.
 export const maxDuration = 30;
 
 type RequestBody = {
@@ -116,23 +116,13 @@ export async function POST(request: Request) {
   // Call 1: natal chart, for the Moon's sidereal sign at birth.
   let natalMoonSign: number;
   try {
-    const natalPlanets = await getPlanetPositions({
-      year,
-      month,
-      date,
-      hours,
-      minutes,
-      seconds: 0,
-      latitude: coords.lat,
-      longitude: coords.lon,
-      timezone: coords.timezone,
-    });
-    const moon = natalPlanets.output.Moon;
-    if (!moon) throw new Error("no Moon entry in natal planets response");
-    natalMoonSign = moon.current_sign;
+    const localMs = Date.UTC(year, month - 1, date, hours, minutes, 0);
+    const birthUtc = new Date(localMs - coords.timezone * 60 * 60 * 1000);
+    const natalChart = calculateChart(birthUtc, coords.lat, coords.lon);
+    natalMoonSign = natalChart.planets.Moon.sign;
   } catch (err) {
     console.error(
-      "[sade-sati] natal getPlanetPositions failed:",
+      "[sade-sati] natal chart calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(
@@ -142,37 +132,20 @@ export async function POST(request: Request) {
   }
 
   // Call 2: the CURRENT moment, for transiting Saturn's sidereal sign.
-  // Built from server time (UTC components + timezone: 0, so "now" is
-  // represented unambiguously regardless of the server's local
-  // timezone) with observation_point: "geocentric" per derive.ts's own
-  // doc comment — Saturn's sidereal sign is effectively
-  // location-independent for a transit-only lookup, so this reuses the
-  // birth location's lat/lon rather than doing a second geocode lookup
-  // (simpler, and the choice barely matters for a slow-moving outer
-  // planet observed geocentrically).
+  // Saturn's sidereal sign is effectively location-independent for a
+  // slow-moving outer planet, so this reuses the birth location's
+  // lat/lon rather than doing a second geocode lookup — same choice the
+  // old FreeAstrologyAPI-backed version made (see git history), just
+  // with the local engine's topocentric calculation instead of that
+  // API's "geocentric" observation-point setting.
   let transitingSaturnSign: number;
   try {
     const now = new Date();
-    const transitPlanets = await getPlanetPositions(
-      {
-        year: now.getUTCFullYear(),
-        month: now.getUTCMonth() + 1,
-        date: now.getUTCDate(),
-        hours: now.getUTCHours(),
-        minutes: now.getUTCMinutes(),
-        seconds: now.getUTCSeconds(),
-        latitude: coords.lat,
-        longitude: coords.lon,
-        timezone: 0,
-      },
-      { observation_point: "geocentric" }
-    );
-    const saturn = transitPlanets.output.Saturn;
-    if (!saturn) throw new Error("no Saturn entry in transit planets response");
-    transitingSaturnSign = saturn.current_sign;
+    const transitChart = calculateChart(now, coords.lat, coords.lon);
+    transitingSaturnSign = transitChart.planets.Saturn.sign;
   } catch (err) {
     console.error(
-      "[sade-sati] transit getPlanetPositions failed:",
+      "[sade-sati] transit chart calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(

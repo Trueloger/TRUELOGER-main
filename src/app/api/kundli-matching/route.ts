@@ -1,17 +1,17 @@
 // src/app/api/kundli-matching/route.ts
 //
 // SHARED-CALCULATION DECISION — read before touching this file or
-// src/app/api/compatibility/route.ts: FreeAstrologyAPI exposes exactly
-// ONE real two-chart calculation endpoint,
-// POST /match-making/ashtakoot-score (Ashtakoot / Guna Milan
-// match-making), wrapped as getAshtakootMatch() in
-// src/lib/astrology/freeastrologyapi.ts. There is no separate "generic
-// compatibility score" endpoint anywhere in the real API. Rather than
-// fabricate a second, different "compatibility algorithm" for the
+// src/app/api/compatibility/route.ts: both tools need the exact same
+// two-chart Ashtakoot / Guna Milan match-making calculation. Rather
+// than fabricate a second, different "compatibility algorithm" for the
 // Compatibility tool, BOTH this route and
-// src/app/api/compatibility/route.ts call this exact same
-// getAshtakootMatch() function on two resolved BirthInputs. What
-// differs between the two tools is presentation only:
+// src/app/api/compatibility/route.ts resolve each person's real Moon
+// sign + nakshatra locally (src/lib/astro-engine/ephemeris.ts's
+// calculateChart — no network call) and feed them into the exact same
+// calculateAshtakoot() (src/lib/ashtakoot/calculate.ts, a pure local
+// implementation of the classical 8-koota rules — see that file's
+// comments for sourcing). What differs between the two tools is
+// presentation only:
 //   - Kundli Matching (here): traditional, Ashtakoot-first framing — the
 //     AI `instructions` below ask for a traditional Vedic matchmaking
 //     interpretation (koota-by-koota, doshas, a verdict on the /36
@@ -21,19 +21,20 @@
 //     lens (emotional compatibility, communication, relationship
 //     dynamics, strengths, potential challenges), narrated for
 //     "you"/"your partner" instead of bride/groom.
-// Every score either tool renders (total_score, each koota's score) is
-// the same real number from the same API call — never invented, never
-// recomputed differently per tool.
+// Every score either tool renders (totalScore, each koota's score) is
+// the same real number from the same local calculation — never
+// invented, never recomputed differently per tool.
 //
 // Role mapping: the Kundli Matching page renders BirthDetailsForm
 // twice, labeled "Bride" (personA) and "Groom" (personB) — traditional
-// terms matching this tool's framing. personA is always sent to
-// FreeAstrologyAPI as the `female` role and personB as `male`, since
-// the API's request/response shape is fixed to those two named roles
-// (see AshtakootMatchResult's bride/groom sub-fields in
-// src/lib/astrology/types.ts) rather than a generic personA/personB.
+// terms matching this tool's framing. personA is conventionally the
+// bride/female role and personB the groom/male role, matching this
+// codebase's established convention (see match-request.ts and
+// calculateAshtakoot()'s doc comment) — the only koota with a
+// directional rule (Varna) depends on this ordering.
 import { NextResponse } from "next/server";
-import { getAshtakootMatch } from "@/lib/astrology/freeastrologyapi";
+import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { calculateAshtakoot } from "@/lib/ashtakoot/calculate";
 import {
   validateMatchPersonInput,
   buildMatchBirthInput,
@@ -41,6 +42,7 @@ import {
 } from "@/lib/astrology/match-request";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
+import type { BirthInput } from "@/lib/astrology/types";
 
 // Two resolved birth charts + one match-making calculation + the AI
 // interpretation layer, all in one request — give it real headroom.
@@ -50,11 +52,25 @@ const ROUTE_KEY = "kundli-matching";
 
 type RequestBody = { personA?: RawPersonInput; personB?: RawPersonInput };
 
+/** BirthInput (`timezone` = the birth location's UTC offset in hours)
+ * -> the actual UTC instant, for calculateChart() — same formula every
+ * other local-calculation route uses (see e.g. src/app/api/rashi/route.ts). */
+function birthInputToUtc(input: BirthInput): Date {
+  const localMs = Date.UTC(
+    input.year,
+    input.month - 1,
+    input.date,
+    input.hours,
+    input.minutes,
+    input.seconds
+  );
+  return new Date(localMs - input.timezone * 60 * 60 * 1000);
+}
+
 export async function POST(request: Request) {
-  // Rate-limit first — this route calls a metered external API on every
-  // request, before any other work happens. Lower limit than the
-  // single-person tools (6/min, not 10/min): one call here resolves TWO
-  // people's data and builds a bigger report prompt.
+  // Rate-limit first, before any calculation work happens. Lower limit
+  // than the single-person tools (6/min, not 10/min): one call here
+  // resolves TWO people's charts and builds a bigger report prompt.
   const identifier = getClientIdentifier(request);
   const rateLimit = await checkRateLimit(ROUTE_KEY, identifier, { limit: 6, windowSeconds: 60 });
   if (!rateLimit.allowed) {
@@ -87,14 +103,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: maleInput.error }, { status: 400 });
   }
 
-  let match;
+  let result;
   try {
-    match = await getAshtakootMatch(maleInput, femaleInput);
+    const brideChart = calculateChart(
+      birthInputToUtc(femaleInput),
+      femaleInput.latitude,
+      femaleInput.longitude
+    );
+    const groomChart = calculateChart(
+      birthInputToUtc(maleInput),
+      maleInput.latitude,
+      maleInput.longitude
+    );
+    result = calculateAshtakoot(
+      { moonSign: brideChart.planets.Moon.sign, nakshatraNumber: brideChart.planets.Moon.nakshatra.nakshatraNumber },
+      { moonSign: groomChart.planets.Moon.sign, nakshatraNumber: groomChart.planets.Moon.nakshatra.nakshatraNumber }
+    );
   } catch (err) {
     // Never log either person's full name/DOB/coordinates — only the
     // failure and which step it happened in.
     console.error(
-      "[kundli-matching] getAshtakootMatch failed:",
+      "[kundli-matching] Ashtakoot calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(
@@ -112,8 +141,8 @@ export async function POST(request: Request) {
   try {
     report = await generateStructuredReport(
       "kundli-matching",
-      { ashtakoot: match.output, timeUnknown },
-      `Write a traditional Vedic Kundli Matching (Ashtakoot / Guna Milan) reading for this bride and groom, based only on the real calculated koota scores above — never invent a score. The total score ("total_score") is out of 36 ("out_of"), summed across 8 kootas: Varna, Vashya (field "vasya_kootam"), Tara, Yoni, Graha Maitri, Gana (field "gana_kootam"), Bhakoot (field "rasi_kootam"), and Nadi (field "nadi_kootam"). Cover exactly these 4 sections, in this order: (1) "Overall Verdict" — interpret the total score against traditional Ashtakoot guidelines (below 18 traditionally considered weak, 18-24 acceptable, 25-31 favorable, 32-36 excellent), framed as traditional guidance, never a guarantee of relationship success or failure; (2) "Strongest Kootas" — interpret the 2-3 highest-scoring kootas and what they traditionally suggest about this pairing; (3) "Kootas Needing Attention" — gently interpret the lowest-scoring kootas, explicitly naming whether Nadi Dosha (nadi_kootam.score is 0) or Bhakoot Dosha (rasi_kootam.score is 0) is present, and what tradition says about each; (4) "Traditional Guidance" — a grounded, respectful closing note for the couple and families, mentioning that a qualified astrologer can review remedies for any dosha traditionally found. Use traditional Vedic matchmaking language throughout ("the bride's chart", "the groom's chart", "this koota traditionally reflects..."). If "timeUnknown" is true, add one brief closing line noting a default birth time (12:00) was used for at least one chart in the absence of an exact time, and that the Tara/Yoni/Gana/Bhakoot/Nadi kootas in particular can shift with a more precise birth time.`
+      { ashtakoot: result, timeUnknown },
+      `Write a traditional Vedic Kundli Matching (Ashtakoot / Guna Milan) reading for this bride and groom, based only on the real calculated koota scores above — never invent a score. The total score ("totalScore") is out of 36 ("outOf"), summed across 8 kootas: varna, vashya, tara, yoni, grahaMaitri, gana, bhakoot, and nadi (each an object with "score"/"outOf"/"personA"/"personB" — personA is the bride, personB is the groom). Cover exactly these 4 sections, in this order: (1) "Overall Verdict" — interpret the total score against traditional Ashtakoot guidelines (below 18 traditionally considered weak, 18-24 acceptable, 25-31 favorable, 32-36 excellent), framed as traditional guidance, never a guarantee of relationship success or failure; (2) "Strongest Kootas" — interpret the 2-3 highest-scoring kootas and what they traditionally suggest about this pairing; (3) "Kootas Needing Attention" — gently interpret the lowest-scoring kootas, explicitly naming whether Nadi Dosha ("nadiDosha" is true) or Bhakoot Dosha ("bhakootDosha" is true) is present, and what tradition says about each; (4) "Traditional Guidance" — a grounded, respectful closing note for the couple and families, mentioning that a qualified astrologer can review remedies for any dosha traditionally found. Use traditional Vedic matchmaking language throughout ("the bride's chart", "the groom's chart", "this koota traditionally reflects..."). If "timeUnknown" is true, add one brief closing line noting a default birth time (12:00) was used for at least one chart in the absence of an exact time, and that the Tara/Yoni/Gana/Bhakoot/Nadi kootas in particular can shift with a more precise birth time.`
     );
   } catch (err) {
     console.error(
@@ -123,5 +152,5 @@ export async function POST(request: Request) {
     reportError = true;
   }
 
-  return NextResponse.json({ result: match.output, timeUnknown, report, reportError });
+  return NextResponse.json({ result, timeUnknown, report, reportError });
 }

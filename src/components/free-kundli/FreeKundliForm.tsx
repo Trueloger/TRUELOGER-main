@@ -20,6 +20,7 @@ import { PlanetaryTable } from "@/components/reports/PlanetaryTable";
 import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { KundliChartIcon } from "@/components/quick-services/icons";
+import { NorthIndianChart } from "./NorthIndianChart";
 import type { FreeKundliApiResponse } from "./types";
 
 const EMPTY_VALUES: BirthDetailsValues = {
@@ -134,7 +135,7 @@ export function FreeKundliForm() {
   }
 
   if (status === "success" && result) {
-    const { calculated, planetaryRows, chartAvailable, chartDataUri, report, reportError } = result;
+    const { calculated, planetaryRows, chart, report, reportError } = result;
 
     return (
       <div className="space-y-8">
@@ -188,32 +189,12 @@ export function FreeKundliForm() {
           </dl>
         </SummaryCard>
 
-        {chartAvailable && chartDataUri ? (
-          <ChartCard caption="Rasi (D1) Chart">
-            {/* chartDataUri is a base64 data: URI built server-side from
-                FreeAstrologyAPI's chart-svg response (see
-                src/app/api/free-kundli/route.ts) — rendered as a plain
-                <img>, never injected into the DOM as markup. An
-                <img>-loaded SVG cannot execute embedded script or
-                event-handler attributes, which is what actually keeps
-                this safe (not the route's shape sanity-check alone). */}
-            {/* eslint-disable-next-line @next/next/no-img-element -- a
-                data: URI can't go through next/image's remote-loader
-                pipeline; a plain <img> is the correct choice here. */}
-            <img
-              src={chartDataUri}
-              alt="Rasi (D1) birth chart"
-              className="w-full max-w-[360px]"
-            />
-          </ChartCard>
-        ) : (
-          <ChartCard caption="Visual chart temporarily unavailable">
-            <p className="max-w-xs text-center text-sm text-nav-plum/70">
-              We couldn&apos;t generate the visual chart image right now, but every planetary
-              position and house placement below is real and complete.
-            </p>
-          </ChartCard>
-        )}
+        <ChartCard caption="Rasi (D1) Chart — North Indian Style">
+          {/* Real, locally-computed structured chart data rendered as a
+              real React SVG component — never third-party markup, so
+              there's nothing here to sanitize. */}
+          <NorthIndianChart ascendantSign={chart.ascendantSign} planets={chart.planets} />
+        </ChartCard>
 
         <div>
           <h2 className="mb-3 font-serif text-lg text-nav-plum">Planetary Positions</h2>
