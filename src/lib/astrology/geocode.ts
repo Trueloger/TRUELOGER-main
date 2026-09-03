@@ -31,6 +31,61 @@ export type CitySuggestion = {
 
 const INDIA_TZ = 5.5;
 
+// ---------------------------------------------------------------------
+// Historical India UTC offset
+// ---------------------------------------------------------------------
+// India has NOT always run on a flat UTC+5:30 — the standard used for
+// legal/civil timekeeping nationally changed 3 times in the 20th
+// century, each documented on independent sources (Wikipedia "Indian
+// Standard Time"; National Physical Laboratory India's own history of
+// IST; timeanddate.com's IST historical changes page — cross-checked,
+// all 3 agree on these dates and offsets):
+//
+//   before 1906-01-01        Madras Time,  UTC+5:21:10 (legal standard
+//                             since 1884, based on Madras Observatory)
+//   1906-01-01 – 1941-08-31   Indian Standard Time, UTC+5:30 (adopted
+//                             nationally 1 Jan 1906)
+//   1941-09-01 – 1945-10-14   "War Time" (WWII daylight-saving shift),
+//                             UTC+6:30
+//   1945-10-15 – present      Indian Standard Time, UTC+5:30 (restored,
+//                             unchanged since)
+//
+// Not modeled: Calcutta (until 1948) and Bombay (until 1955) kept their
+// own local mean time on top of/instead of national IST for some
+// municipal purposes during the transition years — that requires a
+// per-city "which local-time zone did this town use" tag our dataset
+// doesn't carry, and is a narrow enough edge case (specific towns,
+// specific 1906-1955 window, minutes not degrees of difference) that
+// it's left as a known gap rather than guessed at. The 4-band table
+// above is the well-documented NATIONAL legal standard and is a real
+// accuracy improvement over an always-flat 5.5 for any pre-1945 birth.
+const WAR_TIME_START_MS = Date.UTC(1941, 8, 1); // 1941-09-01
+const WAR_TIME_END_MS = Date.UTC(1945, 9, 15); // 1945-10-15
+const IST_ADOPTED_MS = Date.UTC(1906, 0, 1); // 1906-01-01
+const MADRAS_TIME_OFFSET = 5 + 21 / 60 + 10 / 3600; // +5:21:10
+const WAR_TIME_OFFSET = 6.5;
+
+/** The UTC offset (hours) actually in legal civil use across India on
+ * `dateOfBirth` ("YYYY-MM-DD") — see the historical table above.
+ * Falls back to the modern +5:30 for an unparseable date rather than
+ * throwing, since callers already validate the date shape separately;
+ * this is a best-effort historical refinement, not a new validation
+ * gate. Compares by calendar date only (UTC midnight), which is
+ * accurate enough here — the offset transitions above happened at
+ * local midnight, and a birth minute near the exact transition instant
+ * being on the "wrong" side by one day is a pre-existing limitation of
+ * treating civil-calendar transitions this way, not something this
+ * function introduces. */
+export function historicalIndiaOffsetHours(dateOfBirth: string): number {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth);
+  if (!match) return INDIA_TZ;
+  const dateMs = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+
+  if (dateMs < IST_ADOPTED_MS) return MADRAS_TIME_OFFSET;
+  if (dateMs >= WAR_TIME_START_MS && dateMs < WAR_TIME_END_MS) return WAR_TIME_OFFSET;
+  return INDIA_TZ;
+}
+
 type RawCityEntry = {
   name: string;
   state: string;

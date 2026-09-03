@@ -1,6 +1,6 @@
 // src/app/api/dasha/route.ts
 import { NextResponse } from "next/server";
-import { resolveCityCoordinates } from "@/lib/astrology/geocode";
+import { resolveCityCoordinates, historicalIndiaOffsetHours } from "@/lib/astrology/geocode";
 import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { vimshottariDasha } from "@/lib/dasha/calculate";
 import type { BirthInput } from "@/lib/astrology/types";
@@ -172,7 +172,9 @@ export async function POST(request: Request) {
     seconds: 0,
     latitude: coordinates.lat,
     longitude: coordinates.lon,
-    timezone: coordinates.timezone,
+    // Historically-correct UTC offset for this birth date — see
+    // geocode.ts's historicalIndiaOffsetHours doc comment.
+    timezone: historicalIndiaOffsetHours(dateOfBirth),
   };
 
   let dasha;

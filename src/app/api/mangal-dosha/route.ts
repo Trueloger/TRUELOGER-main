@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { deriveMangalDosha } from "@/lib/astrology/derive";
 import type { PlanetExtendedEntry, PlanetName } from "@/lib/astrology/types";
-import { resolveCityCoordinates } from "@/lib/astrology/geocode";
+import { resolveCityCoordinates, historicalIndiaOffsetHours } from "@/lib/astrology/geocode";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 import {
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
   };
   try {
     const localMs = Date.UTC(year, month - 1, date, hours, minutes, 0);
-    const birthUtc = new Date(localMs - coords.timezone * 60 * 60 * 1000);
+    const birthUtc = new Date(localMs - historicalIndiaOffsetHours(dateOfBirth) * 60 * 60 * 1000);
     const chart = calculateChart(birthUtc, coords.lat, coords.lon);
 
     const adapterPlanets: Partial<Record<PlanetName, PlanetExtendedEntry>> = {

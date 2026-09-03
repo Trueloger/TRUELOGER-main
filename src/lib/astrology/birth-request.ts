@@ -16,7 +16,7 @@
 // route.ts re-implements its own date check instead of importing
 // NumerologyForm.tsx's. Keep this logic in sync with those four files
 // by hand if their rules ever change.
-import { resolveCityCoordinates } from "./geocode.ts";
+import { resolveCityCoordinates, historicalIndiaOffsetHours } from "./geocode.ts";
 import type { BirthInput } from "./types.ts";
 
 const NAME_MAX_LENGTH = 80;
@@ -151,6 +151,9 @@ export function buildBirthInput(valid: ValidBirthRequest): BirthInput | { error:
     seconds: 0,
     latitude: coords.lat,
     longitude: coords.lon,
-    timezone: coords.timezone,
+    // Historically-correct UTC offset for this birth date — India
+    // hasn't always run flat +5:30 (see geocode.ts). Real accuracy fix
+    // for pre-1945 births; a no-op (same 5.5) for anything modern.
+    timezone: historicalIndiaOffsetHours(valid.dateOfBirth),
   };
 }

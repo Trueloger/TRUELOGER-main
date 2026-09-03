@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { deriveSadeSati } from "@/lib/astrology/derive";
-import { resolveCityCoordinates } from "@/lib/astrology/geocode";
+import { resolveCityCoordinates, historicalIndiaOffsetHours } from "@/lib/astrology/geocode";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 import {
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   };
   try {
     const localMs = Date.UTC(year, month - 1, date, hours, minutes, 0);
-    const birthUtc = new Date(localMs - coords.timezone * 60 * 60 * 1000);
+    const birthUtc = new Date(localMs - historicalIndiaOffsetHours(dateOfBirth) * 60 * 60 * 1000);
     const natalChart = calculateChart(birthUtc, coords.lat, coords.lon);
     natalMoonSign = natalChart.planets.Moon.sign;
     // Structured chart data for BirthChartCard — the NATAL chart only,

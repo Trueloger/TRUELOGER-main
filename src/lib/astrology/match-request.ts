@@ -29,7 +29,7 @@
 // mirrors those validators' RULES instead of importing the functions
 // themselves — the same approach src/app/api/numerology/route.ts
 // already uses for exactly this reason.
-import { resolveCityCoordinates } from "./geocode.ts";
+import { resolveCityCoordinates, historicalIndiaOffsetHours } from "./geocode.ts";
 import type { BirthInput } from "./types.ts";
 
 const MIN_BIRTH_YEAR = 1900;
@@ -161,6 +161,8 @@ export function buildMatchBirthInput(
     seconds: 0,
     latitude: coords.lat,
     longitude: coords.lon,
-    timezone: coords.timezone,
+    // Historically-correct UTC offset for this birth date — see
+    // geocode.ts's historicalIndiaOffsetHours doc comment.
+    timezone: historicalIndiaOffsetHours(valid.dateOfBirth),
   };
 }
