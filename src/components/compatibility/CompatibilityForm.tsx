@@ -21,6 +21,7 @@ import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { KundliMatchIcon } from "@/components/quick-services/icons";
 import { buildKootaRows } from "@/lib/astrology/ashtakoot-view";
+import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import type { CompatibilityApiResponse } from "./types";
 
 const EMPTY_VALUES: BirthDetailsValues = {
@@ -183,7 +184,7 @@ export function CompatibilityForm() {
   }
 
   if (status === "success" && result) {
-    const { result: ashtakoot, timeUnknown, report, reportError } = result;
+    const { result: ashtakoot, timeUnknown, report, reportError, youChart, partnerChart } = result;
     const kootaRows = buildKootaRows(ashtakoot);
     const yourName = valuesA.name.trim();
     const partnerName = valuesB.name.trim();
@@ -214,6 +215,20 @@ export function CompatibilityForm() {
           maxScore={ashtakoot.outOf}
           description="Calculated from the real Vedic Ashtakoot comparison between both birth charts."
         />
+
+        <div className="space-y-6">
+          <h2 className="font-serif text-lg text-nav-plum">Birth Charts</h2>
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+            <div className="space-y-2 text-center">
+              <h3 className="text-sm font-medium text-nav-amethyst">You</h3>
+              <BirthChartCard ascendantSign={youChart.ascendantSign} planets={youChart.planets} />
+            </div>
+            <div className="space-y-2 text-center">
+              <h3 className="text-sm font-medium text-nav-amethyst">Partner</h3>
+              <BirthChartCard ascendantSign={partnerChart.ascendantSign} planets={partnerChart.planets} />
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-3">
           <h2 className="font-serif text-lg text-nav-plum">Compatibility Breakdown</h2>

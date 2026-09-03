@@ -1,6 +1,6 @@
 // src/app/api/sade-sati/route.ts
 import { NextResponse } from "next/server";
-import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { deriveSadeSati } from "@/lib/astrology/derive";
 import { resolveCityCoordinates } from "@/lib/astrology/geocode";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
@@ -115,11 +115,28 @@ export async function POST(request: Request) {
 
   // Call 1: natal chart, for the Moon's sidereal sign at birth.
   let natalMoonSign: number;
+  let chartResponse: {
+    ascendantSign: number;
+    planets: Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>;
+  };
   try {
     const localMs = Date.UTC(year, month - 1, date, hours, minutes, 0);
     const birthUtc = new Date(localMs - coords.timezone * 60 * 60 * 1000);
     const natalChart = calculateChart(birthUtc, coords.lat, coords.lon);
     natalMoonSign = natalChart.planets.Moon.sign;
+    // Structured chart data for BirthChartCard — the NATAL chart only,
+    // never the transit chart computed below.
+    chartResponse = {
+      ascendantSign: natalChart.ascendant.sign,
+      planets: Object.fromEntries(
+        (Object.entries(natalChart.planets) as [ChartPlanetName, ChartPlanetEntry][]).map(
+          ([name, entry]) => [
+            name,
+            { sign: entry.sign, house: entry.house, isRetrograde: entry.isRetrograde, degree: entry.degree },
+          ]
+        )
+      ) as Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>,
+    };
   } catch (err) {
     console.error(
       "[sade-sati] natal chart calculation failed:",
@@ -177,6 +194,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     calculated,
+    chart: chartResponse,
     natalMoonSign,
     transitingSaturnSign,
     timeUnknown,

@@ -18,6 +18,7 @@ import { SummaryCard } from "@/components/reports/SummaryCard";
 import { Timeline } from "@/components/reports/Timeline";
 import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
+import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import { parseApiDate } from "@/lib/dasha/format";
 import type { DashaApiResponse } from "./types";
 
@@ -192,6 +193,11 @@ export function DashaForm() {
               active: currentLord === entry.lord,
             }))}
           />
+        </div>
+
+        <div className="space-y-3">
+          <h2 className="font-serif text-lg text-nav-plum">Birth Chart</h2>
+          <BirthChartCard ascendantSign={result.chart.ascendantSign} planets={result.chart.planets} />
         </div>
 
         {result.report && (

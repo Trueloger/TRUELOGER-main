@@ -25,7 +25,7 @@
 // the user near the form ("traditional Vedic matching uses male/female
 // birth charts") rather than hidden — see CompatibilityForm.tsx.
 import { NextResponse } from "next/server";
-import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { calculateChart, type ChartData, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { calculateAshtakoot } from "@/lib/ashtakoot/calculate";
 import {
   validateMatchPersonInput,
@@ -35,6 +35,37 @@ import {
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 import type { BirthInput } from "@/lib/astrology/types";
+import type { CompatibilityChartData } from "@/components/compatibility/types";
+
+// Canonical planet order for building chart-view data — same order
+// every other chart-consuming route uses (see e.g.
+// src/app/api/free-kundli/route.ts).
+const PLANET_DISPLAY_ORDER: ChartPlanetName[] = [
+  "Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn",
+  "Rahu", "Ketu", "Uranus", "Neptune", "Pluto",
+];
+
+/** Structured chart data for BirthChartCard — the same shape
+ * src/components/charts/types.ts's ChartStyleProps needs, built from a
+ * real calculateChart() result. */
+function toChartViewData(chart: ChartData): CompatibilityChartData {
+  return {
+    ascendantSign: chart.ascendant.sign,
+    planets: PLANET_DISPLAY_ORDER.reduce(
+      (acc, name) => {
+        const entry = chart.planets[name];
+        acc[name] = {
+          sign: entry.sign,
+          house: entry.house,
+          isRetrograde: entry.isRetrograde,
+          degree: entry.degree,
+        };
+        return acc;
+      },
+      {} as CompatibilityChartData["planets"]
+    ),
+  };
+}
 
 // Two resolved birth charts + one match-making calculation + the AI
 // interpretation layer, all in one request — give it real headroom.
@@ -96,6 +127,8 @@ export async function POST(request: Request) {
   }
 
   let result;
+  let youChartView: CompatibilityChartData;
+  let partnerChartView: CompatibilityChartData;
   try {
     const youChart = calculateChart(
       birthInputToUtc(femaleInput),
@@ -111,6 +144,8 @@ export async function POST(request: Request) {
       { moonSign: youChart.planets.Moon.sign, nakshatraNumber: youChart.planets.Moon.nakshatra.nakshatraNumber },
       { moonSign: partnerChart.planets.Moon.sign, nakshatraNumber: partnerChart.planets.Moon.nakshatra.nakshatraNumber }
     );
+    youChartView = toChartViewData(youChart);
+    partnerChartView = toChartViewData(partnerChart);
   } catch (err) {
     // Never log either person's full name/DOB/coordinates — only the
     // failure and which step it happened in.
@@ -144,5 +179,12 @@ export async function POST(request: Request) {
     reportError = true;
   }
 
-  return NextResponse.json({ result, timeUnknown, report, reportError });
+  return NextResponse.json({
+    result,
+    timeUnknown,
+    report,
+    reportError,
+    youChart: youChartView,
+    partnerChart: partnerChartView,
+  });
 }

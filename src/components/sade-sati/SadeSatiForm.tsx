@@ -18,6 +18,7 @@ import { SummaryCard } from "@/components/reports/SummaryCard";
 import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { ScoreCard } from "@/components/reports/ScoreCard";
+import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import { SaturnGlyphIcon } from "@/components/quick-services/icons";
 import type { SadeSatiApiResponse } from "./types";
 import type { SadeSatiPhase } from "@/lib/astrology/derive";
@@ -151,7 +152,7 @@ export function SadeSatiForm() {
   }
 
   if (status === "success" && result) {
-    const { calculated, timeUnknown, report, reportError } = result;
+    const { calculated, chart, timeUnknown, report, reportError } = result;
     const phase = calculated.phase;
 
     return (
@@ -193,6 +194,11 @@ export function SadeSatiForm() {
             description={PHASE_DESCRIPTIONS[phase]}
           />
         )}
+
+        <div className="space-y-3">
+          <h2 className="font-serif text-lg text-nav-plum">Birth Chart</h2>
+          <BirthChartCard ascendantSign={chart.ascendantSign} planets={chart.planets} />
+        </div>
 
         {report && (
           <div className="space-y-4">

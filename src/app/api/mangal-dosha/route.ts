@@ -1,6 +1,6 @@
 // src/app/api/mangal-dosha/route.ts
 import { NextResponse } from "next/server";
-import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { deriveMangalDosha } from "@/lib/astrology/derive";
 import type { PlanetExtendedEntry, PlanetName } from "@/lib/astrology/types";
 import { resolveCityCoordinates } from "@/lib/astrology/geocode";
@@ -142,6 +142,10 @@ export async function POST(request: Request) {
   const [hours, minutes] = timeOfBirth.split(":").map(Number);
 
   let calculated;
+  let chartResponse: {
+    ascendantSign: number;
+    planets: Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>;
+  };
   try {
     const localMs = Date.UTC(year, month - 1, date, hours, minutes, 0);
     const birthUtc = new Date(localMs - coords.timezone * 60 * 60 * 1000);
@@ -154,6 +158,15 @@ export async function POST(request: Request) {
     };
 
     calculated = deriveMangalDosha(adapterPlanets);
+    chartResponse = {
+      ascendantSign: chart.ascendant.sign,
+      planets: Object.fromEntries(
+        (Object.entries(chart.planets) as [ChartPlanetName, ChartPlanetEntry][]).map(([name, entry]) => [
+          name,
+          { sign: entry.sign, house: entry.house, isRetrograde: entry.isRetrograde, degree: entry.degree },
+        ])
+      ) as Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>,
+    };
   } catch (err) {
     console.error(
       "[mangal-dosha] chart calculation failed:",
@@ -184,5 +197,5 @@ export async function POST(request: Request) {
     reportError = true;
   }
 
-  return NextResponse.json({ calculated, timeUnknown, report, reportError });
+  return NextResponse.json({ calculated, chart: chartResponse, timeUnknown, report, reportError });
 }

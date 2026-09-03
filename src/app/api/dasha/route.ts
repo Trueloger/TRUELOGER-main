@@ -1,7 +1,7 @@
 // src/app/api/dasha/route.ts
 import { NextResponse } from "next/server";
 import { resolveCityCoordinates } from "@/lib/astrology/geocode";
-import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { vimshottariDasha } from "@/lib/dasha/calculate";
 import type { BirthInput } from "@/lib/astrology/types";
 import {
@@ -176,6 +176,10 @@ export async function POST(request: Request) {
   };
 
   let dasha;
+  let chartResponse: {
+    ascendantSign: number;
+    planets: Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>;
+  };
   try {
     const localMs = Date.UTC(
       birthInput.year,
@@ -188,6 +192,15 @@ export async function POST(request: Request) {
     const birthUtc = new Date(localMs - birthInput.timezone * 60 * 60 * 1000);
     const chart = calculateChart(birthUtc, birthInput.latitude, birthInput.longitude);
     dasha = vimshottariDasha(chart.planets.Moon.longitude, birthUtc);
+    chartResponse = {
+      ascendantSign: chart.ascendant.sign,
+      planets: Object.fromEntries(
+        (Object.entries(chart.planets) as [ChartPlanetName, ChartPlanetEntry][]).map(([name, entry]) => [
+          name,
+          { sign: entry.sign, house: entry.house, isRetrograde: entry.isRetrograde, degree: entry.degree },
+        ])
+      ) as Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>,
+    };
   } catch (err) {
     // Never log full name/DOB — only the failure.
     console.error(
@@ -240,6 +253,7 @@ export async function POST(request: Request) {
     mahaDashaTimeline: mahaDashaTimelineEntries,
     currentMahaDasha,
     currentAntarDasha,
+    chart: chartResponse,
     timeUnknown,
     report,
     reportError,

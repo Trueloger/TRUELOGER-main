@@ -21,6 +21,7 @@ import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { KundliMatchIcon } from "@/components/quick-services/icons";
 import { buildKootaRows } from "@/lib/astrology/ashtakoot-view";
+import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import type { KundliMatchingApiResponse } from "./types";
 
 const EMPTY_VALUES: BirthDetailsValues = {
@@ -175,7 +176,7 @@ export function KundliMatchingForm() {
   }
 
   if (status === "success" && result) {
-    const { result: ashtakoot, timeUnknown, report, reportError } = result;
+    const { result: ashtakoot, timeUnknown, report, reportError, brideChart, groomChart } = result;
     const kootaRows = buildKootaRows(ashtakoot);
     const brideName = valuesA.name.trim();
     const groomName = valuesB.name.trim();
@@ -198,6 +199,20 @@ export function KundliMatchingForm() {
           maxScore={ashtakoot.outOf}
           description={`${verdictFor(ashtakoot.totalScore)} — traditional Ashtakoot guidance, not a guarantee of relationship success or failure.`}
         />
+
+        <div className="space-y-6">
+          <h2 className="font-serif text-lg text-nav-plum">Birth Charts</h2>
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+            <div className="space-y-2 text-center">
+              <h3 className="text-sm font-medium text-nav-amethyst">Bride</h3>
+              <BirthChartCard ascendantSign={brideChart.ascendantSign} planets={brideChart.planets} />
+            </div>
+            <div className="space-y-2 text-center">
+              <h3 className="text-sm font-medium text-nav-amethyst">Groom</h3>
+              <BirthChartCard ascendantSign={groomChart.ascendantSign} planets={groomChart.planets} />
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-3">
           <h2 className="font-serif text-lg text-nav-plum">Guna Milan Breakdown</h2>

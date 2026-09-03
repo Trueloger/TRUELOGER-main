@@ -1,4 +1,4 @@
-// src/components/free-kundli/NorthIndianChart.tsx
+// src/components/charts/NorthIndianChart.tsx
 // A real, locally-authored inline SVG rendering of a North Indian style
 // Vedic birth chart (Rasi/D1). Fed structured chart data computed by
 // src/lib/astro-engine/ephemeris.ts's calculateChart — never raw
@@ -33,45 +33,11 @@
 //   - https://www.vedicplanet.com/jyotish/learn-jyotish/chart-formats-in-jyotish-astrology/
 //     (confirms the North Indian format fixes houses in place and
 //     rotates signs through them, unlike the South Indian format).
+import { PLANET_ABBREVIATIONS, PLANET_ORDER, signForHouse } from "./shared";
 import type { ChartPlanetName } from "@/lib/astro-engine/ephemeris";
+import type { ChartStyleProps } from "./types";
 
-export type NorthIndianChartPlanet = {
-  sign: number; // 1-12, sidereal sign the planet occupies
-  house: number; // 1-12, whole-sign house from the Ascendant
-  isRetrograde: boolean;
-  degree: number; // 0-30, degree within sign — not currently displayed, kept for future use
-};
-
-export type NorthIndianChartProps = {
-  /** 1-12, sidereal sign number occupying House 1 (the Ascendant's own sign). */
-  ascendantSign: number;
-  planets: Record<ChartPlanetName, NorthIndianChartPlanet>;
-  className?: string;
-};
-
-const PLANET_ABBREVIATIONS: Record<ChartPlanetName, string> = {
-  Sun: "Su",
-  Moon: "Mo",
-  Mars: "Ma",
-  Mercury: "Me",
-  Jupiter: "Ju",
-  Venus: "Ve",
-  Saturn: "Sa",
-  Rahu: "Ra",
-  Ketu: "Ke",
-  Uranus: "Ur",
-  Neptune: "Ne",
-  Pluto: "Pl",
-};
-
-// Canonical display order within a shared house cell — traditional
-// Vedic ordering (luminaries, then the classical grahas, then the
-// shadow points, then the modern outer planets), same order used for
-// the planetary table in src/app/api/free-kundli/route.ts.
-const PLANET_ORDER: ChartPlanetName[] = [
-  "Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn",
-  "Rahu", "Ketu", "Uranus", "Neptune", "Pluto",
-];
+export type NorthIndianChartProps = ChartStyleProps;
 
 // ---------------------------------------------------------------------
 // Fixed geometry — a 400x400 square, corner-to-corner diagonals plus a
@@ -135,13 +101,6 @@ const HOUSE_CELLS: HouseCell[] = [
 
 function polygonPoints(polygon: Point[]): string {
   return polygon.map((p) => `${p.x},${p.y}`).join(" ");
-}
-
-/** Sidereal sign occupying `house` (1-12) counted from an Ascendant
- * whose own sign is `ascendantSign` — the same whole-sign rule
- * src/lib/astrology/derive.ts's signHouseNumber applies in reverse. */
-function signForHouse(ascendantSign: number, house: number): number {
-  return (((ascendantSign - 1 + (house - 1)) % 12) + 12) % 12 + 1;
 }
 
 /** Renders a real, locally-computed North Indian style Vedic birth

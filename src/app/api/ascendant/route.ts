@@ -1,6 +1,6 @@
 // src/app/api/ascendant/route.ts
 import { NextResponse } from "next/server";
-import { calculateChart } from "@/lib/astro-engine/ephemeris";
+import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { deriveRashi } from "@/lib/astrology/derive";
 import type { BirthInput } from "@/lib/astrology/types";
 import {
@@ -65,10 +65,23 @@ export async function POST(request: Request) {
   // tropical house-system call needed (that was the old FreeAstrologyAPI
   // /western/houses distinction; not applicable here).
   let ascendant;
+  let chartResponse: {
+    ascendantSign: number;
+    planets: Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>;
+  };
   try {
     const birthUtc = birthInputToUtc(birthInput);
     const chart = calculateChart(birthUtc, birthInput.latitude, birthInput.longitude);
     ascendant = chart.ascendant;
+    chartResponse = {
+      ascendantSign: chart.ascendant.sign,
+      planets: Object.fromEntries(
+        (Object.entries(chart.planets) as [ChartPlanetName, ChartPlanetEntry][]).map(([name, entry]) => [
+          name,
+          { sign: entry.sign, house: entry.house, isRetrograde: entry.isRetrograde, degree: entry.degree },
+        ])
+      ) as Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>,
+    };
   } catch (err) {
     console.error(
       "[ascendant] chart calculation failed:",
@@ -117,5 +130,5 @@ export async function POST(request: Request) {
     reportError = true;
   }
 
-  return NextResponse.json({ calculated, report, reportError });
+  return NextResponse.json({ calculated, chart: chartResponse, report, reportError });
 }

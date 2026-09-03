@@ -17,6 +17,7 @@ import { ResultHeader } from "@/components/reports/ResultHeader";
 import { SummaryCard } from "@/components/reports/SummaryCard";
 import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
+import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import { MarsGlyphIcon } from "@/components/quick-services/icons";
 import type { MangalDoshaApiResponse } from "./types";
 
@@ -129,7 +130,7 @@ export function MangalDoshaForm() {
   }
 
   if (status === "success" && result) {
-    const { calculated, timeUnknown, report, reportError } = result;
+    const { calculated, chart, timeUnknown, report, reportError } = result;
 
     return (
       <div className="space-y-8">
@@ -164,6 +165,11 @@ export function MangalDoshaForm() {
               12:00. Providing your exact birth time can refine accuracy.
             </p>
           )}
+        </div>
+
+        <div className="space-y-3">
+          <h2 className="font-serif text-lg text-nav-plum">Birth Chart</h2>
+          <BirthChartCard ascendantSign={chart.ascendantSign} planets={chart.planets} />
         </div>
 
         {report && (

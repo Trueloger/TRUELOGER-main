@@ -7,6 +7,21 @@
 // this exact same shape.
 import type { StructuredReport } from "@/lib/ai/report";
 import type { AshtakootResult } from "@/lib/ashtakoot/calculate";
+import type { ChartPlanetName } from "@/lib/astro-engine/ephemeris";
+
+/** Structured chart data for BirthChartCard (src/components/charts) —
+ * the exact same shape src/components/charts/types.ts's ChartStyleProps
+ * needs, computed entirely by src/lib/astro-engine/ephemeris.ts's
+ * calculateChart. Same shape as src/components/free-kundli/types.ts's
+ * FreeKundliChartData — kept as its own named type here since this
+ * route resolves two people's charts, not one. */
+export type KundliMatchingChartData = {
+  ascendantSign: number;
+  planets: Record<
+    ChartPlanetName,
+    { sign: number; house: number; isRetrograde: boolean; degree: number }
+  >;
+};
 
 export type KundliMatchingApiResponse = {
   result: AshtakootResult;
@@ -17,4 +32,8 @@ export type KundliMatchingApiResponse = {
   timeUnknown: boolean;
   report: StructuredReport | null;
   reportError: boolean;
+  /** The bride's (personA's) real birth chart, for BirthChartCard. */
+  brideChart: KundliMatchingChartData;
+  /** The groom's (personB's) real birth chart, for BirthChartCard. */
+  groomChart: KundliMatchingChartData;
 };

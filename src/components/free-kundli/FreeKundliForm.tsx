@@ -15,12 +15,11 @@ import { LoadingState } from "@/components/reports/LoadingState";
 import { ErrorState } from "@/components/reports/ErrorState";
 import { ResultHeader } from "@/components/reports/ResultHeader";
 import { SummaryCard } from "@/components/reports/SummaryCard";
-import { ChartCard } from "@/components/reports/ChartCard";
 import { PlanetaryTable } from "@/components/reports/PlanetaryTable";
 import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { KundliChartIcon } from "@/components/quick-services/icons";
-import { NorthIndianChart } from "./NorthIndianChart";
+import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import type { FreeKundliApiResponse } from "./types";
 
 const EMPTY_VALUES: BirthDetailsValues = {
@@ -189,12 +188,11 @@ export function FreeKundliForm() {
           </dl>
         </SummaryCard>
 
-        <ChartCard caption="Rasi (D1) Chart — North Indian Style">
-          {/* Real, locally-computed structured chart data rendered as a
-              real React SVG component — never third-party markup, so
-              there's nothing here to sanitize. */}
-          <NorthIndianChart ascendantSign={chart.ascendantSign} planets={chart.planets} />
-        </ChartCard>
+        {/* Real, locally-computed structured chart data rendered as a
+            real React SVG component — never third-party markup, so
+            there's nothing here to sanitize. BirthChartCard is the one
+            shared entry point for every chart style. */}
+        <BirthChartCard ascendantSign={chart.ascendantSign} planets={chart.planets} />
 
         <div>
           <h2 className="mb-3 font-serif text-lg text-nav-plum">Planetary Positions</h2>
