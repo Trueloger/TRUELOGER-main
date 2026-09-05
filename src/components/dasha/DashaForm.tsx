@@ -200,6 +200,48 @@ export function DashaForm() {
           <BirthChartCard ascendantSign={result.chart.ascendantSign} planets={result.chart.planets} />
         </div>
 
+        <div className="space-y-3">
+          <h2 className="font-serif text-lg text-nav-plum">Navamsa (D9) Chart</h2>
+          <p className="text-xs text-nav-plum/60">
+            Each planet&rsquo;s Navamsa placement — traditionally consulted for marriage and a
+            planet&rsquo;s deeper strength.
+          </p>
+          <BirthChartCard
+            ascendantSign={result.navamsaChart.ascendantSign}
+            planets={result.navamsaChart.planets}
+          />
+        </div>
+
+        <div>
+          <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
+          <p className="mb-3 text-xs text-nav-plum/60">
+            Classical planetary combinations this chart was checked against.
+          </p>
+          {result.yogas.some((y) => y.present) ? (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {result.yogas
+                .filter((y) => y.present)
+                .map((y) => (
+                  <li
+                    key={y.id}
+                    className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                  >
+                    <span className="font-medium">{y.name}</span>
+                    {y.strength && (
+                      <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
+                        ({y.strength})
+                      </span>
+                    )}
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-nav-plum/70">
+              None of the classical yogas this engine checks for were detected in this chart.
+            </p>
+          )}
+        </div>
+
         {result.report && (
           <div className="space-y-4">
             {result.report.summary && (

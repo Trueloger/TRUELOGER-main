@@ -2,7 +2,10 @@
 import { NextResponse } from "next/server";
 import { resolveCityCoordinates, historicalIndiaOffsetHours } from "@/lib/astrology/geocode";
 import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
+import { calculateDivisionalChart } from "@/lib/astro-engine/divisional";
+import { detectYogas } from "@/lib/astro-engine/yogas";
 import { vimshottariDasha } from "@/lib/dasha/calculate";
+import { signHouseNumber } from "@/lib/astrology/derive";
 import type { BirthInput } from "@/lib/astrology/types";
 import {
   findCurrentAntarDasha,
@@ -182,6 +185,8 @@ export async function POST(request: Request) {
     ascendantSign: number;
     planets: Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>;
   };
+  let navamsaChartResponse: typeof chartResponse;
+  let yogas: { id: string; name: string; present: boolean; strength?: "weak" | "moderate" | "strong" }[];
   try {
     const localMs = Date.UTC(
       birthInput.year,
@@ -203,6 +208,40 @@ export async function POST(request: Request) {
         ])
       ) as Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>,
     };
+
+    // D9 Navamsa — same BirthChartCard-compatible shape, but every
+    // sign/house is the planet's Navamsa placement
+    // (src/lib/astro-engine/divisional.ts), not its D1/Rasi placement.
+    // Retrograde is a real physical motion, so it's carried over
+    // unchanged from the natal chart; "house" is counted from the
+    // Navamsa chart's OWN Ascendant sign.
+    const navamsa = calculateDivisionalChart(9, chart);
+    navamsaChartResponse = {
+      ascendantSign: navamsa.ascendant.sign,
+      planets: Object.fromEntries(
+        (Object.keys(chart.planets) as ChartPlanetName[]).map((name) => {
+          const point = navamsa.planets[name];
+          return [
+            name,
+            {
+              sign: point.sign,
+              house: signHouseNumber(navamsa.ascendant.sign, point.sign),
+              isRetrograde: chart.planets[name].isRetrograde,
+              degree: point.degreeInVarga,
+            },
+          ];
+        })
+      ) as Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>,
+    };
+
+    // Yogas: real detected/not-detected data only (src/lib/astro-engine/
+    // yogas.ts never generates interpretation text).
+    yogas = detectYogas(chart).map((y) => ({
+      id: y.ruleId,
+      name: y.name,
+      present: y.present,
+      strength: y.strength,
+    }));
   } catch (err) {
     // Never log full name/DOB — only the failure.
     console.error(
@@ -230,6 +269,7 @@ export async function POST(request: Request) {
     : -1;
   const upcomingMahaDashas =
     currentIndex >= 0 ? mahaDashaTimelineEntries.slice(currentIndex + 1, currentIndex + 4) : [];
+  const presentYogaNames = yogas.filter((y) => y.present).map((y) => y.name);
 
   let report: StructuredReport | null = null;
   let reportError = false;
@@ -240,8 +280,9 @@ export async function POST(request: Request) {
         currentMahaDasha,
         currentAntarDasha,
         upcomingMahaDashas,
+        presentYogaNames,
       },
-      'Write a warm, grounded Vimshottari Dasha reading for this person. Cover exactly 3 sections: (1) "Current Mahadasha" — interpret the current maha-dasha lord\'s influence on this life period; (2) "Current Antardasha" — interpret how the current antar-dasha lord colors the maha-dasha period right now; (3) "What\'s Ahead" — a grounded look at the upcoming maha-dasha periods listed. Keep each section to 3-5 sentences.'
+      'Write a warm, grounded Vimshottari Dasha reading for this person. Cover exactly 3 sections: (1) "Current Mahadasha" — interpret the current maha-dasha lord\'s influence on this life period; (2) "Current Antardasha" — interpret how the current antar-dasha lord colors the maha-dasha period right now; (3) "What\'s Ahead" — a grounded look at the upcoming maha-dasha periods listed, and if "presentYogaNames" is non-empty, briefly name those classical yoga(s) as traditionally significant combinations present in this chart (name only, no invented meaning beyond that). Keep each section to 3-5 sentences.'
     );
   } catch (err) {
     console.error(
@@ -256,6 +297,8 @@ export async function POST(request: Request) {
     currentMahaDasha,
     currentAntarDasha,
     chart: chartResponse,
+    navamsaChart: navamsaChartResponse,
+    yogas,
     timeUnknown,
     report,
     reportError,

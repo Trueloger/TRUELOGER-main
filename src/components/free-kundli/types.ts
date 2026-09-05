@@ -38,6 +38,20 @@ export type FreeKundliCalculated = {
    * screen can prominently disclose that houses/Ascendant are
    * approximate. */
   timeUnknown: boolean;
+  /** Names of every classical yoga detected present in this chart (see
+   * `yogas` on FreeKundliApiResponse for the full checked/not-checked
+   * list) — this subset is what's fed to the AI-interpretation layer. */
+  presentYogaNames: string[];
+};
+
+/** One row of src/lib/astro-engine/yogas.ts's detectYogas() output —
+ * data only (present/absent + an optional classical strength grade),
+ * never interpretation text. */
+export type FreeKundliYoga = {
+  id: string;
+  name: string;
+  present: boolean;
+  strength?: "weak" | "moderate" | "strong";
 };
 
 /** Structured chart data — the exact shape NorthIndianChart.tsx needs
@@ -64,6 +78,14 @@ export type FreeKundliApiResponse = {
    * so there is no third-party call that can fail independently of the
    * rest of this response. */
   chart: FreeKundliChartData;
+  /** D9 Navamsa chart, same BirthChartCard-compatible shape as `chart`
+   * — every sign/house here is the planet's Navamsa placement, not its
+   * D1/Rasi placement (src/lib/astro-engine/divisional.ts). */
+  navamsaChart: FreeKundliChartData;
+  /** Every classical yoga this engine checks for, with its real
+   * present/absent result (src/lib/astro-engine/yogas.ts) — not
+   * filtered to just the hits, so the UI can show what was checked. */
+  yogas: FreeKundliYoga[];
   report: StructuredReport | null;
   reportError: boolean;
 };

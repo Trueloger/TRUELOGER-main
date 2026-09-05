@@ -1,7 +1,10 @@
 // src/app/api/free-kundli/route.ts
 import { NextResponse } from "next/server";
 import { calculateChart, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
+import { calculateDivisionalChart } from "@/lib/astro-engine/divisional";
+import { detectYogas } from "@/lib/astro-engine/yogas";
 import { DASHA_LORD_SEQUENCE } from "@/lib/dasha/calculate";
+import { signHouseNumber } from "@/lib/astrology/derive";
 import { getRashiReference } from "@/lib/astrology/rashi-reference";
 import {
   validateBirthRequestBody,
@@ -15,6 +18,7 @@ import type {
   FreeKundliCalculated,
   FreeKundliChartData,
   FreeKundliPlanetRow,
+  FreeKundliYoga,
 } from "@/components/free-kundli/types";
 
 // The chart itself is now pure local computation (src/lib/astro-engine)
@@ -117,6 +121,17 @@ export async function POST(request: Request) {
     }
   }
 
+  // Yogas: real detected/not-detected data only (src/lib/astro-engine/
+  // yogas.ts never generates interpretation text) — surfaced in full so
+  // the result page can show every rule checked, not just the hits.
+  const yogas: FreeKundliYoga[] = detectYogas(chartData).map((y) => ({
+    id: y.ruleId,
+    name: y.name,
+    present: y.present,
+    strength: y.strength,
+  }));
+  const presentYogaNames = yogas.filter((y) => y.present).map((y) => y.name);
+
   // Every value below is read straight off the real, locally-computed
   // chart — never invented. This summarized subset (not all 12
   // planets' full raw data) is what goes to the AI-interpretation
@@ -134,6 +149,7 @@ export async function POST(request: Request) {
     sunSign: signName(sun.sign),
     angularHousePlanets,
     timeUnknown: validated.timeUnknown,
+    presentYogaNames,
   };
 
   const planetaryRows: FreeKundliPlanetRow[] = [
@@ -174,6 +190,28 @@ export async function POST(request: Request) {
     ),
   };
 
+  // D9 Navamsa chart — same BirthChartCard-compatible shape as `chart`
+  // above, but every sign/house is the planet's NAVAMSA placement
+  // (src/lib/astro-engine/divisional.ts), not its D1/Rasi placement.
+  // Retrograde status is a real physical motion, not something that
+  // changes per divisional chart, so it's carried over unchanged from
+  // the natal chart; "house" is the whole-sign house counted from the
+  // Navamsa chart's OWN Ascendant sign, not the D1 Ascendant's.
+  const navamsa = calculateDivisionalChart(9, chartData);
+  const navamsaChart: FreeKundliChartData = {
+    ascendantSign: navamsa.ascendant.sign,
+    planets: PLANET_DISPLAY_ORDER.reduce((acc, name) => {
+      const point = navamsa.planets[name];
+      acc[name] = {
+        sign: point.sign,
+        house: signHouseNumber(navamsa.ascendant.sign, point.sign),
+        isRetrograde: chartData.planets[name].isRetrograde,
+        degree: point.degreeInVarga,
+      };
+      return acc;
+    }, {} as FreeKundliChartData["planets"]),
+  };
+
   // The real calculated chart above must always reach the client, even
   // if the AI-interpretation layer fails — an AI outage never hides
   // real calculated data.
@@ -183,7 +221,7 @@ export async function POST(request: Request) {
     report = await generateStructuredReport(
       "free-kundli",
       calculated,
-      `Write a warm, grounded Vedic birth chart (Kundli) overview using this real chart data. Cover exactly 4 sections: (1) titled "Your Ascendant — <sign>", explaining what the Lagna (rising sign) traditionally represents and this chart's specific rising sign and its ruling planet; (2) titled "Moon Sign & Nakshatra", explaining the Rashi (Moon sign) and Nakshatra shown above and what they traditionally represent for temperament and inner life; (3) titled "Sun Sign", covering the core identity theme of the Sun's placement; (4) titled "Chart Highlights", discussing the planets listed in "angularHousePlanets" (houses 1, 4, 7, and 10 counted from the Ascendant — the traditionally most emphasized houses) and what an angular placement traditionally emphasizes for each of those planets. Keep each section to 3-5 sentences. If "timeUnknown" is true, add one brief, matter-of-fact closing note (in section 4) that the exact time of birth was not provided, so the Ascendant and house placements shown are approximate, and that providing the exact birth time would refine accuracy.`
+      `Write a warm, grounded Vedic birth chart (Kundli) overview using this real chart data. Cover exactly 4 sections: (1) titled "Your Ascendant — <sign>", explaining what the Lagna (rising sign) traditionally represents and this chart's specific rising sign and its ruling planet; (2) titled "Moon Sign & Nakshatra", explaining the Rashi (Moon sign) and Nakshatra shown above and what they traditionally represent for temperament and inner life; (3) titled "Sun Sign", covering the core identity theme of the Sun's placement; (4) titled "Chart Highlights", discussing the planets listed in "angularHousePlanets" (houses 1, 4, 7, and 10 counted from the Ascendant — the traditionally most emphasized houses) and what an angular placement traditionally emphasizes for each of those planets, AND, if "presentYogaNames" is non-empty, briefly naming those classical yoga(s) as traditionally significant combinations present in this chart (do not invent what they mean beyond their name — a one-clause acknowledgement is enough, this is not the place for deep yoga interpretation). Keep each section to 3-5 sentences. If "timeUnknown" is true, add one brief, matter-of-fact closing note (in section 4) that the exact time of birth was not provided, so the Ascendant and house placements shown are approximate, and that providing the exact birth time would refine accuracy.`
     );
   } catch (err) {
     // Never log the user's name/DOB/exact coordinates — only the
@@ -199,6 +237,8 @@ export async function POST(request: Request) {
     calculated,
     planetaryRows,
     chart,
+    navamsaChart,
+    yogas,
     report,
     reportError,
   });

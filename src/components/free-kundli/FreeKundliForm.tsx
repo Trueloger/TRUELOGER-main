@@ -134,7 +134,8 @@ export function FreeKundliForm() {
   }
 
   if (status === "success" && result) {
-    const { calculated, planetaryRows, chart, report, reportError } = result;
+    const { calculated, planetaryRows, chart, navamsaChart, yogas, report, reportError } = result;
+    const presentYogas = yogas.filter((y) => y.present);
 
     return (
       <div className="space-y-8">
@@ -197,6 +198,48 @@ export function FreeKundliForm() {
         <div>
           <h2 className="mb-3 font-serif text-lg text-nav-plum">Planetary Positions</h2>
           <PlanetaryTable rows={planetaryRows} caption="Planetary positions, houses, and degrees" />
+        </div>
+
+        {/* D9 Navamsa — the chart traditionally consulted for marriage and
+            a planet's deeper strength, real placements only. */}
+        <div>
+          <h2 className="mb-1 font-serif text-lg text-nav-plum">Navamsa (D9) Chart</h2>
+          <p className="mb-3 text-xs text-nav-plum/60">
+            Each planet&rsquo;s Navamsa placement — traditionally consulted for marriage and a
+            planet&rsquo;s deeper strength.
+          </p>
+          <BirthChartCard ascendantSign={navamsaChart.ascendantSign} planets={navamsaChart.planets} />
+        </div>
+
+        {/* Yogas — real detected/not-detected data only, no invented
+            interpretation. Only the hits are listed; the full checked
+            set is in the API response for anyone who needs it. */}
+        <div>
+          <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
+          <p className="mb-3 text-xs text-nav-plum/60">
+            Classical planetary combinations this chart was checked against.
+          </p>
+          {presentYogas.length > 0 ? (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {presentYogas.map((y) => (
+                <li
+                  key={y.id}
+                  className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                >
+                  <span className="font-medium">{y.name}</span>
+                  {y.strength && (
+                    <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
+                      ({y.strength})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-nav-plum/70">
+              None of the classical yogas this engine checks for were detected in this chart.
+            </p>
+          )}
         </div>
 
         {report && (

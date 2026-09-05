@@ -20,11 +20,28 @@ export type DashaChartData = {
   >;
 };
 
+/** One row of src/lib/astro-engine/yogas.ts's detectYogas() output —
+ * data only (present/absent + an optional classical strength grade),
+ * never interpretation text. */
+export type DashaYoga = {
+  id: string;
+  name: string;
+  present: boolean;
+  strength?: "weak" | "moderate" | "strong";
+};
+
 export type DashaApiResponse = {
   mahaDashaTimeline: MahaDashaTimelineEntry[];
   currentMahaDasha: CurrentDashaEntry | null;
   currentAntarDasha: CurrentDashaEntry | null;
   chart: DashaChartData;
+  /** D9 Navamsa chart, same BirthChartCard-compatible shape as `chart`
+   * — every sign/house here is the planet's Navamsa placement, not its
+   * D1/Rasi placement (src/lib/astro-engine/divisional.ts). */
+  navamsaChart: DashaChartData;
+  /** Every classical yoga this engine checks for, with its real
+   * present/absent result (src/lib/astro-engine/yogas.ts). */
+  yogas: DashaYoga[];
   timeUnknown: boolean;
   report: StructuredReport | null;
   reportError: boolean;
