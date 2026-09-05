@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { calculateChart, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { calculateDivisionalChart } from "@/lib/astro-engine/divisional";
 import { detectYogas } from "@/lib/astro-engine/yogas";
+import { calculateShadbala } from "@/lib/astro-engine/shadbala";
 import { DASHA_LORD_SEQUENCE } from "@/lib/dasha/calculate";
 import { signHouseNumber } from "@/lib/astrology/derive";
 import { getRashiReference } from "@/lib/astrology/rashi-reference";
@@ -19,6 +20,7 @@ import type {
   FreeKundliChartData,
   FreeKundliPlanetRow,
   FreeKundliYoga,
+  FreeKundliPlanetaryStrength,
 } from "@/components/free-kundli/types";
 
 // The chart itself is now pure local computation (src/lib/astro-engine)
@@ -132,6 +134,25 @@ export async function POST(request: Request) {
   }));
   const presentYogaNames = yogas.filter((y) => y.present).map((y) => y.name);
 
+  // Shadbala — core/simplified classical planetary strength (see
+  // src/lib/astro-engine/shadbala.ts's "HONESTY NOTICE" doc comment for
+  // exactly what's implemented vs. skipped). Only the 7 classical
+  // planets have a result; Rahu/Ketu/outer planets are omitted rather
+  // than padded with a fabricated null-shaped row.
+  const shadbalaByPlanet = calculateShadbala(chartData);
+  const planetaryStrength: FreeKundliPlanetaryStrength[] = (Object.keys(shadbalaByPlanet) as ChartPlanetName[])
+    .map((name) => {
+      const s = shadbalaByPlanet[name];
+      if (!s) return null;
+      return {
+        planet: name,
+        totalRupas: s.totalRupas,
+        requiredRupas: s.requiredRupas,
+        meetsRequirement: s.meetsRequirement,
+      };
+    })
+    .filter((row) => row !== null);
+
   // Every value below is read straight off the real, locally-computed
   // chart — never invented. This summarized subset (not all 12
   // planets' full raw data) is what goes to the AI-interpretation
@@ -239,6 +260,7 @@ export async function POST(request: Request) {
     chart,
     navamsaChart,
     yogas,
+    planetaryStrength,
     report,
     reportError,
   });

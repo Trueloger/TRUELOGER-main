@@ -134,7 +134,8 @@ export function FreeKundliForm() {
   }
 
   if (status === "success" && result) {
-    const { calculated, planetaryRows, chart, navamsaChart, yogas, report, reportError } = result;
+    const { calculated, planetaryRows, chart, navamsaChart, yogas, planetaryStrength, report, reportError } =
+      result;
     const presentYogas = yogas.filter((y) => y.present);
 
     return (
@@ -240,6 +241,32 @@ export function FreeKundliForm() {
               None of the classical yogas this engine checks for were detected in this chart.
             </p>
           )}
+        </div>
+
+        {/* Shadbala — core/simplified classical planetary strength, not
+            a full BPHS reproduction (see src/lib/astro-engine/shadbala.ts).
+            Real computed Rupas only, never an interpretive score. */}
+        <div>
+          <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
+          <p className="mb-3 text-xs text-nav-plum/60">
+            A simplified core version of the classical six-fold strength system, for the 7
+            classical planets. &ldquo;Meets requirement&rdquo; compares each planet&rsquo;s total
+            against its own classical minimum.
+          </p>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {planetaryStrength.map((s) => (
+              <li
+                key={s.planet}
+                className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+              >
+                <span className="font-medium">{s.planet}</span>
+                <span className="text-xs text-nav-plum/70">
+                  {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
+                  {s.meetsRequirement ? " ✓" : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {report && (

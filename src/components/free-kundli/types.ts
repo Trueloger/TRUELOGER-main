@@ -54,6 +54,18 @@ export type FreeKundliYoga = {
   strength?: "weak" | "moderate" | "strong";
 };
 
+/** One classical planet's core Shadbala total vs. its classical
+ * minimum-strength requirement (src/lib/astro-engine/shadbala.ts) —
+ * only the 7 classical planets have this (no classical Shadbala for
+ * Rahu/Ketu/outer planets), and this is a documented "core/simplified"
+ * version of the full BPHS system, not a complete reproduction. */
+export type FreeKundliPlanetaryStrength = {
+  planet: string;
+  totalRupas: number;
+  requiredRupas: number;
+  meetsRequirement: boolean;
+};
+
 /** Structured chart data — the exact shape NorthIndianChart.tsx needs
  * to render the North Indian style Rasi (D1) chart locally: the
  * Ascendant's sidereal sign (fixes which sign occupies House 1) plus
@@ -86,6 +98,9 @@ export type FreeKundliApiResponse = {
    * present/absent result (src/lib/astro-engine/yogas.ts) — not
    * filtered to just the hits, so the UI can show what was checked. */
   yogas: FreeKundliYoga[];
+  /** Core Shadbala for the 7 classical planets (Sun-Saturn only) —
+   * see FreeKundliPlanetaryStrength's doc comment. */
+  planetaryStrength: FreeKundliPlanetaryStrength[];
   report: StructuredReport | null;
   reportError: boolean;
 };
