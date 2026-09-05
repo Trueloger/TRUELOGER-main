@@ -12,6 +12,7 @@ import {
 import { getNakshatraReference } from "@/lib/astrology/nakshatra-reference";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
+import { logAudit } from "@/lib/observability/audit-log";
 
 // AI-report layer generation can take a few seconds even though chart
 // calculation itself is now local and instant.
@@ -36,16 +37,19 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as BirthRequestBody;
   } catch {
+    logAudit({ route: "nakshatra", calculationType: "nakshatra", outcome: "validation_error" });
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const validated = validateBirthRequestBody(body ?? {});
   if ("error" in validated) {
+    logAudit({ route: "nakshatra", calculationType: "nakshatra", outcome: "validation_error" });
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
   const birthInput = buildBirthInput(validated);
   if ("error" in birthInput) {
+    logAudit({ route: "nakshatra", calculationType: "nakshatra", outcome: "validation_error" });
     return NextResponse.json({ error: birthInput.error }, { status: 400 });
   }
 
@@ -55,6 +59,7 @@ export async function POST(request: Request) {
     windowSeconds: 60,
   });
   if (!rateLimit.allowed) {
+    logAudit({ route: "nakshatra", calculationType: "nakshatra", outcome: "rate_limited" });
     return NextResponse.json(
       { error: "You've made too many requests. Please wait a minute and try again." },
       { status: 429 }
@@ -66,6 +71,7 @@ export async function POST(request: Request) {
     ascendantSign: number;
     planets: Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>;
   };
+  const calcStart = Date.now();
   try {
     const birthUtc = birthInputToUtc(birthInput);
     const chart = calculateChart(birthUtc, birthInput.latitude, birthInput.longitude);
@@ -84,6 +90,7 @@ export async function POST(request: Request) {
       "[nakshatra] chart calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: "nakshatra", calculationType: "nakshatra", outcome: "calculation_error" });
     return NextResponse.json(
       { error: "We couldn't calculate your Nakshatra right now. Please try again shortly." },
       { status: 502 }
@@ -128,8 +135,16 @@ export async function POST(request: Request) {
       "[nakshatra] report generation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: "nakshatra", calculationType: "nakshatra", outcome: "report_error" });
     reportError = true;
   }
+
+  logAudit({
+    route: "nakshatra",
+    calculationType: "nakshatra",
+    outcome: "success",
+    durationMs: Date.now() - calcStart,
+  });
 
   return NextResponse.json({ calculated, chart: chartResponse, report, reportError });
 }

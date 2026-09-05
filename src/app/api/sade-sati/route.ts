@@ -1,6 +1,7 @@
 // src/app/api/sade-sati/route.ts
 import { NextResponse } from "next/server";
 import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
+import { findNextSignIngress } from "@/lib/astro-engine/transit";
 import { deriveSadeSati } from "@/lib/astrology/derive";
 import { resolveCityCoordinates, historicalIndiaOffsetHours } from "@/lib/astrology/geocode";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
@@ -173,6 +174,24 @@ export async function POST(request: Request) {
 
   const calculated = deriveSadeSati(natalMoonSign, transitingSaturnSign);
 
+  // Additive context: when will transiting Saturn next change sidereal
+  // sign — useful for "how much longer is this phase". This is a pure
+  // add-on to the response; a failure or an out-of-range result (Saturn
+  // moves slowly enough that its ingress can fall outside the search
+  // cap) is a valid non-error outcome, never a 502 — the real calculated
+  // Sade Sati status above must never be blocked by this.
+  let nextSaturnSignChange: { ingressUtc: string; fromSign: number; toSign: number } | null = null;
+  try {
+    const now = new Date();
+    nextSaturnSignChange = findNextSignIngress("Saturn", now, coords.lat, coords.lon);
+  } catch (err) {
+    console.error(
+      "[sade-sati] next Saturn ingress lookup failed:",
+      err instanceof Error ? err.message : "unknown error"
+    );
+    nextSaturnSignChange = null;
+  }
+
   // The real calculated Sade Sati status above must always reach the
   // client, even if the AI-interpretation layer fails — an AI outage
   // never hides real calculated data.
@@ -197,6 +216,7 @@ export async function POST(request: Request) {
     chart: chartResponse,
     natalMoonSign,
     transitingSaturnSign,
+    nextSaturnSignChange,
     timeUnknown,
     report,
     reportError,

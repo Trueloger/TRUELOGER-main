@@ -6,6 +6,7 @@ import type { PlanetExtendedEntry, PlanetName } from "@/lib/astrology/types";
 import { resolveCityCoordinates, historicalIndiaOffsetHours } from "@/lib/astrology/geocode";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
+import { logAudit } from "@/lib/observability/audit-log";
 import {
   validateNameServer,
   validateDateOfBirthServer,
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
     windowSeconds: 60,
   });
   if (!rateLimit.allowed) {
+    logAudit({ route: "mangal-dosha", calculationType: "mangal-dosha", outcome: "rate_limited" });
     return NextResponse.json(
       {
         error:
@@ -118,11 +120,13 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as RequestBody;
   } catch {
+    logAudit({ route: "mangal-dosha", calculationType: "mangal-dosha", outcome: "validation_error" });
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const validated = validateInput(body ?? {});
   if ("error" in validated) {
+    logAudit({ route: "mangal-dosha", calculationType: "mangal-dosha", outcome: "validation_error" });
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
   const { dateOfBirth, timeOfBirth, timeUnknown, city } = validated;
@@ -130,6 +134,7 @@ export async function POST(request: Request) {
   // Never fabricate coordinates — a miss here is a hard 400, not a guess.
   const coords = resolveCityCoordinates(city);
   if (!coords) {
+    logAudit({ route: "mangal-dosha", calculationType: "mangal-dosha", outcome: "validation_error" });
     return NextResponse.json(
       {
         error: `We couldn't find "${city}" in our supported city list. Please try the nearest major city.`,
@@ -146,6 +151,7 @@ export async function POST(request: Request) {
     ascendantSign: number;
     planets: Record<ChartPlanetName, { sign: number; house: number; isRetrograde: boolean; degree: number }>;
   };
+  const calcStart = Date.now();
   try {
     const localMs = Date.UTC(year, month - 1, date, hours, minutes, 0);
     const birthUtc = new Date(localMs - historicalIndiaOffsetHours(dateOfBirth) * 60 * 60 * 1000);
@@ -172,6 +178,7 @@ export async function POST(request: Request) {
       "[mangal-dosha] chart calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: "mangal-dosha", calculationType: "mangal-dosha", outcome: "calculation_error" });
     return NextResponse.json(
       { error: "We couldn't calculate your chart right now. Please try again shortly." },
       { status: 502 }
@@ -194,8 +201,16 @@ export async function POST(request: Request) {
       "[mangal-dosha] report generation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: "mangal-dosha", calculationType: "mangal-dosha", outcome: "report_error" });
     reportError = true;
   }
+
+  logAudit({
+    route: "mangal-dosha",
+    calculationType: "mangal-dosha",
+    outcome: "success",
+    durationMs: Date.now() - calcStart,
+  });
 
   return NextResponse.json({ calculated, chart: chartResponse, timeUnknown, report, reportError });
 }

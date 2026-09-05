@@ -16,6 +16,7 @@ import {
 import type { BirthInput } from "@/lib/astrology/types";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
+import { logAudit } from "@/lib/observability/audit-log";
 import type {
   FreeKundliCalculated,
   FreeKundliChartData,
@@ -78,17 +79,20 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as BirthRequestBody;
   } catch {
+    logAudit({ route: "free-kundli", calculationType: "natal-chart", outcome: "validation_error" });
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const validated = validateBirthRequestBody(body ?? {});
   if ("error" in validated) {
+    logAudit({ route: "free-kundli", calculationType: "natal-chart", outcome: "validation_error" });
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
 
   // Never fabricate coordinates — a miss here is a hard 400, not a guess.
   const birthInput = buildBirthInput(validated);
   if ("error" in birthInput) {
+    logAudit({ route: "free-kundli", calculationType: "natal-chart", outcome: "validation_error" });
     return NextResponse.json({ error: birthInput.error }, { status: 400 });
   }
 
@@ -98,6 +102,7 @@ export async function POST(request: Request) {
     windowSeconds: 60,
   });
   if (!rateLimit.allowed) {
+    logAudit({ route: "free-kundli", calculationType: "natal-chart", outcome: "rate_limited" });
     return NextResponse.json(
       {
         error:
@@ -107,6 +112,7 @@ export async function POST(request: Request) {
     );
   }
 
+  const calcStart = Date.now();
   const birthUtc = birthInputToUtcDate(birthInput);
   const chartData = calculateChart(birthUtc, birthInput.latitude, birthInput.longitude);
 
@@ -264,8 +270,16 @@ export async function POST(request: Request) {
       "[free-kundli] report generation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: "free-kundli", calculationType: "natal-chart", outcome: "report_error" });
     reportError = true;
   }
+
+  logAudit({
+    route: "free-kundli",
+    calculationType: "natal-chart",
+    outcome: "success",
+    durationMs: Date.now() - calcStart,
+  });
 
   return NextResponse.json({
     calculated,

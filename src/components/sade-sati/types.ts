@@ -25,6 +25,11 @@ export type SadeSatiApiResponse = {
   /** Currently transiting Saturn's sign (1-12, sidereal) at the moment
    * the reading was generated. */
   transitingSaturnSign: number;
+  /** When transiting Saturn will next cross into a new sidereal sign
+   * (i.e. when the current phase's sign transit ends), or null if no
+   * ingress was found within the search window (Saturn moves slowly
+   * enough that this is a valid, non-error outcome). */
+  nextSaturnSignChange: { ingressUtc: string; fromSign: number; toSign: number } | null;
   /** true when the reading used a default 12:00 birth time because the
    * user didn't know their exact time of birth — surfaced so the result
    * screen can disclose the caveat. */

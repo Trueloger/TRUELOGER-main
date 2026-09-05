@@ -38,6 +38,7 @@ import {
 import { signHouseNumber } from "@/lib/astrology/derive";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
+import { logAudit } from "@/lib/observability/audit-log";
 import type { BirthInput } from "@/lib/astrology/types";
 import type {
   CompatibilityChartData,
@@ -164,6 +165,7 @@ export async function POST(request: Request) {
   const identifier = getClientIdentifier(request);
   const rateLimit = await checkRateLimit(ROUTE_KEY, identifier, { limit: 6, windowSeconds: 60 });
   if (!rateLimit.allowed) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "rate_limited" });
     return NextResponse.json(
       { error: "Too many requests. Please wait a minute and try again." },
       { status: 429 }
@@ -174,22 +176,31 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as RequestBody;
   } catch {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const you = validateMatchPersonInput(body?.personA, "You");
-  if ("error" in you) return NextResponse.json({ error: you.error }, { status: 400 });
+  if ("error" in you) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
+    return NextResponse.json({ error: you.error }, { status: 400 });
+  }
 
   const partner = validateMatchPersonInput(body?.personB, "Your partner");
-  if ("error" in partner) return NextResponse.json({ error: partner.error }, { status: 400 });
+  if ("error" in partner) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
+    return NextResponse.json({ error: partner.error }, { status: 400 });
+  }
 
   const femaleInput = buildMatchBirthInput(you, "You");
   if ("error" in femaleInput) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
     return NextResponse.json({ error: femaleInput.error }, { status: 400 });
   }
 
   const maleInput = buildMatchBirthInput(partner, "Your partner");
   if ("error" in maleInput) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
     return NextResponse.json({ error: maleInput.error }, { status: 400 });
   }
 
@@ -202,6 +213,7 @@ export async function POST(request: Request) {
   let partnerYogas: CompatibilityYoga[];
   let youPlanetaryStrength: CompatibilityPlanetaryStrength[];
   let partnerPlanetaryStrength: CompatibilityPlanetaryStrength[];
+  const calcStart = Date.now();
   try {
     const youChart = calculateChart(
       birthInputToUtc(femaleInput),
@@ -236,6 +248,7 @@ export async function POST(request: Request) {
       "[compatibility] Ashtakoot calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "calculation_error" });
     return NextResponse.json(
       { error: "We couldn't calculate your compatibility right now. Please try again shortly." },
       { status: 502 }
@@ -261,8 +274,16 @@ export async function POST(request: Request) {
       "[compatibility] report generation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "report_error" });
     reportError = true;
   }
+
+  logAudit({
+    route: ROUTE_KEY,
+    calculationType: "two-person-match",
+    outcome: "success",
+    durationMs: Date.now() - calcStart,
+  });
 
   return NextResponse.json({
     result,

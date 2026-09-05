@@ -48,6 +48,11 @@ const PHASE_STEP: Record<SadeSatiPhase, number> = {
   setting: 3,
 };
 
+const SIGN_NAMES = [
+  "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+  "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces",
+] as const;
+
 const PHASE_DESCRIPTIONS: Record<SadeSatiPhase, string> = {
   rising:
     "Saturn is transiting the sign before your natal Moon — traditionally the opening phase, easing the chart into the cycle.",
@@ -152,7 +157,7 @@ export function SadeSatiForm() {
   }
 
   if (status === "success" && result) {
-    const { calculated, chart, timeUnknown, report, reportError } = result;
+    const { calculated, chart, timeUnknown, report, reportError, nextSaturnSignChange } = result;
     const phase = calculated.phase;
 
     return (
@@ -178,6 +183,17 @@ export function SadeSatiForm() {
               ? `Currently active — ${PHASE_LABELS[phase]} phase`
               : "Not currently active"}
           </p>
+          {nextSaturnSignChange && (
+            <p className="mx-auto mt-3 max-w-md text-xs text-nav-plum/60">
+              Saturn remains in {SIGN_NAMES[nextSaturnSignChange.fromSign - 1]} until{" "}
+              {new Date(nextSaturnSignChange.ingressUtc).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+              , when it moves into {SIGN_NAMES[nextSaturnSignChange.toSign - 1]}.
+            </p>
+          )}
           {timeUnknown && (
             <p className="mx-auto mt-3 max-w-md text-xs text-nav-plum/60">
               Your exact birth time wasn&apos;t provided, so this reading used a default time of

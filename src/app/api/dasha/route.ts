@@ -15,6 +15,7 @@ import {
 } from "@/lib/dasha/format";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
+import { logAudit } from "@/lib/observability/audit-log";
 import type { DashaPlanetaryStrength } from "@/components/dasha/types";
 
 // Vimshottari dasha calc is now local/instant; AI interpretation can
@@ -139,17 +140,20 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as RequestBody;
   } catch {
+    logAudit({ route: ROUTE_KEY, calculationType: "dasha-timeline", outcome: "validation_error" });
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const validated = validateInput(body ?? {});
   if ("error" in validated) {
+    logAudit({ route: ROUTE_KEY, calculationType: "dasha-timeline", outcome: "validation_error" });
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
   const { dateOfBirth, timeOfBirth, timeUnknown, city } = validated;
 
   const coordinates = resolveCityCoordinates(city);
   if (!coordinates) {
+    logAudit({ route: ROUTE_KEY, calculationType: "dasha-timeline", outcome: "validation_error" });
     return NextResponse.json(
       { error: "We couldn't find that city. Please check the spelling or try a nearby major city." },
       { status: 400 }
@@ -159,6 +163,7 @@ export async function POST(request: Request) {
   const identifier = getClientIdentifier(request);
   const rateLimit = await checkRateLimit(ROUTE_KEY, identifier, { limit: 10, windowSeconds: 60 });
   if (!rateLimit.allowed) {
+    logAudit({ route: ROUTE_KEY, calculationType: "dasha-timeline", outcome: "rate_limited" });
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment and try again." },
       { status: 429 }
@@ -190,6 +195,7 @@ export async function POST(request: Request) {
   let navamsaChartResponse: typeof chartResponse;
   let yogas: { id: string; name: string; present: boolean; strength?: "weak" | "moderate" | "strong" }[];
   let planetaryStrength: DashaPlanetaryStrength[];
+  const calcStart = Date.now();
   try {
     const localMs = Date.UTC(
       birthInput.year,
@@ -274,6 +280,7 @@ export async function POST(request: Request) {
       "[dasha] dasha calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: ROUTE_KEY, calculationType: "dasha-timeline", outcome: "calculation_error" });
     return NextResponse.json(
       { error: "We couldn't calculate your dasha right now. Please try again shortly." },
       { status: 502 }
@@ -315,8 +322,16 @@ export async function POST(request: Request) {
       "[dasha] report generation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: ROUTE_KEY, calculationType: "dasha-timeline", outcome: "report_error" });
     reportError = true;
   }
+
+  logAudit({
+    route: ROUTE_KEY,
+    calculationType: "dasha-timeline",
+    outcome: "success",
+    durationMs: Date.now() - calcStart,
+  });
 
   return NextResponse.json({
     mahaDashaTimeline: mahaDashaTimelineEntries,

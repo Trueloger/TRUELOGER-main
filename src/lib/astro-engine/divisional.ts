@@ -901,6 +901,144 @@ function calculateD60(point: ChartPoint): DivisionalPoint {
 }
 
 // ---------------------------------------------------------------------
+// D60 — Shashtiamsa deity/quality names (Ghora, Rakshasa, Deva, ...)
+// ---------------------------------------------------------------------
+//
+// Gap closed: `calculateD60` above only ever produced a SIGN (like every
+// other Varga's `DivisionalPoint`). Classically, though, each of the 60
+// Shashtiamsa parts also carries its own named deity/quality (Ghora,
+// Rakshasa, Deva, Kubera, ...), traditionally used for a finer-grained
+// benefic/malefic reading than the sign alone gives. That naming layer
+// is implemented here as a SEPARATE, D60-specific lookup —
+// `shashtiamsaDeity()` — rather than by changing `DivisionalPoint` or
+// `DivisionalChartResult`'s shape. Reasons for that choice:
+//   - `DivisionalPoint`/`DivisionalChartResult` are generic across all
+//     16 implemented Vargas; only D60 has a named-deity layer at all, so
+//     adding an optional `deity`-shaped field to the shared type would
+//     either be meaningless dead weight on D1-D45's results or require
+//     a D60-only special case inside the generic `calculateDivisionalChart`
+//     entry point — both worse than one small additive export.
+//   - `calculateDivisionalChart(60, chart)` / `calculateD60(point)`'s
+//     existing signature and return shape are exactly what other code in
+//     this repo already calls; this task's instructions are explicit
+//     that those must not change. A caller that wants deity names simply
+//     calls `shashtiamsaDeity(point)` alongside `calculateD60(point)` on
+//     the same `ChartPoint` — additive, opt-in, zero risk to existing
+//     callers.
+//
+// ---- Research: the 60 names, and the odd/even question -------------
+//
+// Confidence level: MEDIUM-HIGH on the name sequence itself, HIGH on the
+// odd/even mechanism. Spelling of Sanskrit names varies across sources
+// (transliteration, not substance) at roughly 5 of the 60 positions
+// (noted inline below); no source disagreement was found on the ORDER
+// or COUNT (all give exactly 60, with the same names recurring at the
+// same positions — e.g. "Ghora" at 1 and 34, "Kaala" at 15/32/44,
+// "Deva" at 3/25, "Amrita" at 17/38/57, "Komala" at 20/46, "Soumya" at
+// 45/54 — this internal repetition pattern matching across independently
+// scraped sources is itself corroborating evidence the sequence is
+// correctly ordered, not shuffled).
+//
+// Sources consulted (4 independent sites; the first two give a full
+// 1-60 numbered list, the last two give the odd/even mechanism):
+//  - https://jothishi.com/shashtiamsa-d60-amsa-rulers/ (full 1-60 list;
+//    used as this module's primary spelling/ordering source, since it
+//    gives the most complete Sanskrit transliteration of all 60 names
+//    with no gaps).
+//  - https://www.rahasyavedicastrology.com/d60-shastiamsa-devata/ (full
+//    1-60 list; matches jothishi's list exactly for positions 1-30 and
+//    all but ~5 positions in 31-60, where the divergence is a spelling/
+//    synonym variant of the same meaning, e.g. "Indumukh" vs
+//    "Chandramukhi" [both "moon-faced"], "Kalagni" vs "Kaalapavaka"
+//    [both "time's fire"], "Sudha" vs "Amrita" [both "nectar"] — not a
+//    structural disagreement).
+//  - https://www.trendingastro.com/Home/Shashtyamsa (states explicitly:
+//    "In the case of an even sign it is necessary... the Shastyamsa
+//    portions stated Krura in the odd signs are the Saumya ones in the
+//    even signs and vice versa" — i.e. the deity-name reading for even
+//    signs is a REVERSAL, not a re-run of the same forward sequence).
+//  - https://www.jyotishgher.in/calculator/deity/d60-deity-calculator.php
+//    (gives the precise, quotable mechanism: "As per Parashara, even
+//    signs have reverse order... Even Sign Deity = 61 - Odd Index" —
+//    i.e. for an even natal sign, the deity at raw part-index P is the
+//    name that would sit at position (61 - P) in the odd-sign forward
+//    list, not the name at position P itself).
+//
+// IMPORTANT — this is a DIFFERENT odd/even mechanism than `calculateD60`'s
+// own sign-mapping odd/even branch above, and applying BOTH is correct,
+// not double-counting: `calculateD60`'s odd/even branch decides which
+// RESULT SIGN a part maps to (7th-sign offset for even signs); this
+// section's odd/even reversal decides which NAME from the fixed 60-name
+// list applies to a given raw part-index. They are independent axes
+// operating on the same (sign, part-index) input, confirmed by the
+// jyotishgher/trendingastro sources describing the name-reversal
+// mechanism separately from (and without reference to) the sign-mapping
+// rule — so `shashtiamsaDeity()` re-derives its own odd/even branch
+// below rather than reusing/depending on `calculateD60`'s.
+//
+// Benefic/malefic classification: DELIBERATELY OMITTED. A per-name
+// Krura(malefic)/Saumya(benefic) classification was searched for, but
+// the scraped tables disagreed with each other on individual names too
+// often to trust (e.g. one source tags "Yaksha" benefic, another tags
+// the same name "medium"; one tags "Vishnu" benefic, another tags it
+// "medium") — this is the kind of low-quality-source noise this task's
+// instructions say to reject rather than guess through. What IS solidly
+// sourced (the trendingastro/jyotishgher quotes above) is that the
+// benefic/malefic *quality* of a name flips between odd and even signs
+// for the SAME name — but a reliable base classification to flip did
+// not clear this module's confidence bar, so no `nature` field is
+// exposed. A future pass could add one if a source giving a single,
+// internally-consistent 60-entry benefic/malefic table is found.
+
+/** The 60 Shashtiamsa deity/quality names, in their odd-sign forward
+ * order (index 0 = part 1 = "Ghora", ... index 59 = part 60 =
+ * "Chandrarekha"). Spelling follows jothishi.com; positions 48, 49, 51,
+ * 52, and 59 have a documented synonym/transliteration variant in
+ * rahasyavedicastrology.com's independent list (see research note
+ * above) but no source disputes the ORDER or MEANING at those
+ * positions. NOT exported as the primary API — use `shashtiamsaDeity()`,
+ * which also applies the even-sign reversal; this array by itself is
+ * only correct for odd signs.
+ */
+const SHASHTIAMSA_NAMES: readonly string[] = [
+  "Ghora", "Rakshasa", "Deva", "Kubera", "Yaksha", "Kinnara", "Bhrashta", "Kulaghna", "Garala", "Vahni",
+  "Maya", "Purishaka", "Apampati", "Marut", "Kaala", "Sarpa", "Amrita", "Indu", "Mridu", "Komala",
+  "Heramba", "Brahma", "Vishnu", "Maheshwara", "Deva", "Ardra", "Kalinasa", "Kshiteesa", "Kamalakara", "Gulika",
+  "Mrityu", "Kaala", "Davagni", "Ghora", "Yama", "Kantaka", "Sudha", "Amrita", "Purnachandra", "Vishadagdha",
+  "Kulanasa", "Vamshakshaya", "Utpata", "Kaala", "Saumya", "Komala", "Sheetala", "Karaladamshtra", "Chandramukhi", "Praveena",
+  "Kaalapavaka", "Dandayudha", "Nirmala", "Saumya", "Krura", "Atisheetala", "Amrita", "Payodhi", "Brahmana", "Chandrarekha",
+];
+
+export type ShashtiamsaDeity = {
+  /** 1-60, the raw Shashtiamsa part index (see internal `partIndex()`);
+   * NOT re-mapped for even signs — the even-sign reversal only affects
+   * which `name` this part index resolves to, not this field. */
+  part: number;
+  /** English transliteration of the traditional Sanskrit deity/quality
+   * name for this part (see module-level research note for sourcing and
+   * confidence). */
+  name: string;
+};
+
+/**
+ * Looks up the classical Shashtiamsa (D60) deity/quality name for a
+ * natal `ChartPoint`, independent of (and meant to be used alongside)
+ * `calculateD60(point)` / `calculateDivisionalChart(60, chart)`'s own
+ * sign-mapping result. See the module-level research note above for why
+ * this is a separate function, the odd/even reversal mechanism, and why
+ * no benefic/malefic `nature` is included.
+ */
+function shashtiamsaDeity(point: ChartPoint): ShashtiamsaDeity {
+  const part = partIndex(point.degree, 60); // 1-60, raw (not sign-adjusted)
+  // Odd signs: the name at `part` is used directly. Even signs: the
+  // fixed 60-name list is read in reverse (name index = 61 - part) —
+  // see the jyotishgher/trendingastro sources above.
+  const nameIndex = isOddSign(point.sign) ? part : 61 - part;
+  const name = SHASHTIAMSA_NAMES[nameIndex - 1];
+  return { part, name };
+}
+
+// ---------------------------------------------------------------------
 // Registry — varga number -> calculator. D1/D2/D3/D4/D7/D9/D10/D12/D16/
 // D20/D24/D27/D30/D40/D45/D60 are implemented as of this pass. Adding a
 // further Varga means researching its own classical rule and adding one
@@ -979,4 +1117,5 @@ export {
   calculateD40,
   calculateD45,
   calculateD60,
+  shashtiamsaDeity,
 };

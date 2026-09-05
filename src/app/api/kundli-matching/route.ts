@@ -46,6 +46,7 @@ import {
 import { signHouseNumber } from "@/lib/astrology/derive";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
+import { logAudit } from "@/lib/observability/audit-log";
 import type { BirthInput } from "@/lib/astrology/types";
 import type {
   KundliMatchingChartData,
@@ -172,6 +173,7 @@ export async function POST(request: Request) {
   const identifier = getClientIdentifier(request);
   const rateLimit = await checkRateLimit(ROUTE_KEY, identifier, { limit: 6, windowSeconds: 60 });
   if (!rateLimit.allowed) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "rate_limited" });
     return NextResponse.json(
       { error: "Too many requests. Please wait a minute and try again." },
       { status: 429 }
@@ -182,22 +184,31 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as RequestBody;
   } catch {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
   const bride = validateMatchPersonInput(body?.personA, "Bride");
-  if ("error" in bride) return NextResponse.json({ error: bride.error }, { status: 400 });
+  if ("error" in bride) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
+    return NextResponse.json({ error: bride.error }, { status: 400 });
+  }
 
   const groom = validateMatchPersonInput(body?.personB, "Groom");
-  if ("error" in groom) return NextResponse.json({ error: groom.error }, { status: 400 });
+  if ("error" in groom) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
+    return NextResponse.json({ error: groom.error }, { status: 400 });
+  }
 
   const femaleInput = buildMatchBirthInput(bride, "Bride");
   if ("error" in femaleInput) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
     return NextResponse.json({ error: femaleInput.error }, { status: 400 });
   }
 
   const maleInput = buildMatchBirthInput(groom, "Groom");
   if ("error" in maleInput) {
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "validation_error" });
     return NextResponse.json({ error: maleInput.error }, { status: 400 });
   }
 
@@ -210,6 +221,7 @@ export async function POST(request: Request) {
   let groomYogas: KundliMatchingYoga[];
   let bridePlanetaryStrength: KundliMatchingPlanetaryStrength[];
   let groomPlanetaryStrength: KundliMatchingPlanetaryStrength[];
+  const calcStart = Date.now();
   try {
     const brideChart = calculateChart(
       birthInputToUtc(femaleInput),
@@ -244,6 +256,7 @@ export async function POST(request: Request) {
       "[kundli-matching] Ashtakoot calculation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "calculation_error" });
     return NextResponse.json(
       { error: "We couldn't calculate this match right now. Please try again shortly." },
       { status: 502 }
@@ -269,8 +282,16 @@ export async function POST(request: Request) {
       "[kundli-matching] report generation failed:",
       err instanceof Error ? err.message : "unknown error"
     );
+    logAudit({ route: ROUTE_KEY, calculationType: "two-person-match", outcome: "report_error" });
     reportError = true;
   }
+
+  logAudit({
+    route: ROUTE_KEY,
+    calculationType: "two-person-match",
+    outcome: "success",
+    durationMs: Date.now() - calcStart,
+  });
 
   return NextResponse.json({
     result,

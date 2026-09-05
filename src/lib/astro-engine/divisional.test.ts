@@ -23,6 +23,7 @@ import {
   calculateD60,
   calculateDivisionalChart,
   IMPLEMENTED_VARGAS,
+  shashtiamsaDeity,
   type DivisionalChartResult,
 } from "./divisional.ts";
 import { calculateChart, type ChartData, type ChartPoint } from "./ephemeris.ts";
@@ -834,6 +835,77 @@ for (let sign = 1; sign <= 12; sign++) {
 {
   const p = point(12, 24.24);
   assert.deepStrictEqual(calculateD60(p), calculateD60(p), "D60 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
+// shashtiamsaDeity — D60 deity/quality name lookup (separate from
+// calculateD60's sign mapping; see the research note in divisional.ts).
+// ---------------------------------------------------------------------
+// Odd-sign case, hand cross-checked directly against the primary
+// research sources (jothishi.com / rahasyavedicastrology.com both list
+// "Ghora" as the 1st Shashtiamsa name, and jyotishgher.in's calculator
+// documents the odd-sign case as reading the fixed list directly by
+// part index): Aries (odd) at a very small degree -> part 1 -> "Ghora".
+{
+  const deity = shashtiamsaDeity(point(1, 0.01));
+  assert.strictEqual(deity.part, 1, "shashtiamsaDeity part must be 1 for a near-zero degree");
+  assert.strictEqual(deity.name, "Ghora", 'shashtiamsaDeity of Aries (odd) part 1 must be "Ghora", per jothishi.com/rahasyavedicastrology.com');
+}
+
+// Even-sign reversal, hand cross-checked directly against the
+// jyotishgher.in-documented formula "Even Sign Deity = 61 - Odd Index":
+// Taurus (even) at a very small degree -> part 1 -> name index
+// (61 - 1) = 60 -> the last name in the list, "Chandrarekha".
+{
+  const deity = shashtiamsaDeity(point(2, 0.01));
+  assert.strictEqual(deity.part, 1, "shashtiamsaDeity part must be 1 for a near-zero degree regardless of odd/even sign");
+  assert.strictEqual(
+    deity.name,
+    "Chandrarekha",
+    'shashtiamsaDeity of Taurus (even) part 1 must resolve to name index 60 ("Chandrarekha"), per jyotishgher.in\'s "Even Sign Deity = 61 - Odd Index" rule'
+  );
+}
+
+// The even-sign reversal must genuinely invert across the whole part
+// range, not just at the boundary: Taurus (even) at the LAST part (60)
+// must resolve to name index (61 - 60) = 1 -> "Ghora" (the mirror image
+// of the part-1 case above).
+{
+  const deity = shashtiamsaDeity(point(2, 29.99));
+  assert.strictEqual(deity.part, 60, "shashtiamsaDeity part must be 60 for a near-30 degree");
+  assert.strictEqual(deity.name, "Ghora", 'shashtiamsaDeity of Taurus (even) part 60 must resolve to name index 1 ("Ghora")');
+}
+
+// No-crash / valid-output sweep across all 60 part indices (both an odd
+// and an even sign), and determinism.
+{
+  const span = 30 / 60;
+  for (let i = 0; i < 60; i++) {
+    const degree = i * span + 0.001; // safely inside part (i+1), avoids boundary float noise
+    for (const sign of [1, 2]) {
+      // 1 = odd (Aries), 2 = even (Taurus)
+      const deity = shashtiamsaDeity(point(sign, degree));
+      assert.strictEqual(deity.part, i + 1, `shashtiamsaDeity part mismatch at sign ${sign}, degree ${degree}`);
+      assert.strictEqual(typeof deity.name, "string", `shashtiamsaDeity name must be a string at sign ${sign}, part ${deity.part}`);
+      assert.ok(deity.name.length > 0, `shashtiamsaDeity name must be non-empty at sign ${sign}, part ${deity.part}`);
+    }
+  }
+}
+
+// Full 12-sign sweep (odd and even alike): no crash, valid part 1-60,
+// non-empty name.
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 0.49, 0.5, 3.33, 7.5, 12.5, 15, 19.99, 22.5, 27.99, 29.999]) {
+    const deity = shashtiamsaDeity(point(sign, degree));
+    assert.ok(Number.isInteger(deity.part) && deity.part >= 1 && deity.part <= 60, `shashtiamsaDeity at sign ${sign}, degree ${degree}: part ${deity.part} out of 1-60 range`);
+    assert.ok(typeof deity.name === "string" && deity.name.length > 0, `shashtiamsaDeity at sign ${sign}, degree ${degree}: name must be a non-empty string`);
+  }
+}
+
+// Determinism.
+{
+  const p = point(5, 19.19);
+  assert.deepStrictEqual(shashtiamsaDeity(p), shashtiamsaDeity(p), "shashtiamsaDeity must be deterministic for identical input");
 }
 
 // ---------------------------------------------------------------------
