@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node src/lib/horoscope/zodiac.test.ts && node src/lib/horoscope/validate.test.ts && node src/lib/horoscope/date.test.ts && node src/lib/horoscope/openrouter.test.ts"
+    "test": "node src/lib/horoscope/zodiac.test.ts && node src/lib/horoscope/validate.test.ts && node src/lib/horoscope/date.test.ts && node src/lib/horoscope/openrouter.test.ts && node src/lib/panchang/calculate.test.ts && node src/lib/panchang/festivals.test.ts"
   },
   "dependencies": {
     "astronomy-engine": "^2.1.19",

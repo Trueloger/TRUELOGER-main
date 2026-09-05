@@ -9,98 +9,94 @@ import {
   type ReactNode,
   type SVGProps,
 } from "react";
-import { Calendar, Clock, Moon, Star, Sunrise, Sunset } from "lucide-react";
+import { Calendar, Clock, Moon, PartyPopper, Star, Sunrise, Sunset } from "lucide-react";
 import { LotusIcon, NakshatraStarsIcon } from "@/components/quick-services/icons";
 import { LoadingState } from "@/components/reports/LoadingState";
 import { ErrorState } from "@/components/reports/ErrorState";
-import type {
-  DurMuhuratResult,
-  PanchangResult,
-  TimeWindow,
-  VarjyamResult,
-} from "@/lib/astrology/types";
+import type { DailyPanchang, HoraEntry, ChoghadiyaEntry, TimeWindow } from "@/lib/panchang/calculate";
+import type { FestivalEvent } from "@/lib/panchang/festivals";
 
 type PanchangApiResponse = {
   date: string;
   source: string;
   generatedAt: string;
-  sunrise: string;
-  sunset: string;
-  panchang: PanchangResult;
+  engineVersion: string;
+  sunrise: string; // ISO
+  sunset: string; // ISO
+  panchang: DailyPanchang;
+  festivals: FestivalEvent[];
 };
 
 type Status = "idle" | "loading" | "error" | "success" | "not-found";
 
 // ---------------------------------------------------------------------
-// Local time-formatting helpers — no date library. Every raw string
-// this page formats is either bare "H:mm:ss" (sunrise/sunset) or
-// "YYYY-MM-DD HH:mm:ss[.ffffff]" (everything else), per PanchangResult's
-// field docs in src/lib/astrology/types.ts.
+// Local time-formatting helpers — no date library. Every timestamp this
+// engine returns is a real ISO instant (UTC); this page renders
+// everything back in IST (Asia/Kolkata, UTC+5:30 flat — a Panchang
+// feature is inherently current-era, so no historical-offset table is
+// needed here, unlike birth-chart timezone handling).
 // ---------------------------------------------------------------------
 
-function formatClockTime(raw: string): string {
-  const timePart = raw.includes(" ") ? raw.split(" ")[1] : raw;
-  const match = /^(\d{1,2}):(\d{2}):(\d{2})/.exec(timePart ?? "");
-  if (!match) return raw;
-  const hours24 = Number(match[1]);
-  const minutes = match[2];
+const IST_OFFSET_MS = 5.5 * 3600 * 1000;
+
+/** Shifts an ISO instant by the IST offset so its UTC-* fields read as
+ * IST wall-clock fields directly — avoids a date library for a single
+ * fixed offset. */
+function toIstWallClock(iso: string): Date {
+  return new Date(new Date(iso).getTime() + IST_OFFSET_MS);
+}
+
+function istDatePart(iso: string): string {
+  const d = toIstWallClock(iso);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    d.getUTCDate()
+  ).padStart(2, "0")}`;
+}
+
+function formatClockTime(iso: string): string {
+  const d = toIstWallClock(iso);
+  const hours24 = d.getUTCHours();
+  const minutes = String(d.getUTCMinutes()).padStart(2, "0");
   const period = hours24 >= 12 ? "PM" : "AM";
   const hours12 = hours24 % 12 || 12;
   return `${hours12}:${minutes} ${period}`;
 }
 
-/** Formats a completion timestamp (tithi/nakshatra/yoga/karana boundary),
- * flagging when it falls on the day after the Panchang being viewed —
- * these can and do complete after midnight. */
-function formatCompletion(raw: string, referenceDate: string): string {
-  const [datePart, timePart] = raw.includes(" ") ? raw.split(" ") : [referenceDate, raw];
-  const time = formatClockTime(timePart ?? raw);
-  return datePart && datePart !== referenceDate ? `${time} (next day)` : time;
+/** Formats a tithi/nakshatra/yoga/karana boundary, flagging when it
+ * falls on the day after the Panchang being viewed — these can and do
+ * complete after midnight. */
+function formatCompletion(iso: string, referenceDate: string): string {
+  const time = formatClockTime(iso);
+  return istDatePart(iso) !== referenceDate ? `${time} (next day)` : time;
 }
 
 function formatWindow(window: TimeWindow): string {
-  return `${formatClockTime(window.starts_at)} – ${formatClockTime(window.ends_at)}`;
+  return `${formatClockTime(window.startsAt)} – ${formatClockTime(window.endsAt)}`;
 }
 
-/** dur-muhurat/varjyam can each come back as one {starts_at,ends_at}
- * window or several under numeric string keys — normalize to an array
- * either way (real API quirk, documented on DurMuhuratResult/
- * VarjyamResult in types.ts). */
-function normalizeWindows(value: DurMuhuratResult | VarjyamResult): TimeWindow[] {
-  if (typeof value === "object" && value !== null && "starts_at" in value && "ends_at" in value) {
-    return [value as TimeWindow];
-  }
-  return Object.values(value as Record<string, TimeWindow>);
+function timeOfDayMinutes(iso: string): number {
+  const d = toIstWallClock(iso);
+  return d.getUTCHours() * 60 + d.getUTCMinutes() + d.getUTCSeconds() / 60;
 }
 
-function sortedByKey<T>(record: Record<string, T>): T[] {
-  return Object.keys(record)
-    .sort((a, b) => Number(a) - Number(b))
-    .map((key) => record[key]);
-}
-
-function timeOfDayMinutes(raw: string): number | null {
-  const timePart = raw.includes(" ") ? raw.split(" ")[1] : raw;
-  const match = /^(\d{1,2}):(\d{2}):(\d{2})/.exec(timePart ?? "");
-  if (!match) return null;
-  return Number(match[1]) * 60 + Number(match[2]) + Number(match[3]) / 60;
-}
-
-/** Whether `window` contains `nowMinutes` (minutes since local midnight),
+/** Whether `window` contains `nowMinutes` (minutes since IST midnight),
  * tolerating windows that cross midnight (end < start). */
 function isCurrentWindow(window: TimeWindow, nowMinutes: number): boolean {
-  const start = timeOfDayMinutes(window.starts_at);
-  const end = timeOfDayMinutes(window.ends_at);
-  if (start === null || end === null) return false;
+  const start = timeOfDayMinutes(window.startsAt);
+  const end = timeOfDayMinutes(window.endsAt);
   if (end >= start) return nowMinutes >= start && nowMinutes < end;
   return nowMinutes >= start || nowMinutes < end;
 }
 
-function todayISO(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-    now.getDate()
-  ).padStart(2, "0")}`;
+function todayIstIso(): string {
+  return istDatePart(new Date().toISOString());
+}
+
+function addDaysIso(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
 }
 
 function formatDisplayDate(dateStr: string): string {
@@ -117,12 +113,7 @@ function formatDisplayDate(dateStr: string): string {
 
 // ---------------------------------------------------------------------
 // Reveal-on-mount wrapper — this codebase's established "cards fade/
-// slide into view" convention (see TestimonialsSection.tsx / globals.css
-// .testimonial-marquee-track's reduced-motion guard), reimplemented with
-// a plain CSS transition instead of a scroll-linked marquee since this
-// page's cards mount all at once after a fetch rather than scrolling
-// into view. prefers-reduced-motion resolves to the final state
-// immediately, with no transition and no flash.
+// slide into view" convention.
 // ---------------------------------------------------------------------
 
 function RevealCard({
@@ -134,9 +125,6 @@ function RevealCard({
   delayMs?: number;
   className?: string;
 }) {
-  // Lazy initializer, not an effect: a reduced-motion viewer starts
-  // already-visible, so no synchronous setState-in-effect ever fires for
-  // that path (and no flash of invisible content either).
   const [visible, setVisible] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
@@ -236,21 +224,28 @@ function TimeStrip<T extends TimeWindow>({
   );
 }
 
+const FESTIVAL_CATEGORY_LABEL: Record<FestivalEvent["category"], string> = {
+  "major-festival": "Festival",
+  vrat: "Vrat",
+  ekadashi: "Ekadashi",
+  sankranti: "Sankranti",
+  regional: "Regional",
+};
+
 // ---------------------------------------------------------------------
 // Main view
 // ---------------------------------------------------------------------
 
 /** Panchang tool — date only, no personal birth data and no city input.
- * Fetches `/api/panchang?date=` (GET, backed by a once-daily generated
+ * Fetches `/api/panchang?date=` (GET, backed by a locally-computed
  * archive — see src/lib/panchang/store.ts) and renders the real
- * returned PanchangResult for the fixed reference location (New
- * Delhi). Auto-loads once on mount with today's date so the page "just
- * works" immediately; the date field above the results lets a visitor
- * browse the archive of past days. A date with nothing archived yet
- * (e.g. before this feature existed) renders a friendly empty state
- * instead of an error. */
+ * returned Panchang for the fixed reference location (New Delhi).
+ * Auto-loads once on mount with today's date. The date field lets a
+ * visitor browse the archive up to a year in either direction — past
+ * dates for history, future dates to look up an upcoming
+ * festival/vrat's exact date in advance. */
 export function PanchangView() {
-  const [dateInput, setDateInput] = useState(todayISO());
+  const [dateInput, setDateInput] = useState(todayIstIso());
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [result, setResult] = useState<PanchangApiResponse | null>(null);
@@ -287,8 +282,6 @@ export function PanchangView() {
     }
   }
 
-  // Auto-load once on mount with today's date — a visitor sees a real,
-  // useful Panchang immediately without filling anything in.
   useEffect(() => {
     if (hasAutoFetched.current) return;
     hasAutoFetched.current = true;
@@ -302,16 +295,14 @@ export function PanchangView() {
     void generate(dateInput);
   }
 
-  const isToday = result?.date === todayISO();
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const today = todayIstIso();
+  const maxDate = addDaysIso(today, 365);
+  const minDate = "1900-01-01";
+  const isToday = result?.date === today;
+  const nowMinutes = timeOfDayMinutes(new Date().toISOString());
 
-  const yogaList = result ? sortedByKey(result.panchang.yoga) : [];
-  const karanaList = result ? sortedByKey(result.panchang.karana) : [];
-  const horaList = result ? sortedByKey(result.panchang.hora) : [];
-  const choghadiyaList = result ? sortedByKey(result.panchang.choghadiya) : [];
-  const durMuhuratWindows = result ? normalizeWindows(result.panchang.durMuhurat) : [];
-  const varjyamWindows = result ? normalizeWindows(result.panchang.varjyam) : [];
+  const horaList: HoraEntry[] = result?.panchang.hora ?? [];
+  const choghadiyaList: ChoghadiyaEntry[] = result?.panchang.choghadiya ?? [];
 
   const currentHora = isToday ? horaList.find((h) => isCurrentWindow(h, nowMinutes)) : undefined;
   const currentChoghadiya = isToday
@@ -322,7 +313,7 @@ export function PanchangView() {
     <div className="mx-auto max-w-5xl">
       {/* Reference-location note + date picker for browsing the archive */}
       <p className="mx-auto max-w-xl text-center text-xs text-nav-plum/60">
-        Panchang shown for New Delhi, India Standard Time.
+        Panchang shown for New Delhi, India Standard Time — available from 1900 up to a year ahead.
       </p>
       <form
         onSubmit={handleSubmit}
@@ -336,7 +327,8 @@ export function PanchangView() {
             id="panchang-date"
             type="date"
             value={dateInput}
-            max={todayISO()}
+            min={minDate}
+            max={maxDate}
             onChange={(e) => setDateInput(e.target.value)}
             className="mt-1.5 min-h-11 w-full rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-nav-plum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst"
           />
@@ -350,7 +342,7 @@ export function PanchangView() {
         </button>
       </form>
 
-      {status === "loading" && <LoadingState message="Reading today&rsquo;s Panchang…" />}
+      {status === "loading" && <LoadingState message="Reading the Panchang…" />}
 
       {status === "error" && (
         <div className="mt-10">
@@ -393,6 +385,31 @@ export function PanchangView() {
             </div>
           </RevealCard>
 
+          {/* Festivals/vrats on this date */}
+          {result.festivals.length > 0 && (
+            <RevealCard>
+              <div className="rounded-2xl border border-nav-gold/40 bg-nav-lavender-mist/60 p-5">
+                <div className="flex items-center gap-2 text-nav-amethyst-deep">
+                  <PartyPopper aria-hidden="true" className="h-5 w-5" strokeWidth={1.5} />
+                  <p className="text-sm font-medium">
+                    {result.festivals.length > 1 ? "Festivals & vrats today" : "Today"}
+                  </p>
+                </div>
+                <ul className="mt-2 space-y-2">
+                  {result.festivals.map((f, i) => (
+                    <li key={`${f.date}-${f.name}-${i}`} className="text-sm text-nav-plum">
+                      <span className="font-medium">{f.name}</span>{" "}
+                      <span className="text-xs uppercase tracking-wide text-nav-plum/60">
+                        ({FESTIVAL_CATEGORY_LABEL[f.category]})
+                      </span>
+                      {f.description && <p className="mt-0.5 text-xs text-nav-plum/70">{f.description}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </RevealCard>
+          )}
+
           {/* Core five */}
           <section aria-labelledby="panchang-core-heading">
             <h3 id="panchang-core-heading" className="font-serif text-xl text-nav-plum">
@@ -405,47 +422,35 @@ export function PanchangView() {
                   label="Tithi"
                   title={result.panchang.tithi.name}
                   sub={result.panchang.tithi.paksha === "shukla" ? "Shukla Paksha" : "Krishna Paksha"}
-                  detail={`Until ${formatCompletion(result.panchang.tithi.completes_at, result.date)}`}
+                  detail={`Until ${formatCompletion(result.panchang.tithi.endsAt, result.date)}`}
                 />
               </RevealCard>
               <RevealCard delayMs={60}>
-                <CoreCard
-                  icon={Calendar}
-                  label="Vara"
-                  title={result.panchang.weekday.vedic_weekday_name}
-                  sub={result.panchang.weekday.weekday_name}
-                />
+                <CoreCard icon={Calendar} label="Vara" title={result.panchang.vara.name} sub={`Lord: ${result.panchang.vara.lord}`} />
               </RevealCard>
               <RevealCard delayMs={120}>
                 <CoreCard
                   icon={NakshatraStarsIcon}
                   label="Nakshatra"
                   title={result.panchang.nakshatra.name}
-                  detail={`Until ${formatCompletion(result.panchang.nakshatra.ends_at, result.date)}`}
+                  sub={`Pada ${result.panchang.nakshatra.pada}`}
+                  detail={`Until ${formatCompletion(result.panchang.nakshatra.endsAt, result.date)}`}
                 />
               </RevealCard>
               <RevealCard delayMs={180}>
                 <CoreCard
                   icon={Star}
                   label="Yoga"
-                  title={yogaList[0]?.name ?? "—"}
-                  detail={
-                    yogaList[0] ? `Until ${formatCompletion(yogaList[0].completion, result.date)}` : undefined
-                  }
-                  sub={yogaList.length > 1 ? `+${yogaList.length - 1} more later today` : undefined}
+                  title={result.panchang.yoga.name}
+                  detail={`Until ${formatCompletion(result.panchang.yoga.endsAt, result.date)}`}
                 />
               </RevealCard>
               <RevealCard delayMs={240}>
                 <CoreCard
                   icon={Clock}
                   label="Karana"
-                  title={karanaList[0]?.name ?? "—"}
-                  detail={
-                    karanaList[0]
-                      ? `Until ${formatCompletion(karanaList[0].completion, result.date)}`
-                      : undefined
-                  }
-                  sub={karanaList.length > 1 ? `+${karanaList.length - 1} more later today` : undefined}
+                  title={result.panchang.karana.name}
+                  detail={`Until ${formatCompletion(result.panchang.karana.endsAt, result.date)}`}
                 />
               </RevealCard>
             </div>
@@ -456,9 +461,8 @@ export function PanchangView() {
             <div className="flex items-start gap-3 rounded-2xl border border-dashed border-nav-lavender-line bg-nav-pearl/60 p-4">
               <Star aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-nav-amethyst/70" strokeWidth={1.5} />
               <p className="text-xs leading-relaxed text-nav-plum/60">
-                Additional auspicious timings — Abhijit Muhurat, Amrit Kaal and Brahma Muhurat — aren&apos;t
-                available from this data source yet, so they&apos;re intentionally left out rather than
-                estimated. Coming soon.
+                Abhijit Muhurat, Amrit Kaal, Brahma Muhurat, Dur Muhurat and Varjyam aren&apos;t computed by
+                this engine yet, so they&apos;re intentionally left out rather than estimated. Coming soon.
               </p>
             </div>
           </RevealCard>
@@ -478,19 +482,6 @@ export function PanchangView() {
               <RevealCard delayMs={80}>
                 <WindowCard label="Gulika Kalam" window={result.panchang.gulikaKalam} />
               </RevealCard>
-              {durMuhuratWindows.map((w, i) => (
-                <RevealCard key={`dur-muhurat-${i}`} delayMs={120 + i * 30}>
-                  <WindowCard
-                    label={durMuhuratWindows.length > 1 ? `Dur Muhurat ${i + 1}` : "Dur Muhurat"}
-                    window={w}
-                  />
-                </RevealCard>
-              ))}
-              {varjyamWindows.map((w, i) => (
-                <RevealCard key={`varjyam-${i}`} delayMs={120 + (durMuhuratWindows.length + i) * 30}>
-                  <WindowCard label={varjyamWindows.length > 1 ? `Varjyam ${i + 1}` : "Varjyam"} window={w} />
-                </RevealCard>
-              ))}
             </div>
           </section>
 

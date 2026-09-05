@@ -1,90 +1,98 @@
 // src/lib/panchang/store.ts
-// Server-only. Read-through store for daily Panchang, mirroring
-// src/lib/horoscope/store.ts exactly: generate at most once per IST
-// date, serve every subsequent caller the stored result.
+// Server-only. Read-through store for daily Panchang AND yearly
+// festival/vrat lists, both now computed by a fully local engine (see
+// src/lib/panchang/calculate.ts and src/lib/panchang/festivals.ts) — no
+// FreeAstrologyAPI call, no per-request budget, so unlike the previous
+// version this can generate a date/year on demand regardless of whether
+// it's in the past, today, or up to a year in the future.
 //
-// WHY once per day, for one fixed location, instead of live-per-visitor
-// or live-per-city: FreeAstrologyAPI's free tier is a shared budget of
-// 50 requests/day across EVERY tool on this site (not just Panchang),
-// at 1 request/second. getPanchang() alone fans out to 13 sub-calls
-// (see src/lib/astrology/freeastrologyapi.ts) — computing it live per
-// visitor, or per arbitrary city, would exhaust the entire site's daily
-// quota on Panchang alone almost instantly. Generating it once per day,
-// server-side, for a single fixed reference location and archiving the
-// result is the only shape that fits the budget.
+// WHY still archive at all, if generation is free: (1) determinism —
+// a URL like /api/panchang?date=2026-11-08 should keep returning the
+// exact same computed result even if the engine's formulas improve
+// later (see PANCHANG_ENGINE_VERSION); (2) speed — reading one Firestore
+// doc is far faster than recomputing tithi/nakshatra/yoga/karana/hora/
+// choghadiya boundary searches on every visitor request; (3) it keeps
+// this feature's shape consistent with every other "generate once
+// daily/yearly, archive, browse" feature on this site (Daily Horoscope,
+// the previous Panchang implementation).
 //
-// WHY a single fixed location (New Delhi) rather than per-city: true
-// Panchang timings (sunrise, Rahu Kalam, hora, choghadiya, etc.) are
-// genuinely location-dependent. Supporting even a handful of cities
-// would multiply the daily API cost by the number of cities supported,
-// which the 50-req/day shared budget cannot absorb. Using India's
-// capital as one well-known national reference is an intentional,
-// explained scope tradeoff given the constraint — not an oversight.
-//
-// Imports its firebase-admin sibling by relative path (not the "@/"
-// alias), matching every other file under src/lib/ — see
-// src/lib/horoscope/store.ts for why: it lets this file also run under
-// plain `node`, not just inside Next's bundler.
+// WHY still a single fixed reference location (New Delhi) rather than
+// per-city: true Panchang timings (sunrise, Rahu Kalam, hora,
+// choghadiya, etc.) are genuinely location-dependent, and one
+// well-known national reference keeps the feature's scope and archive
+// size bounded. This is no longer a budget constraint (the old
+// FreeAstrologyAPI 50-req/day limit is gone) — it's now a deliberate
+// product-scope choice, easy to lift later if per-city Panchang is
+// wanted (calculateDailyPanchang already takes lat/lon).
 import { getFirestoreDb } from "../firebase-admin.ts";
-import { getPanchang } from "../astrology/freeastrologyapi.ts";
 import { resolveCityCoordinates } from "../astrology/geocode.ts";
 import { getTodayIST } from "../horoscope/date.ts";
-import type { DailyPanchangDoc } from "./types.ts";
+import { calculateDailyPanchang } from "./calculate.ts";
+import { computeYearFestivals } from "./festivals.ts";
+import { PANCHANG_ENGINE_VERSION, type DailyPanchangDoc, type YearFestivalsDoc } from "./types.ts";
 
-const COLLECTION = "dailyPanchang";
+const DAILY_COLLECTION = "dailyPanchang";
+const FESTIVALS_COLLECTION = "panchangFestivals";
+const META_DOC_PATH = ["panchangMeta", "coverage"] as const;
 
-// Single fixed reference location — see file header for why. Matches
-// the city PanchangView previously defaulted to.
 const REFERENCE_CITY = "New Delhi";
 
-// Panchang elements are traditionally reckoned starting from sunrise;
-// FreeAstrologyAPI's endpoints still require an hours/minutes/seconds
-// field even though this tool has no "time of birth" input. 06:00 local
-// sits close to sunrise across India's seasons while staying safely
-// inside the requested calendar date on both sides (unlike midnight,
-// which risks resolving tithi/nakshatra boundaries for the tail end of
-// the previous day in some edge cases).
-const REFERENCE_HOUR = 6;
+// How far ahead of "today" the daily archive is kept topped up — the
+// site-wide "Panchang is available a year in advance" guarantee.
+const LOOKAHEAD_DAYS = 365;
 
-export async function getDailyPanchang(date: string): Promise<DailyPanchangDoc | null> {
-  const snap = await getFirestoreDb().collection(COLLECTION).doc(date).get();
-  if (!snap.exists) return null;
-  return snap.data() as DailyPanchangDoc;
-}
+// Safety cap on how many missing days a single ensureDailyCoverage()
+// call will backfill — bounds worst-case function duration if a cron
+// run (or several) was missed. Recovers fully within a few days even
+// after a week-long outage, never risking a timeout on any single run.
+const MAX_CATCHUP_DAYS_PER_CALL = 15;
 
-export async function generateDailyPanchang(date: string): Promise<DailyPanchangDoc> {
+function referenceCoords() {
   const coords = resolveCityCoordinates(REFERENCE_CITY.toLowerCase());
   if (!coords) {
     // Should never happen — REFERENCE_CITY is a constant known to exist
     // in geocode.ts's table — but never fabricate coordinates.
     throw new Error(`Reference city "${REFERENCE_CITY}" not found in geocode table`);
   }
+  return coords;
+}
 
-  const [year, month, day] = date.split("-").map(Number);
-  const panchang = await getPanchang({
-    year,
-    month,
-    date: day,
-    hours: REFERENCE_HOUR,
-    minutes: 0,
-    seconds: 0,
-    latitude: coords.lat,
-    longitude: coords.lon,
-    timezone: coords.timezone,
-  });
+function addDaysToDateString(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
 
-  const doc: DailyPanchangDoc = {
+// ---------------------------------------------------------------------
+// Daily Panchang
+// ---------------------------------------------------------------------
+
+export async function getDailyPanchang(date: string): Promise<DailyPanchangDoc | null> {
+  const snap = await getFirestoreDb().collection(DAILY_COLLECTION).doc(date).get();
+  if (!snap.exists) return null;
+  return snap.data() as DailyPanchangDoc;
+}
+
+function buildDailyDoc(date: string): DailyPanchangDoc {
+  const coords = referenceCoords();
+  const panchang = calculateDailyPanchang(date, coords.lat, coords.lon);
+  return {
     date,
     generatedAt: new Date().toISOString(),
     source: REFERENCE_CITY,
+    engineVersion: PANCHANG_ENGINE_VERSION,
     panchang,
   };
+}
 
-  const ref = getFirestoreDb().collection(COLLECTION).doc(date);
+export async function generateDailyPanchang(date: string): Promise<DailyPanchangDoc> {
+  const doc = buildDailyDoc(date);
+  const ref = getFirestoreDb().collection(DAILY_COLLECTION).doc(date);
   try {
-    // create() (not set()) fails if the doc already exists — the
-    // signal that a concurrent caller (cron + a visitor hitting the
-    // same missing date, or two visitors at once) won the race.
+    // create() (not set()) fails if the doc already exists — the signal
+    // that a concurrent caller (cron + a visitor hitting the same
+    // missing date, or two visitors at once) won the race.
     await ref.create(doc);
     return doc;
   } catch (err) {
@@ -97,35 +105,149 @@ export async function generateDailyPanchang(date: string): Promise<DailyPanchang
 
 // In-process, same-date in-flight promise cache — prevents concurrent
 // requests for the same still-missing date from each independently
-// passing the getDailyPanchang null-check before any .create() lands
-// and each triggering their own redundant 13-call generation. .create()
-// alone only prevents duplicate Firestore *writes*, not duplicate
-// *generations* within this race window.
-const inFlight = new Map<string, Promise<DailyPanchangDoc | null>>();
+// triggering their own generation before either lands.
+const dailyInFlight = new Map<string, Promise<DailyPanchangDoc | null>>();
 
 /** Read-through: try the stored doc first, generate only if missing.
- *
- * IMPORTANT budget-protection rule: on-demand generation is only ever
- * allowed for TODAY's IST date (covering the case where a visitor hits
- * the page before the day's cron has run yet). A past date with no
- * stored doc returns `null` — it NEVER falls back to calling the live
- * API, which would defeat the whole point of archiving (an unbounded
- * number of past dates could otherwise each trigger a fresh 13-call
- * generation). This exactly matches how the Daily Horoscope feature
- * behaves. */
+ * Unlike the FreeAstrologyAPI-backed version, ANY date (past, today, or
+ * up to LOOKAHEAD_DAYS in the future) may be generated on demand — the
+ * local engine has no per-call cost or budget to protect. Dates further
+ * out than the lookahead window are rejected by the caller (route.ts),
+ * not here. */
 export function getOrGenerateDailyPanchang(date: string): Promise<DailyPanchangDoc | null> {
-  const pending = inFlight.get(date);
+  const pending = dailyInFlight.get(date);
+  if (pending) return pending;
+
+  const promise = generateDailyPanchang(date).finally(() => {
+    dailyInFlight.delete(date);
+  });
+
+  dailyInFlight.set(date, promise);
+  return promise;
+}
+
+/** Batch-writes daily Panchang docs for every date in `dates` using
+ * Firestore's batched writes (max 500 ops/batch — chunked at 400 to
+ * leave headroom for the batch's own overhead). Uses `set()` with
+ * `{merge:false}` semantics (a plain set) rather than `create()` — this
+ * is the bulk BACKFILL path (bootstrap script / large catch-up), where
+ * "overwrite if present" is the desired, safe behavior (idempotent:
+ * recomputing the same date with the same engine version yields the
+ * same content). Returns the dates actually written. */
+export async function batchWriteDailyPanchang(dates: string[]): Promise<string[]> {
+  const db = getFirestoreDb();
+  const CHUNK = 400;
+  for (let i = 0; i < dates.length; i += CHUNK) {
+    const chunk = dates.slice(i, i + CHUNK);
+    const batch = db.batch();
+    for (const date of chunk) {
+      const doc = buildDailyDoc(date);
+      batch.set(db.collection(DAILY_COLLECTION).doc(date), doc);
+    }
+    await batch.commit();
+  }
+  return dates;
+}
+
+type CoverageMeta = { lastGeneratedDate: string };
+
+async function getCoverageMeta(): Promise<CoverageMeta | null> {
+  const snap = await getFirestoreDb().collection(META_DOC_PATH[0]).doc(META_DOC_PATH[1]).get();
+  if (!snap.exists) return null;
+  return snap.data() as CoverageMeta;
+}
+
+async function setCoverageMeta(meta: CoverageMeta): Promise<void> {
+  await getFirestoreDb().collection(META_DOC_PATH[0]).doc(META_DOC_PATH[1]).set(meta);
+}
+
+/** Keeps the daily archive topped up through (today + LOOKAHEAD_DAYS),
+ * generating at most MAX_CATCHUP_DAYS_PER_CALL missing days per call —
+ * called by the daily cron. Self-healing: if a cron run is ever missed,
+ * the next run(s) simply catch up a bit more each time rather than
+ * trying (and risking a timeout) all at once. Returns the list of dates
+ * it generated this call. */
+export async function ensureDailyCoverage(referenceToday: string = getTodayIST()): Promise<string[]> {
+  const targetDate = addDaysToDateString(referenceToday, LOOKAHEAD_DAYS);
+  const meta = await getCoverageMeta();
+  // Bootstrap fallback: if coverage metadata has never been written
+  // (e.g. the one-off bootstrap script was skipped), start from today
+  // rather than crawling the entire unknown past.
+  let cursor = meta ? addDaysToDateString(meta.lastGeneratedDate, 1) : referenceToday;
+
+  const toGenerate: string[] = [];
+  while (cursor <= targetDate && toGenerate.length < MAX_CATCHUP_DAYS_PER_CALL) {
+    toGenerate.push(cursor);
+    cursor = addDaysToDateString(cursor, 1);
+  }
+  if (toGenerate.length === 0) return [];
+
+  await batchWriteDailyPanchang(toGenerate);
+  await setCoverageMeta({ lastGeneratedDate: toGenerate[toGenerate.length - 1] });
+  return toGenerate;
+}
+
+// ---------------------------------------------------------------------
+// Yearly festivals
+// ---------------------------------------------------------------------
+
+export async function getYearFestivals(year: number): Promise<YearFestivalsDoc | null> {
+  const snap = await getFirestoreDb().collection(FESTIVALS_COLLECTION).doc(String(year)).get();
+  if (!snap.exists) return null;
+  return snap.data() as YearFestivalsDoc;
+}
+
+export async function generateYearFestivals(year: number): Promise<YearFestivalsDoc> {
+  const coords = referenceCoords();
+  const festivals = computeYearFestivals(year, coords.lat, coords.lon);
+  const doc: YearFestivalsDoc = {
+    year,
+    generatedAt: new Date().toISOString(),
+    engineVersion: PANCHANG_ENGINE_VERSION,
+    festivals,
+  };
+  await getFirestoreDb().collection(FESTIVALS_COLLECTION).doc(String(year)).set(doc);
+  return doc;
+}
+
+const festivalsInFlight = new Map<number, Promise<YearFestivalsDoc>>();
+
+/** Read-through for a year's festival list; computing a full year is
+ * the one genuinely expensive path here (~a few hundred internal
+ * calculateDailyPanchang calls) — the in-flight map still prevents
+ * concurrent duplicate work, same pattern as the daily store above. */
+export function getOrGenerateYearFestivals(year: number): Promise<YearFestivalsDoc> {
+  const pending = festivalsInFlight.get(year);
   if (pending) return pending;
 
   const promise = (async () => {
-    const existing = await getDailyPanchang(date);
+    const existing = await getYearFestivals(year);
     if (existing) return existing;
-    if (date !== getTodayIST()) return null;
-    return generateDailyPanchang(date);
+    return generateYearFestivals(year);
   })().finally(() => {
-    inFlight.delete(date);
+    festivalsInFlight.delete(year);
   });
 
-  inFlight.set(date, promise);
+  festivalsInFlight.set(year, promise);
   return promise;
+}
+
+/** Ensures both the current IST year's and next year's festival lists
+ * exist — called by the daily cron. This is what makes "on Jan 1 the
+ * Panchang/festival calendar updates for the new year" happen
+ * automatically: every day this checks [currentYear, currentYear+1];
+ * the moment the calendar rolls into a new year, currentYear+1 becomes
+ * a year that's never been requested before and gets generated that
+ * day — no special "only run this on Jan 1" cron entry needed. */
+export async function ensureYearFestivalsCoverage(referenceToday: string = getTodayIST()): Promise<number[]> {
+  const currentYear = Number(referenceToday.slice(0, 4));
+  const generated: number[] = [];
+  for (const year of [currentYear, currentYear + 1]) {
+    const existing = await getYearFestivals(year);
+    if (!existing) {
+      await generateYearFestivals(year);
+      generated.push(year);
+    }
+  }
+  return generated;
 }

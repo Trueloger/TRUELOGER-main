@@ -230,6 +230,30 @@ function isRetrograde(
 }
 
 // ---------------------------------------------------------------------
+// Shared sidereal Sun/Moon longitude helper — used by calculateChart()
+// below AND by the local Panchang engine (src/lib/panchang/calculate.ts),
+// which needs exactly this same topocentric-sidereal convention for
+// tithi/nakshatra/yoga (site-wide consistency: one method for "the
+// Sun/Moon's sidereal longitude at time T, seen from place P").
+// ---------------------------------------------------------------------
+
+/** Topocentric sidereal (Lahiri) ecliptic longitude of the Sun and Moon
+ * at `time`, as seen from (`latitude`, `longitude`). Exposed for the
+ * Panchang engine — everything else here stays internal to this
+ * module. */
+export function sunMoonSiderealLongitudes(
+  time: Astronomy.AstroTime,
+  latitude: number,
+  longitude: number
+): { sun: number; moon: number } {
+  const observer = new Astronomy.Observer(latitude, longitude, 0);
+  const ayanamsha = lahiriAyanamsha(time.date);
+  const sun = normalizeDegrees(topocentricTropicalLongitude(Astronomy.Body.Sun, time, observer) - ayanamsha);
+  const moon = normalizeDegrees(topocentricTropicalLongitude(Astronomy.Body.Moon, time, observer) - ayanamsha);
+  return { sun, moon };
+}
+
+// ---------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------
 

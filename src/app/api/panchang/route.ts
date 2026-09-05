@@ -3,29 +3,32 @@
 // GET, not POST — deliberately different from every other tool route in
 // this codebase. Panchang takes no personal data (just a calendar
 // date), the result is identical for every visitor asking for the same
-// date, and it's served from a daily-generated archive (see
-// src/lib/panchang/store.ts) — that's exactly the shape GET + query
-// params is for: a cacheable, idempotent read of a resource identified
-// by its URL. It also means the URL itself is shareable/bookmarkable
-// (?date=...).
+// date, and it's served from an archive (see src/lib/panchang/store.ts)
+// — that's exactly the shape GET + query params is for: a cacheable,
+// idempotent read of a resource identified by its URL.
 //
 // This route is a thin wrapper over the read-through store — it does
-// NOT call FreeAstrologyAPI directly. Panchang is generated at most
-// once per IST date by src/app/api/cron/generate-panchang/route.ts (or
-// on-demand for *today* only, via getOrGenerateDailyPanchang, if a
-// visitor arrives before that day's cron has run) and archived in
-// Firestore. A past date with nothing archived is a clean 404, never a
-// live API call — see store.ts's header comment for why (the shared
-// 50-req/day FreeAstrologyAPI budget across every tool on this site).
+// NOT call any external astrology API (the engine is fully local, see
+// src/lib/panchang/calculate.ts). Panchang is generated at most once per
+// date by src/app/api/cron/generate-panchang/route.ts (or on-demand,
+// via getOrGenerateDailyPanchang, if a visitor requests a date the cron
+// hasn't reached yet) and archived in Firestore. Because generation no
+// longer depends on a metered external API, this route accepts any date
+// from 1900-01-01 through one year ahead of today — past dates for
+// historical browsing, future dates so festivals/vrats can be looked up
+// in advance.
 import { NextResponse } from "next/server";
-import { getOrGenerateDailyPanchang } from "@/lib/panchang/store";
+import { getOrGenerateDailyPanchang, getOrGenerateYearFestivals } from "@/lib/panchang/store";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { getTodayIST } from "@/lib/horoscope/date";
 
-// Most requests are a single Firestore read (fast); the rare "today,
-// not yet generated" path fans out to 13 FreeAstrologyAPI calls — keep
-// some headroom for that case.
+// Most requests are 1-2 cheap Firestore reads (fast); the rare
+// "date not yet archived" path computes it locally in-process — still
+// well under a second, but keep some headroom.
 export const maxDuration = 30;
+
+const LOOKAHEAD_DAYS = 365;
+const MIN_YEAR = 1900;
 
 function isValidCalendarDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -39,6 +42,13 @@ function isValidCalendarDate(value: string): boolean {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
+}
+
+function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
 }
 
 export async function GET(request: Request) {
@@ -63,11 +73,6 @@ export async function GET(request: Request) {
   // IST-rollover rule the rest of the site already uses for "today's"
   // content (src/lib/horoscope/date.ts).
   const dateParam = url.searchParams.get("date")?.trim() || getTodayIST();
-  // `city` is no longer meaningful — Panchang is now generated once
-  // daily for a single fixed reference location (see store.ts). Old
-  // links carrying a `city` param are accepted harmlessly rather than
-  // erroring, just silently ignored; it's not advertised in the new
-  // contract.
 
   if (!isValidCalendarDate(dateParam)) {
     return NextResponse.json(
@@ -75,11 +80,15 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
+  if (Number(dateParam.slice(0, 4)) < MIN_YEAR) {
+    return NextResponse.json({ error: `Please choose a date from ${MIN_YEAR} onward.` }, { status: 400 });
+  }
 
   const today = getTodayIST();
-  if (dateParam > today) {
+  const maxDate = addDays(today, LOOKAHEAD_DAYS);
+  if (dateParam > maxDate) {
     return NextResponse.json(
-      { error: "Please choose today or a past date — future Panchang isn't available." },
+      { error: `Please choose a date up to ${maxDate} — Panchang is only archived up to a year ahead.` },
       { status: 400 }
     );
   }
@@ -93,7 +102,7 @@ export async function GET(request: Request) {
       err instanceof Error ? err.message : "unknown error"
     );
     return NextResponse.json(
-      { error: "We couldn't fetch today's Panchang right now. Please try again shortly." },
+      { error: "We couldn't compute Panchang for this date right now. Please try again shortly." },
       { status: 502 }
     );
   }
@@ -105,12 +114,29 @@ export async function GET(request: Request) {
     );
   }
 
+  // Festivals/vrats falling on this exact date, from that year's
+  // archived list (generated once per year — see store.ts). A failure
+  // here never hides the real Panchang data above.
+  let festivalsToday: unknown[] = [];
+  try {
+    const year = Number(dateParam.slice(0, 4));
+    const yearDoc = await getOrGenerateYearFestivals(year);
+    festivalsToday = yearDoc.festivals.filter((f) => f.date === dateParam);
+  } catch (err) {
+    console.error(
+      "[panchang] festival lookup failed:",
+      err instanceof Error ? err.message : "unknown error"
+    );
+  }
+
   return NextResponse.json({
     date: doc.date,
     source: doc.source,
     generatedAt: doc.generatedAt,
-    sunrise: doc.panchang.sunrise.sun_rise_time,
-    sunset: doc.panchang.sunrise.sun_set_time,
+    engineVersion: doc.engineVersion,
+    sunrise: doc.panchang.sunrise,
+    sunset: doc.panchang.sunset,
     panchang: doc.panchang,
+    festivals: festivalsToday,
   });
 }
