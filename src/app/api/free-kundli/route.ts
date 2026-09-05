@@ -4,6 +4,7 @@ import { calculateChart, type ChartPlanetName } from "@/lib/astro-engine/ephemer
 import { calculateDivisionalChart } from "@/lib/astro-engine/divisional";
 import { detectYogas } from "@/lib/astro-engine/yogas";
 import { calculateShadbala } from "@/lib/astro-engine/shadbala";
+import { calculateBhavaBala } from "@/lib/astro-engine/bhavabala";
 import { DASHA_LORD_SEQUENCE } from "@/lib/dasha/calculate";
 import { signHouseNumber } from "@/lib/astrology/derive";
 import { getRashiReference } from "@/lib/astrology/rashi-reference";
@@ -21,6 +22,7 @@ import type {
   FreeKundliPlanetRow,
   FreeKundliYoga,
   FreeKundliPlanetaryStrength,
+  FreeKundliHouseStrength,
 } from "@/components/free-kundli/types";
 
 // The chart itself is now pure local computation (src/lib/astro-engine)
@@ -153,6 +155,17 @@ export async function POST(request: Request) {
     })
     .filter((row) => row !== null);
 
+  // Bhava Bala — core/simplified classical HOUSE strength (see
+  // src/lib/astro-engine/bhavabala.ts's "HONESTY NOTICE" doc comment
+  // for exactly what's implemented vs. skipped). All 12 whole-sign
+  // houses always have a result, unlike Shadbala's 7-of-12 planets.
+  const bhavaBalaByHouse = calculateBhavaBala(chartData);
+  const houseStrength: FreeKundliHouseStrength[] = bhavaBalaByHouse.map((h) => ({
+    house: h.house,
+    houseLord: h.houseLord,
+    totalStrength: h.totalStrength,
+  }));
+
   // Every value below is read straight off the real, locally-computed
   // chart — never invented. This summarized subset (not all 12
   // planets' full raw data) is what goes to the AI-interpretation
@@ -261,6 +274,7 @@ export async function POST(request: Request) {
     navamsaChart,
     yogas,
     planetaryStrength,
+    houseStrength,
     report,
     reportError,
   });

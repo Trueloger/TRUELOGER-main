@@ -417,6 +417,121 @@ function calculateD12(point: ChartPoint): DivisionalPoint {
 }
 
 // ---------------------------------------------------------------------
+// D16 — Shodashamsa
+// ---------------------------------------------------------------------
+//
+// Classical rule (Brihat Parashara Hora Shastra): each 30° sign is
+// divided into sixteen 1°52'30" parts ("shodasamsas"). Structurally this
+// is the same FAMILY as D9 (a modality-based starting sign, counted
+// forward through all 16 parts), but the actual starting signs are
+// DIFFERENT from D9's — verified via research rather than assumed:
+//   - Movable signs (Aries, Cancer, Libra, Capricorn): count starts
+//     from Aries (not "from itself" as in D9).
+//   - Fixed signs (Taurus, Leo, Scorpio, Aquarius): count starts from
+//     Leo (not "9th from it" as in D9).
+//   - Dual signs (Gemini, Virgo, Sagittarius, Pisces): count starts
+//     from Sagittarius (not "5th from it" as in D9).
+// The occupied part number (1-16) is then counted forward (inclusive,
+// wrapping through the zodiac) from that fixed starting sign — i.e.
+// every movable sign shares the same Aries start, every fixed sign
+// shares the same Leo start, every dual sign shares the same Sagittarius
+// start (unlike D9, where the start is relative to the natal sign
+// itself).
+//
+// Sources (agree on the exact Aries/Leo/Sagittarius starting-sign rule,
+// citing Brihat Parashara Hora Shastra):
+//  - https://jagannathhora.com/shodasamsa-chart-d16-vehicles-comforts/
+//    ("For movable signs...the sixteen shodasamsas are counted starting
+//    from Aries. For fixed signs...starting from Leo. For dual
+//    signs...starting from Sagittarius.")
+//  - Search synthesis corroborated by
+//    https://vedastrology.blogspot.com/2011/12/divisional-charts-d16-d20.html
+//    ("As per Maharishi Parashara in his Brihat Parashara Hora Shastra,
+//    in movable signs counting starts from Aries, in fixed sign from
+//    Leo and in dual sign from Sagittarius.")
+// Note: one low-quality secondary source (astropower.co.in) vaguely
+// claimed an odd/even reversal for D16 without specifying any rule or
+// example; it did not corroborate against BPHS and was rejected as
+// noise in favor of the two sources above, which agree exactly and
+// name the source text.
+//
+// No third-party worked numeric example (with a specific degree and
+// resulting sign) was found in research; the test-file cross-checks
+// below are therefore hand-computed directly from the confirmed
+// modality/starting-sign rule above (documented inline in the test).
+
+/** The sign the Shodasamsa count starts from, for a given natal sign,
+ * per the modality rule documented above (movable->Aries, fixed->Leo,
+ * dual->Sagittarius — fixed starting signs, NOT relative to the natal
+ * sign itself, unlike D9). */
+function shodasamsaStartingSign(natalSign: number): number {
+  const modality = signModality(natalSign);
+  if (modality === 1) return 1; // movable: always start from Aries
+  if (modality === 2) return 5; // fixed: always start from Leo
+  return 9; // dual: always start from Sagittarius
+}
+
+function calculateD16(point: ChartPoint): DivisionalPoint {
+  const part = partIndex(point.degree, 16); // 1-16
+  const startingSign = shodasamsaStartingSign(point.sign);
+  const resultSign = normalizeSign(startingSign + (part - 1));
+  return toDivisionalPoint(point, resultSign);
+}
+
+// ---------------------------------------------------------------------
+// D20 — Vimshamsa
+// ---------------------------------------------------------------------
+//
+// Classical rule (Brihat Parashara Hora Shastra): each 30° sign is
+// divided into twenty 1°30' parts ("vimsamsas"). Same structural FAMILY
+// as D9/D16 (a modality-based fixed starting sign, counted forward
+// through all 20 parts), but again with its OWN distinct starting
+// signs, verified via research rather than assumed:
+//   - Movable signs (Aries, Cancer, Libra, Capricorn): count starts
+//     from Aries.
+//   - Fixed signs (Taurus, Leo, Scorpio, Aquarius): count starts from
+//     Sagittarius.
+//   - Dual signs (Gemini, Virgo, Sagittarius, Pisces): count starts
+//     from Leo.
+// (Contrast with D16: movable->Aries same, but fixed->Leo/dual->Sagittarius
+// there vs. fixed->Sagittarius/dual->Leo here — the fixed/dual starting
+// signs are swapped between D16 and D20, confirmed by research, not
+// assumed to be identical.)
+//
+// Sources (agree on the exact Aries/Sagittarius/Leo starting-sign rule,
+// citing Brihat Parashara Hora Shastra; the second gives a worked
+// numeric example reproduced as a test assertion):
+//  - https://jagannathhora.com/vimsamsa-chart-d20-spiritual-progress/
+//    ("For movable signs...the twenty vimsamsas are counted starting
+//    from Aries. For fixed signs...the count starts from Sagittarius.
+//    For dual signs...the count starts from Leo.")
+//  - https://www.myzodiaq.in/en/online-library/basics-of-vedic-astrology/divisional-charts/d16-d20-charts
+//    ("Movable signs...counting begins from Mesha [Aries]. Fixed
+//    signs...counting begins from Dhanu [Sagittarius]. Dual/mutable
+//    signs...counting begins from Simha [Leo]." Worked example: "If a
+//    planet occupies the ninth Vimsamsha of Vrishabha [Taurus, a fixed
+//    sign], counting starts from Dhanu and the planet lands in Simha in
+//    the Vimsamsha chart.")
+
+/** The sign the Vimsamsa count starts from, for a given natal sign, per
+ * the modality rule documented above (movable->Aries, fixed->Sagittarius,
+ * dual->Leo — note this is NOT the same fixed/dual mapping as D16's
+ * shodasamsaStartingSign, confirmed via research). */
+function vimsamsaStartingSign(natalSign: number): number {
+  const modality = signModality(natalSign);
+  if (modality === 1) return 1; // movable: always start from Aries
+  if (modality === 2) return 9; // fixed: always start from Sagittarius
+  return 5; // dual: always start from Leo
+}
+
+function calculateD20(point: ChartPoint): DivisionalPoint {
+  const part = partIndex(point.degree, 20); // 1-20
+  const startingSign = vimsamsaStartingSign(point.sign);
+  const resultSign = normalizeSign(startingSign + (part - 1));
+  return toDivisionalPoint(point, resultSign);
+}
+
+// ---------------------------------------------------------------------
 // Registry — varga number -> calculator. D1/D2/D9/D10 are implemented
 // this pass; more vargas (D3, D4, D7, D12, D16, D20, D24, D27, D30,
 // D40, D45, D60, ...) can be added later by researching each one's own
@@ -433,6 +548,8 @@ const VARGA_CALCULATORS: Partial<Record<number, VargaCalculator>> = {
   9: calculateD9,
   10: calculateD10,
   12: calculateD12,
+  16: calculateD16,
+  20: calculateD20,
 };
 
 /** Varga numbers currently implemented (not just planned/stubbed). */
@@ -470,4 +587,4 @@ export function calculateDivisionalChart(vargaNumber: number, chartData: ChartDa
 // Individual calculators are also exported directly for callers that
 // only need one Varga without building a full ChartData round-trip
 // (e.g. unit tests, or a caller that already has a raw ChartPoint).
-export { calculateD1, calculateD2, calculateD3, calculateD4, calculateD7, calculateD9, calculateD10, calculateD12 };
+export { calculateD1, calculateD2, calculateD3, calculateD4, calculateD7, calculateD9, calculateD10, calculateD12, calculateD16, calculateD20 };

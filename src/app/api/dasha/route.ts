@@ -4,6 +4,7 @@ import { resolveCityCoordinates, historicalIndiaOffsetHours } from "@/lib/astrol
 import { calculateChart, type ChartPlanetEntry, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { calculateDivisionalChart } from "@/lib/astro-engine/divisional";
 import { detectYogas } from "@/lib/astro-engine/yogas";
+import { calculateShadbala } from "@/lib/astro-engine/shadbala";
 import { vimshottariDasha } from "@/lib/dasha/calculate";
 import { signHouseNumber } from "@/lib/astrology/derive";
 import type { BirthInput } from "@/lib/astrology/types";
@@ -14,6 +15,7 @@ import {
 } from "@/lib/dasha/format";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
+import type { DashaPlanetaryStrength } from "@/components/dasha/types";
 
 // Vimshottari dasha calc is now local/instant; AI interpretation can
 // still take a few seconds.
@@ -187,6 +189,7 @@ export async function POST(request: Request) {
   };
   let navamsaChartResponse: typeof chartResponse;
   let yogas: { id: string; name: string; present: boolean; strength?: "weak" | "moderate" | "strong" }[];
+  let planetaryStrength: DashaPlanetaryStrength[];
   try {
     const localMs = Date.UTC(
       birthInput.year,
@@ -242,6 +245,29 @@ export async function POST(request: Request) {
       present: y.present,
       strength: y.strength,
     }));
+
+    // Shadbala — core/simplified classical planetary strength (see
+    // src/lib/astro-engine/shadbala.ts's "HONESTY NOTICE" doc comment
+    // for exactly what's implemented vs. skipped). Only the 7 classical
+    // planets have a result; Rahu/Ketu/outer planets are omitted rather
+    // than padded with a fabricated null-shaped row. Bhava Bala (house
+    // strength) is deliberately NOT added here — this single-focus
+    // dasha timeline tool doesn't naturally need a house-strength
+    // breakdown the way the detailed free-kundli tool does.
+    const shadbalaByPlanet = calculateShadbala(chart);
+    const planetaryStrengthResult: DashaPlanetaryStrength[] = (Object.keys(shadbalaByPlanet) as ChartPlanetName[])
+      .map((name) => {
+        const s = shadbalaByPlanet[name];
+        if (!s) return null;
+        return {
+          planet: name,
+          totalRupas: s.totalRupas,
+          requiredRupas: s.requiredRupas,
+          meetsRequirement: s.meetsRequirement,
+        };
+      })
+      .filter((row) => row !== null);
+    planetaryStrength = planetaryStrengthResult;
   } catch (err) {
     // Never log full name/DOB — only the failure.
     console.error(
@@ -299,6 +325,7 @@ export async function POST(request: Request) {
     chart: chartResponse,
     navamsaChart: navamsaChartResponse,
     yogas,
+    planetaryStrength,
     timeUnknown,
     report,
     reportError,

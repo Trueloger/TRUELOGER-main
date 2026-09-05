@@ -13,6 +13,8 @@ import {
   calculateD9,
   calculateD10,
   calculateD12,
+  calculateD16,
+  calculateD20,
   calculateDivisionalChart,
   IMPLEMENTED_VARGAS,
   type DivisionalChartResult,
@@ -372,11 +374,126 @@ for (let sign = 1; sign <= 12; sign++) {
 }
 
 // ---------------------------------------------------------------------
+// D16 — Shodashamsa: cross-check against hand-computed examples derived
+// directly from the confirmed modality/starting-sign rule (no
+// third-party worked numeric example was found in research — see the
+// module-level research citations in divisional.ts).
+// ---------------------------------------------------------------------
+// Aries (movable) 10 deg: span = 30/16 = 1.875 deg/part;
+// 10 / 1.875 = 5.33 -> part 6. Movable signs start counting from Aries:
+// Aries(1st), Taurus(2nd), Gemini(3rd), Cancer(4th), Leo(5th),
+// Virgo(6th) -> Virgo (sign 6).
+{
+  const ariesTen = point(1, 10);
+  const d16 = calculateD16(ariesTen);
+  assert.strictEqual(d16.sign, 6, "D16 of Aries 10 deg (movable, 6th part) must be Virgo (sign 6), per the confirmed Aries-start rule");
+}
+
+// Taurus (fixed) 0 deg -> part 1. Fixed signs start counting from Leo,
+// so part 1 -> Leo itself (sign 5).
+{
+  const taurusZero = point(2, 0);
+  const d16 = calculateD16(taurusZero);
+  assert.strictEqual(d16.sign, 5, "D16 of Taurus 0 deg (fixed, part 1) must start from Leo (sign 5)");
+}
+
+// Gemini (dual) 0 deg -> part 1. Dual signs start counting from
+// Sagittarius, so part 1 -> Sagittarius itself (sign 9).
+{
+  const geminiZero = point(3, 0);
+  const d16 = calculateD16(geminiZero);
+  assert.strictEqual(d16.sign, 9, "D16 of Gemini 0 deg (dual, part 1) must start from Sagittarius (sign 9)");
+}
+
+// Boundary sensitivity: the first 1deg52'30" (=1.875 deg) part
+// boundary flips the resulting sign.
+{
+  const span = 30 / 16;
+  const justBelow = calculateD16(point(1, span - 0.01));
+  const justAbove = calculateD16(point(1, span));
+  assert.notStrictEqual(justBelow.sign, justAbove.sign, "D16 boundary sensitivity failed across the first 1deg52'30\" part boundary");
+}
+
+// Full 12-sign sweep: every longitude maps to a valid 1-12 sign.
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 1.875 - 0.01, 1.875, 3.33, 7.5, 12.5, 15, 19.99, 22.5, 27.99, 29.999]) {
+    const d16 = calculateD16(point(sign, degree));
+    assert.ok(
+      Number.isInteger(d16.sign) && d16.sign >= 1 && d16.sign <= 12,
+      `D16 at sign ${sign}, degree ${degree}: sign ${d16.sign} out of 1-12 range`
+    );
+  }
+}
+
+// Determinism: repeated calls with identical input give identical output.
+{
+  const p = point(4, 22.22);
+  assert.deepStrictEqual(calculateD16(p), calculateD16(p), "D16 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
+// D20 — Vimshamsa: cross-check against a hand-computed research example
+// ---------------------------------------------------------------------
+// Source: https://www.myzodiaq.in/en/online-library/basics-of-vedic-astrology/divisional-charts/d16-d20-charts
+// "If a planet occupies the ninth Vimsamsha of Vrishabha [Taurus, a
+// fixed sign], counting starts from Dhanu [Sagittarius] and the planet
+// lands in Simha [Leo] in the Vimsamsha chart."
+// The 9th part (of 20, each 1.5 deg) spans 12-13.5 deg in-sign.
+{
+  const taurusNinthPart = point(2, 12.5); // within the 9th part (12-13.5 deg)
+  const d20 = calculateD20(taurusNinthPart);
+  assert.strictEqual(d20.sign, 5, "D20 of Taurus 12.5 deg (fixed, 9th part) must be Leo (sign 5), per myzodiaq.in worked example");
+}
+
+// A movable-sign example (hand-computed from the confirmed Aries-start
+// rule): Aries 2 deg -> part 2 (of 20, each 1.5 deg: 1.5-3 deg range)
+// -> movable signs start from Aries -> part 2 -> Taurus.
+{
+  const ariesTwo = point(1, 2);
+  const d20 = calculateD20(ariesTwo);
+  assert.strictEqual(d20.sign, 2, "D20 of Aries 2 deg (movable, 2nd part) must be Taurus (sign 2)");
+}
+
+// A dual-sign example (hand-computed from the confirmed Leo-start
+// rule): Gemini 0 deg -> part 1 -> dual signs start from Leo -> part 1
+// -> Leo itself (sign 5).
+{
+  const geminiZero = point(3, 0);
+  const d20 = calculateD20(geminiZero);
+  assert.strictEqual(d20.sign, 5, "D20 of Gemini 0 deg (dual, part 1) must start from Leo (sign 5)");
+}
+
+// Boundary sensitivity: the first 1.5 deg part boundary flips the
+// resulting sign.
+{
+  const justBelow = calculateD20(point(1, 1.49));
+  const justAbove = calculateD20(point(1, 1.5));
+  assert.notStrictEqual(justBelow.sign, justAbove.sign, "D20 boundary sensitivity failed across the first 1.5 deg part boundary");
+}
+
+// Full 12-sign sweep: every longitude maps to a valid 1-12 sign.
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 1.49, 1.5, 3.33, 7.5, 12.5, 15, 19.99, 22.5, 27.99, 29.999]) {
+    const d20 = calculateD20(point(sign, degree));
+    assert.ok(
+      Number.isInteger(d20.sign) && d20.sign >= 1 && d20.sign <= 12,
+      `D20 at sign ${sign}, degree ${degree}: sign ${d20.sign} out of 1-12 range`
+    );
+  }
+}
+
+// Determinism: repeated calls with identical input give identical output.
+{
+  const p = point(6, 8.88);
+  assert.deepStrictEqual(calculateD20(p), calculateD20(p), "D20 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
 // Registry sweep: every implemented varga produces a valid 1-12 sign
 // for longitudes spanning all 12 rashis (a range of degrees per sign).
 // ---------------------------------------------------------------------
 
-assert.deepStrictEqual(IMPLEMENTED_VARGAS, [1, 2, 3, 4, 7, 9, 10, 12], "expected exactly D1/D2/D3/D4/D7/D9/D10/D12 to be registered this pass");
+assert.deepStrictEqual(IMPLEMENTED_VARGAS, [1, 2, 3, 4, 7, 9, 10, 12, 16, 20], "expected exactly D1/D2/D3/D4/D7/D9/D10/D12/D16/D20 to be registered this pass");
 
 const CALCULATORS: Record<number, (p: ChartPoint) => { sign: number }> = {
   1: calculateD1,
@@ -387,6 +504,8 @@ const CALCULATORS: Record<number, (p: ChartPoint) => { sign: number }> = {
   9: calculateD9,
   10: calculateD10,
   12: calculateD12,
+  16: calculateD16,
+  20: calculateD20,
 };
 
 for (const varga of IMPLEMENTED_VARGAS) {
@@ -413,7 +532,7 @@ const referenceChart: ChartData = calculateChart(
   77.209
 );
 
-function runAll(chart: ChartData): { d1: DivisionalChartResult; d2: DivisionalChartResult; d3: DivisionalChartResult; d4: DivisionalChartResult; d7: DivisionalChartResult; d9: DivisionalChartResult; d10: DivisionalChartResult; d12: DivisionalChartResult } {
+function runAll(chart: ChartData): { d1: DivisionalChartResult; d2: DivisionalChartResult; d3: DivisionalChartResult; d4: DivisionalChartResult; d7: DivisionalChartResult; d9: DivisionalChartResult; d10: DivisionalChartResult; d12: DivisionalChartResult; d16: DivisionalChartResult; d20: DivisionalChartResult } {
   return {
     d1: calculateDivisionalChart(1, chart),
     d2: calculateDivisionalChart(2, chart),
@@ -423,6 +542,8 @@ function runAll(chart: ChartData): { d1: DivisionalChartResult; d2: DivisionalCh
     d9: calculateDivisionalChart(9, chart),
     d10: calculateDivisionalChart(10, chart),
     d12: calculateDivisionalChart(12, chart),
+    d16: calculateDivisionalChart(16, chart),
+    d20: calculateDivisionalChart(20, chart),
   };
 }
 
@@ -431,7 +552,7 @@ const secondRun = runAll(referenceChart);
 assert.deepStrictEqual(firstRun, secondRun, "calculateDivisionalChart must be deterministic for identical input");
 
 // Sanity on shape: every planet name present, ascendant present, sign 1-12.
-for (const result of [firstRun.d1, firstRun.d2, firstRun.d3, firstRun.d4, firstRun.d7, firstRun.d9, firstRun.d10, firstRun.d12]) {
+for (const result of [firstRun.d1, firstRun.d2, firstRun.d3, firstRun.d4, firstRun.d7, firstRun.d9, firstRun.d10, firstRun.d12, firstRun.d16, firstRun.d20]) {
   assert.ok(result.ascendant.sign >= 1 && result.ascendant.sign <= 12);
   const planetNames = Object.keys(result.planets);
   assert.strictEqual(planetNames.length, 12, "expected all 12 tracked planets in the divisional result");

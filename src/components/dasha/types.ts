@@ -30,6 +30,22 @@ export type DashaYoga = {
   strength?: "weak" | "moderate" | "strong";
 };
 
+/** One classical planet's core Shadbala total vs. its classical
+ * minimum-strength requirement (src/lib/astro-engine/shadbala.ts) —
+ * only the 7 classical planets have this (no classical Shadbala for
+ * Rahu/Ketu/outer planets), and this is a documented "core/simplified"
+ * version of the full BPHS system, not a complete reproduction. Same
+ * shape as src/components/free-kundli/types.ts's
+ * FreeKundliPlanetaryStrength — kept as its own named type here since
+ * this is a different tool's response. Bhava Bala (house strength) is
+ * deliberately not included for this tool — see route.ts's comment. */
+export type DashaPlanetaryStrength = {
+  planet: string;
+  totalRupas: number;
+  requiredRupas: number;
+  meetsRequirement: boolean;
+};
+
 export type DashaApiResponse = {
   mahaDashaTimeline: MahaDashaTimelineEntry[];
   currentMahaDasha: CurrentDashaEntry | null;
@@ -42,6 +58,9 @@ export type DashaApiResponse = {
   /** Every classical yoga this engine checks for, with its real
    * present/absent result (src/lib/astro-engine/yogas.ts). */
   yogas: DashaYoga[];
+  /** Core Shadbala for the 7 classical planets (Sun-Saturn only) —
+   * see DashaPlanetaryStrength's doc comment. */
+  planetaryStrength: DashaPlanetaryStrength[];
   timeUnknown: boolean;
   report: StructuredReport | null;
   reportError: boolean;

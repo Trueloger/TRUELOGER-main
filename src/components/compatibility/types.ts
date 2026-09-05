@@ -33,6 +33,21 @@ export type CompatibilityYoga = {
   strength?: "weak" | "moderate" | "strong";
 };
 
+/** One classical planet's core Shadbala total vs. its classical
+ * minimum-strength requirement (src/lib/astro-engine/shadbala.ts) —
+ * only the 7 classical planets have this (no classical Shadbala for
+ * Rahu/Ketu/outer planets), and this is a documented "core/simplified"
+ * version of the full BPHS system, not a complete reproduction. Same
+ * shape as src/components/kundli-matching/types.ts's
+ * KundliMatchingPlanetaryStrength — kept as its own named type here
+ * since this route resolves two people's Shadbala, not one. */
+export type CompatibilityPlanetaryStrength = {
+  planet: string;
+  totalRupas: number;
+  requiredRupas: number;
+  meetsRequirement: boolean;
+};
+
 export type CompatibilityApiResponse = {
   result: AshtakootResult;
   /** true when either person's reading used a default 12:00 birth time
@@ -57,4 +72,11 @@ export type CompatibilityApiResponse = {
   youYogas: CompatibilityYoga[];
   /** Person B's ("your partner") own classical yogas — see `youYogas`. */
   partnerYogas: CompatibilityYoga[];
+  /** Person A's ("you") own core Shadbala (7 classical planets only),
+   * computed from your own chart only (src/lib/astro-engine/shadbala.ts)
+   * — never mixed with your partner's. */
+  youPlanetaryStrength: CompatibilityPlanetaryStrength[];
+  /** Person B's ("your partner") own core Shadbala — see
+   * `youPlanetaryStrength`. */
+  partnerPlanetaryStrength: CompatibilityPlanetaryStrength[];
 };

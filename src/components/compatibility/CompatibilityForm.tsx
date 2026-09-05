@@ -195,6 +195,8 @@ export function CompatibilityForm() {
       partnerNavamsaChart,
       youYogas,
       partnerYogas,
+      youPlanetaryStrength,
+      partnerPlanetaryStrength,
     } = result;
     const kootaRows = buildKootaRows(ashtakoot);
     const yourName = valuesA.name.trim();
@@ -326,6 +328,57 @@ export function CompatibilityForm() {
                   None of the classical yogas this engine checks for were detected in this chart.
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Shadbala — core/simplified classical planetary strength, not
+            a full BPHS reproduction (see src/lib/astro-engine/shadbala.ts).
+            Real computed Rupas only, never an interpretive score. Each
+            person's own strength, computed from their own chart only. */}
+        <div className="space-y-6">
+          <div>
+            <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
+            <p className="mb-3 text-xs text-nav-plum/60">
+              A simplified core version of the classical six-fold strength system, for the 7
+              classical planets. &ldquo;Meets requirement&rdquo; compares each planet&rsquo;s
+              total against its own classical minimum.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-nav-amethyst">You</h3>
+              <ul className="grid gap-2">
+                {youPlanetaryStrength.map((s) => (
+                  <li
+                    key={s.planet}
+                    className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                  >
+                    <span className="font-medium">{s.planet}</span>
+                    <span className="text-xs text-nav-plum/70">
+                      {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
+                      {s.meetsRequirement ? " ✓" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Partner</h3>
+              <ul className="grid gap-2">
+                {partnerPlanetaryStrength.map((s) => (
+                  <li
+                    key={s.planet}
+                    className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                  >
+                    <span className="font-medium">{s.planet}</span>
+                    <span className="text-xs text-nav-plum/70">
+                      {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
+                      {s.meetsRequirement ? " ✓" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>

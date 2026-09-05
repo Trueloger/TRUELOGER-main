@@ -66,6 +66,19 @@ export type FreeKundliPlanetaryStrength = {
   meetsRequirement: boolean;
 };
 
+/** One whole-sign house's core Bhava Bala (house strength) total
+ * (src/lib/astro-engine/bhavabala.ts) — all 12 houses always have a
+ * result (unlike Shadbala's 7-of-12 planets). This is a documented
+ * "core/simplified" version, not a full BPHS Bhava Bala reproduction
+ * — see that module's "HONESTY NOTICE" doc comment. Kept deliberately
+ * simple here (house/houseLord/totalStrength only) rather than
+ * surfacing every raw sub-component. */
+export type FreeKundliHouseStrength = {
+  house: number;
+  houseLord: string;
+  totalStrength: number;
+};
+
 /** Structured chart data — the exact shape NorthIndianChart.tsx needs
  * to render the North Indian style Rasi (D1) chart locally: the
  * Ascendant's sidereal sign (fixes which sign occupies House 1) plus
@@ -101,6 +114,9 @@ export type FreeKundliApiResponse = {
   /** Core Shadbala for the 7 classical planets (Sun-Saturn only) —
    * see FreeKundliPlanetaryStrength's doc comment. */
   planetaryStrength: FreeKundliPlanetaryStrength[];
+  /** Core Bhava Bala (house strength) for all 12 whole-sign houses —
+   * see FreeKundliHouseStrength's doc comment. */
+  houseStrength: FreeKundliHouseStrength[];
   report: StructuredReport | null;
   reportError: boolean;
 };

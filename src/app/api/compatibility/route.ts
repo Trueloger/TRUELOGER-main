@@ -28,6 +28,7 @@ import { NextResponse } from "next/server";
 import { calculateChart, type ChartData, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 import { calculateDivisionalChart } from "@/lib/astro-engine/divisional";
 import { detectYogas } from "@/lib/astro-engine/yogas";
+import { calculateShadbala } from "@/lib/astro-engine/shadbala";
 import { calculateAshtakoot } from "@/lib/ashtakoot/calculate";
 import {
   validateMatchPersonInput,
@@ -38,7 +39,11 @@ import { signHouseNumber } from "@/lib/astrology/derive";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 import type { BirthInput } from "@/lib/astrology/types";
-import type { CompatibilityChartData, CompatibilityYoga } from "@/components/compatibility/types";
+import type {
+  CompatibilityChartData,
+  CompatibilityYoga,
+  CompatibilityPlanetaryStrength,
+} from "@/components/compatibility/types";
 
 // Canonical planet order for building chart-view data — same order
 // every other chart-consuming route uses (see e.g.
@@ -108,6 +113,27 @@ function toYogasViewData(chart: ChartData): CompatibilityYoga[] {
   }));
 }
 
+/** This person's own core Shadbala only (src/lib/astro-engine/shadbala.ts)
+ * — reads ONLY the single `chart` passed in, never any shared/global
+ * state, mirroring toYogasViewData() above. Only the 7 classical
+ * planets have a result; Rahu/Ketu/outer planets are omitted rather
+ * than padded with a fabricated null-shaped row. */
+function toPlanetaryStrengthViewData(chart: ChartData): CompatibilityPlanetaryStrength[] {
+  const shadbalaByPlanet = calculateShadbala(chart);
+  return (Object.keys(shadbalaByPlanet) as ChartPlanetName[])
+    .map((name) => {
+      const s = shadbalaByPlanet[name];
+      if (!s) return null;
+      return {
+        planet: name,
+        totalRupas: s.totalRupas,
+        requiredRupas: s.requiredRupas,
+        meetsRequirement: s.meetsRequirement,
+      };
+    })
+    .filter((row) => row !== null);
+}
+
 // Two resolved birth charts + one match-making calculation + the AI
 // interpretation layer, all in one request — give it real headroom.
 export const maxDuration = 30;
@@ -174,6 +200,8 @@ export async function POST(request: Request) {
   let partnerNavamsaView: CompatibilityChartData;
   let youYogas: CompatibilityYoga[];
   let partnerYogas: CompatibilityYoga[];
+  let youPlanetaryStrength: CompatibilityPlanetaryStrength[];
+  let partnerPlanetaryStrength: CompatibilityPlanetaryStrength[];
   try {
     const youChart = calculateChart(
       birthInputToUtc(femaleInput),
@@ -191,13 +219,16 @@ export async function POST(request: Request) {
     );
     youChartView = toChartViewData(youChart);
     partnerChartView = toChartViewData(partnerChart);
-    // Each person's Navamsa/yogas below is computed from that person's
-    // own already-computed `youChart`/`partnerChart` ChartData object
-    // only — no shared/global state, mirroring toChartViewData() above.
+    // Each person's Navamsa/yogas/Shadbala below is computed from that
+    // person's own already-computed `youChart`/`partnerChart` ChartData
+    // object only — no shared/global state, mirroring
+    // toChartViewData() above.
     youNavamsaView = toNavamsaViewData(youChart);
     partnerNavamsaView = toNavamsaViewData(partnerChart);
     youYogas = toYogasViewData(youChart);
     partnerYogas = toYogasViewData(partnerChart);
+    youPlanetaryStrength = toPlanetaryStrengthViewData(youChart);
+    partnerPlanetaryStrength = toPlanetaryStrengthViewData(partnerChart);
   } catch (err) {
     // Never log either person's full name/DOB/coordinates — only the
     // failure and which step it happened in.
@@ -244,5 +275,7 @@ export async function POST(request: Request) {
     partnerNavamsaChart: partnerNavamsaView,
     youYogas,
     partnerYogas,
+    youPlanetaryStrength,
+    partnerPlanetaryStrength,
   });
 }

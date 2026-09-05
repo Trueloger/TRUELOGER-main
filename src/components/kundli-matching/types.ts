@@ -33,6 +33,21 @@ export type KundliMatchingYoga = {
   strength?: "weak" | "moderate" | "strong";
 };
 
+/** One classical planet's core Shadbala total vs. its classical
+ * minimum-strength requirement (src/lib/astro-engine/shadbala.ts) —
+ * only the 7 classical planets have this (no classical Shadbala for
+ * Rahu/Ketu/outer planets), and this is a documented "core/simplified"
+ * version of the full BPHS system, not a complete reproduction. Same
+ * shape as src/components/free-kundli/types.ts's
+ * FreeKundliPlanetaryStrength — kept as its own named type here since
+ * this route resolves two people's Shadbala, not one. */
+export type KundliMatchingPlanetaryStrength = {
+  planet: string;
+  totalRupas: number;
+  requiredRupas: number;
+  meetsRequirement: boolean;
+};
+
 export type KundliMatchingApiResponse = {
   result: AshtakootResult;
   /** true when either person's reading used a default 12:00 birth time
@@ -57,4 +72,10 @@ export type KundliMatchingApiResponse = {
   brideYogas: KundliMatchingYoga[];
   /** The groom's own classical yogas — see `brideYogas`. */
   groomYogas: KundliMatchingYoga[];
+  /** The bride's own core Shadbala (7 classical planets only), computed
+   * from her own chart only (src/lib/astro-engine/shadbala.ts) — never
+   * mixed with the groom's. */
+  bridePlanetaryStrength: KundliMatchingPlanetaryStrength[];
+  /** The groom's own core Shadbala — see `bridePlanetaryStrength`. */
+  groomPlanetaryStrength: KundliMatchingPlanetaryStrength[];
 };
