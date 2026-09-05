@@ -186,3 +186,70 @@ function buildAntarDashas(
 
   return antarMap;
 }
+
+/**
+ * Builds the pratyantar-dasha (3rd-level sub-period) breakdown for one
+ * antar-dasha: the same 9-lord DASHA_LORD_SEQUENCE, starting from the
+ * antar-dasha's OWN lord (not the maha-dasha's lord), each
+ * pratyantar-dasha's duration = (antarDashaYears * pratyantarLordYears)
+ * / 120 — the same proportional-subdivision formula used one level up
+ * by buildAntarDashas, applied recursively. This is standard classical
+ * Vimshottari theory (Brihat Parashara Hora Shastra's nested-dasha
+ * construction) — confirmed via WebSearch against multiple independent
+ * sources describing the pratyantardasha calculation:
+ * saptarishisastrology.com/pratyantar-dasha-calculator/,
+ * astrosage.com's Vimshottari Dasha documentation, and
+ * jagannathhora.com/vimshottari-mahadasha-sequence-reference/ — all
+ * agree the sub-sub-period (pratyantardasha) sequence within an
+ * antardasha starts from that antardasha's own lord and cycles the same
+ * 9-lord order, with each length proportional to
+ * (antarDashaYears * pratyantarLordYears) / 120, exactly mirroring how
+ * antardashas themselves subdivide a mahadasha.
+ *
+ * This is a NEW, additive export — it does not change
+ * vimshottariDasha's or buildAntarDashas's existing behavior or return
+ * shape. Callers that want pratyantar-dashas call this themselves for
+ * whichever antar-dasha they care about, mirroring buildAntarDashas's
+ * own signature pattern (lord, years, startMs) -> lord-keyed map.
+ *
+ * Pratyantar-dashas are laid out back-to-back starting at
+ * `antarDashaStartMs`, so together they exactly span the antar-dasha's
+ * own duration (no gaps, no overlap) — verified in
+ * src/lib/dasha/pratyantar.test.ts.
+ *
+ * @param antarDashaLord The antar-dasha's own ruling lord — the
+ *   pratyantar-dasha sequence starts from this lord, not the
+ *   maha-dasha's lord.
+ * @param antarDashaYears The antar-dasha's own duration, in years (as
+ *   computed by buildAntarDashas).
+ * @param antarDashaStartMs The antar-dasha's own start instant, in
+ *   epoch milliseconds.
+ * @returns A lord-keyed map of {start_time, end_time} date strings,
+ *   same shape/format as buildAntarDashas's return value.
+ */
+export function buildPratyantarDashas(
+  antarDashaLord: DashaLord,
+  antarDashaYears: number,
+  antarDashaStartMs: number
+): Record<string, { start_time: string; end_time: string }> {
+  const startIndex = DASHA_LORD_SEQUENCE.indexOf(antarDashaLord);
+  const pratyantarMap: Record<string, { start_time: string; end_time: string }> = {};
+
+  let cursorMs = antarDashaStartMs;
+  for (let offset = 0; offset < 9; offset++) {
+    const pratyantarLord = DASHA_LORD_SEQUENCE[(startIndex + offset) % 9];
+    const pratyantarDashaYears =
+      (antarDashaYears * DASHA_LORD_YEARS[pratyantarLord]) / TOTAL_CYCLE_YEARS;
+    const pratyantarStartMs = cursorMs;
+    const pratyantarEndMs = pratyantarStartMs + yearsToMs(pratyantarDashaYears);
+
+    pratyantarMap[pratyantarLord] = {
+      start_time: formatDashaDate(new Date(pratyantarStartMs)),
+      end_time: formatDashaDate(new Date(pratyantarEndMs)),
+    };
+
+    cursorMs = pratyantarEndMs;
+  }
+
+  return pratyantarMap;
+}
