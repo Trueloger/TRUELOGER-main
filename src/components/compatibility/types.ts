@@ -23,6 +23,16 @@ export type CompatibilityChartData = {
   >;
 };
 
+/** One row of src/lib/astro-engine/yogas.ts's detectYogas() output —
+ * data only (present/absent + an optional classical strength grade),
+ * never interpretation text. */
+export type CompatibilityYoga = {
+  id: string;
+  name: string;
+  present: boolean;
+  strength?: "weak" | "moderate" | "strong";
+};
+
 export type CompatibilityApiResponse = {
   result: AshtakootResult;
   /** true when either person's reading used a default 12:00 birth time
@@ -36,4 +46,15 @@ export type CompatibilityApiResponse = {
   youChart: CompatibilityChartData;
   /** Person B's ("your partner") real birth chart, for BirthChartCard. */
   partnerChart: CompatibilityChartData;
+  /** Person A's ("you") D9 Navamsa chart, same BirthChartCard-compatible
+   * shape as `youChart` — every sign/house here is the planet's Navamsa
+   * placement, not its D1/Rasi placement (src/lib/astro-engine/divisional.ts). */
+  youNavamsaChart: CompatibilityChartData;
+  /** Person B's ("your partner") D9 Navamsa chart — see `youNavamsaChart`. */
+  partnerNavamsaChart: CompatibilityChartData;
+  /** Person A's ("you") own classical yogas, from your own chart only
+   * (src/lib/astro-engine/yogas.ts) — never mixed with your partner's. */
+  youYogas: CompatibilityYoga[];
+  /** Person B's ("your partner") own classical yogas — see `youYogas`. */
+  partnerYogas: CompatibilityYoga[];
 };

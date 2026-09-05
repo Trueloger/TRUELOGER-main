@@ -23,6 +23,16 @@ export type KundliMatchingChartData = {
   >;
 };
 
+/** One row of src/lib/astro-engine/yogas.ts's detectYogas() output —
+ * data only (present/absent + an optional classical strength grade),
+ * never interpretation text. */
+export type KundliMatchingYoga = {
+  id: string;
+  name: string;
+  present: boolean;
+  strength?: "weak" | "moderate" | "strong";
+};
+
 export type KundliMatchingApiResponse = {
   result: AshtakootResult;
   /** true when either person's reading used a default 12:00 birth time
@@ -36,4 +46,15 @@ export type KundliMatchingApiResponse = {
   brideChart: KundliMatchingChartData;
   /** The groom's (personB's) real birth chart, for BirthChartCard. */
   groomChart: KundliMatchingChartData;
+  /** The bride's D9 Navamsa chart, same BirthChartCard-compatible shape
+   * as `brideChart` — every sign/house here is the planet's Navamsa
+   * placement, not its D1/Rasi placement (src/lib/astro-engine/divisional.ts). */
+  brideNavamsaChart: KundliMatchingChartData;
+  /** The groom's D9 Navamsa chart — see `brideNavamsaChart`. */
+  groomNavamsaChart: KundliMatchingChartData;
+  /** The bride's own classical yogas, from her own chart only
+   * (src/lib/astro-engine/yogas.ts) — never mixed with the groom's. */
+  brideYogas: KundliMatchingYoga[];
+  /** The groom's own classical yogas — see `brideYogas`. */
+  groomYogas: KundliMatchingYoga[];
 };

@@ -34,16 +34,19 @@
 // directional rule (Varna) depends on this ordering.
 import { NextResponse } from "next/server";
 import { calculateChart, type ChartData, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
+import { calculateDivisionalChart } from "@/lib/astro-engine/divisional";
+import { detectYogas } from "@/lib/astro-engine/yogas";
 import { calculateAshtakoot } from "@/lib/ashtakoot/calculate";
 import {
   validateMatchPersonInput,
   buildMatchBirthInput,
   type RawPersonInput,
 } from "@/lib/astrology/match-request";
+import { signHouseNumber } from "@/lib/astrology/derive";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 import type { BirthInput } from "@/lib/astrology/types";
-import type { KundliMatchingChartData } from "@/components/kundli-matching/types";
+import type { KundliMatchingChartData, KundliMatchingYoga } from "@/components/kundli-matching/types";
 
 // Canonical planet order for building chart-view data — same order
 // every other chart-consuming route uses (see e.g.
@@ -73,6 +76,44 @@ function toChartViewData(chart: ChartData): KundliMatchingChartData {
       {} as KundliMatchingChartData["planets"]
     ),
   };
+}
+
+/** D9 Navamsa view for BirthChartCard, same shape as toChartViewData()
+ * above — every sign/house here is the planet's Navamsa placement
+ * (src/lib/astro-engine/divisional.ts), not its D1/Rasi placement.
+ * Retrograde status carries over unchanged from the natal chart (a
+ * planet's physical motion doesn't change per divisional chart); house
+ * is counted from the Navamsa chart's own Ascendant sign. Reads ONLY
+ * the single `chart` passed in — no shared/global state. */
+function toNavamsaViewData(chart: ChartData): KundliMatchingChartData {
+  const navamsa = calculateDivisionalChart(9, chart);
+  return {
+    ascendantSign: navamsa.ascendant.sign,
+    planets: PLANET_DISPLAY_ORDER.reduce(
+      (acc, name) => {
+        const point = navamsa.planets[name];
+        acc[name] = {
+          sign: point.sign,
+          house: signHouseNumber(navamsa.ascendant.sign, point.sign),
+          isRetrograde: chart.planets[name].isRetrograde,
+          degree: point.degreeInVarga,
+        };
+        return acc;
+      },
+      {} as KundliMatchingChartData["planets"]
+    ),
+  };
+}
+
+/** This person's own classical yogas only (src/lib/astro-engine/yogas.ts)
+ * — reads ONLY the single `chart` passed in, never any shared state. */
+function toYogasViewData(chart: ChartData): KundliMatchingYoga[] {
+  return detectYogas(chart).map((y) => ({
+    id: y.ruleId,
+    name: y.name,
+    present: y.present,
+    strength: y.strength,
+  }));
 }
 
 // Two resolved birth charts + one match-making calculation + the AI
@@ -137,6 +178,10 @@ export async function POST(request: Request) {
   let result;
   let brideChartView: KundliMatchingChartData;
   let groomChartView: KundliMatchingChartData;
+  let brideNavamsaView: KundliMatchingChartData;
+  let groomNavamsaView: KundliMatchingChartData;
+  let brideYogas: KundliMatchingYoga[];
+  let groomYogas: KundliMatchingYoga[];
   try {
     const brideChart = calculateChart(
       birthInputToUtc(femaleInput),
@@ -154,6 +199,13 @@ export async function POST(request: Request) {
     );
     brideChartView = toChartViewData(brideChart);
     groomChartView = toChartViewData(groomChart);
+    // Each person's Navamsa/yogas below is computed from that person's
+    // own already-computed `brideChart`/`groomChart` ChartData object
+    // only — no shared/global state, mirroring toChartViewData() above.
+    brideNavamsaView = toNavamsaViewData(brideChart);
+    groomNavamsaView = toNavamsaViewData(groomChart);
+    brideYogas = toYogasViewData(brideChart);
+    groomYogas = toYogasViewData(groomChart);
   } catch (err) {
     // Never log either person's full name/DOB/coordinates — only the
     // failure and which step it happened in.
@@ -168,6 +220,8 @@ export async function POST(request: Request) {
   }
 
   const timeUnknown = bride.timeUnknown || groom.timeUnknown;
+  const bridePresentYogaNames = brideYogas.filter((y) => y.present).map((y) => y.name);
+  const groomPresentYogaNames = groomYogas.filter((y) => y.present).map((y) => y.name);
 
   // The real calculated Ashtakoot data above must always reach the
   // client, even if the AI-interpretation layer fails.
@@ -176,8 +230,8 @@ export async function POST(request: Request) {
   try {
     report = await generateStructuredReport(
       "kundli-matching",
-      { ashtakoot: result, timeUnknown },
-      `Write a traditional Vedic Kundli Matching (Ashtakoot / Guna Milan) reading for this bride and groom, based only on the real calculated koota scores above — never invent a score. The total score ("totalScore") is out of 36 ("outOf"), summed across 8 kootas: varna, vashya, tara, yoni, grahaMaitri, gana, bhakoot, and nadi (each an object with "score"/"outOf"/"personA"/"personB" — personA is the bride, personB is the groom). Cover exactly these 4 sections, in this order: (1) "Overall Verdict" — interpret the total score against traditional Ashtakoot guidelines (below 18 traditionally considered weak, 18-24 acceptable, 25-31 favorable, 32-36 excellent), framed as traditional guidance, never a guarantee of relationship success or failure; (2) "Strongest Kootas" — interpret the 2-3 highest-scoring kootas and what they traditionally suggest about this pairing; (3) "Kootas Needing Attention" — gently interpret the lowest-scoring kootas, explicitly naming whether Nadi Dosha ("nadiDosha" is true) or Bhakoot Dosha ("bhakootDosha" is true) is present, and what tradition says about each; (4) "Traditional Guidance" — a grounded, respectful closing note for the couple and families, mentioning that a qualified astrologer can review remedies for any dosha traditionally found. Use traditional Vedic matchmaking language throughout ("the bride's chart", "the groom's chart", "this koota traditionally reflects..."). If "timeUnknown" is true, add one brief closing line noting a default birth time (12:00) was used for at least one chart in the absence of an exact time, and that the Tara/Yoni/Gana/Bhakoot/Nadi kootas in particular can shift with a more precise birth time.`
+      { ashtakoot: result, timeUnknown, bridePresentYogaNames, groomPresentYogaNames },
+      `Write a traditional Vedic Kundli Matching (Ashtakoot / Guna Milan) reading for this bride and groom, based only on the real calculated koota scores above — never invent a score. The total score ("totalScore") is out of 36 ("outOf"), summed across 8 kootas: varna, vashya, tara, yoni, grahaMaitri, gana, bhakoot, and nadi (each an object with "score"/"outOf"/"personA"/"personB" — personA is the bride, personB is the groom). Cover exactly these 4 sections, in this order: (1) "Overall Verdict" — interpret the total score against traditional Ashtakoot guidelines (below 18 traditionally considered weak, 18-24 acceptable, 25-31 favorable, 32-36 excellent), framed as traditional guidance, never a guarantee of relationship success or failure; (2) "Strongest Kootas" — interpret the 2-3 highest-scoring kootas and what they traditionally suggest about this pairing; (3) "Kootas Needing Attention" — gently interpret the lowest-scoring kootas, explicitly naming whether Nadi Dosha ("nadiDosha" is true) or Bhakoot Dosha ("bhakootDosha" is true) is present, and what tradition says about each; (4) "Traditional Guidance" — a grounded, respectful closing note for the couple and families, mentioning that a qualified astrologer can review remedies for any dosha traditionally found. Use traditional Vedic matchmaking language throughout ("the bride's chart", "the groom's chart", "this koota traditionally reflects..."). If "bridePresentYogaNames" and/or "groomPresentYogaNames" is non-empty, briefly name that person's classical yoga(s) as traditionally significant combinations present in their chart (name only, no invented meaning beyond that). If "timeUnknown" is true, add one brief closing line noting a default birth time (12:00) was used for at least one chart in the absence of an exact time, and that the Tara/Yoni/Gana/Bhakoot/Nadi kootas in particular can shift with a more precise birth time.`
     );
   } catch (err) {
     console.error(
@@ -194,5 +248,9 @@ export async function POST(request: Request) {
     reportError,
     brideChart: brideChartView,
     groomChart: groomChartView,
+    brideNavamsaChart: brideNavamsaView,
+    groomNavamsaChart: groomNavamsaView,
+    brideYogas,
+    groomYogas,
   });
 }

@@ -26,16 +26,19 @@
 // birth charts") rather than hidden — see CompatibilityForm.tsx.
 import { NextResponse } from "next/server";
 import { calculateChart, type ChartData, type ChartPlanetName } from "@/lib/astro-engine/ephemeris";
+import { calculateDivisionalChart } from "@/lib/astro-engine/divisional";
+import { detectYogas } from "@/lib/astro-engine/yogas";
 import { calculateAshtakoot } from "@/lib/ashtakoot/calculate";
 import {
   validateMatchPersonInput,
   buildMatchBirthInput,
   type RawPersonInput,
 } from "@/lib/astrology/match-request";
+import { signHouseNumber } from "@/lib/astrology/derive";
 import { checkRateLimit, getClientIdentifier } from "@/lib/rate-limit/firestore-rate-limit";
 import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report";
 import type { BirthInput } from "@/lib/astrology/types";
-import type { CompatibilityChartData } from "@/components/compatibility/types";
+import type { CompatibilityChartData, CompatibilityYoga } from "@/components/compatibility/types";
 
 // Canonical planet order for building chart-view data — same order
 // every other chart-consuming route uses (see e.g.
@@ -65,6 +68,44 @@ function toChartViewData(chart: ChartData): CompatibilityChartData {
       {} as CompatibilityChartData["planets"]
     ),
   };
+}
+
+/** D9 Navamsa view for BirthChartCard, same shape as toChartViewData()
+ * above — every sign/house here is the planet's Navamsa placement
+ * (src/lib/astro-engine/divisional.ts), not its D1/Rasi placement.
+ * Retrograde status carries over unchanged from the natal chart (a
+ * planet's physical motion doesn't change per divisional chart); house
+ * is counted from the Navamsa chart's own Ascendant sign. Reads ONLY
+ * the single `chart` passed in — no shared/global state. */
+function toNavamsaViewData(chart: ChartData): CompatibilityChartData {
+  const navamsa = calculateDivisionalChart(9, chart);
+  return {
+    ascendantSign: navamsa.ascendant.sign,
+    planets: PLANET_DISPLAY_ORDER.reduce(
+      (acc, name) => {
+        const point = navamsa.planets[name];
+        acc[name] = {
+          sign: point.sign,
+          house: signHouseNumber(navamsa.ascendant.sign, point.sign),
+          isRetrograde: chart.planets[name].isRetrograde,
+          degree: point.degreeInVarga,
+        };
+        return acc;
+      },
+      {} as CompatibilityChartData["planets"]
+    ),
+  };
+}
+
+/** This person's own classical yogas only (src/lib/astro-engine/yogas.ts)
+ * — reads ONLY the single `chart` passed in, never any shared state. */
+function toYogasViewData(chart: ChartData): CompatibilityYoga[] {
+  return detectYogas(chart).map((y) => ({
+    id: y.ruleId,
+    name: y.name,
+    present: y.present,
+    strength: y.strength,
+  }));
 }
 
 // Two resolved birth charts + one match-making calculation + the AI
@@ -129,6 +170,10 @@ export async function POST(request: Request) {
   let result;
   let youChartView: CompatibilityChartData;
   let partnerChartView: CompatibilityChartData;
+  let youNavamsaView: CompatibilityChartData;
+  let partnerNavamsaView: CompatibilityChartData;
+  let youYogas: CompatibilityYoga[];
+  let partnerYogas: CompatibilityYoga[];
   try {
     const youChart = calculateChart(
       birthInputToUtc(femaleInput),
@@ -146,6 +191,13 @@ export async function POST(request: Request) {
     );
     youChartView = toChartViewData(youChart);
     partnerChartView = toChartViewData(partnerChart);
+    // Each person's Navamsa/yogas below is computed from that person's
+    // own already-computed `youChart`/`partnerChart` ChartData object
+    // only — no shared/global state, mirroring toChartViewData() above.
+    youNavamsaView = toNavamsaViewData(youChart);
+    partnerNavamsaView = toNavamsaViewData(partnerChart);
+    youYogas = toYogasViewData(youChart);
+    partnerYogas = toYogasViewData(partnerChart);
   } catch (err) {
     // Never log either person's full name/DOB/coordinates — only the
     // failure and which step it happened in.
@@ -160,6 +212,8 @@ export async function POST(request: Request) {
   }
 
   const timeUnknown = you.timeUnknown || partner.timeUnknown;
+  const youPresentYogaNames = youYogas.filter((y) => y.present).map((y) => y.name);
+  const partnerPresentYogaNames = partnerYogas.filter((y) => y.present).map((y) => y.name);
 
   // The real calculated Ashtakoot data above must always reach the
   // client, even if the AI-interpretation layer fails.
@@ -168,8 +222,8 @@ export async function POST(request: Request) {
   try {
     report = await generateStructuredReport(
       "compatibility",
-      { ashtakoot: result, timeUnknown },
-      `The data above is a real Ashtakoot (Vedic astrological match-making) calculation between two people — treat "personA" fields as Person A ("you") and "personB" fields as Person B ("your partner"), and do NOT use the words "bride", "groom", "marriage", or "wedding" anywhere in your response. Each koota (varna, vashya, tara, yoni, grahaMaitri, gana, bhakoot, nadi) is an object with "score"/"outOf"/"personA"/"personB". Interpret this same real data through a modern relationship-dynamics lens, grounded only in the real koota scores given above — never invent a dynamic the data doesn't support. Cover exactly these 5 sections, in this order: (1) "Emotional Compatibility" — interpret the Graha Maitri koota (mental/friendship compatibility, field "grahaMaitri") and the Gana koota (temperament compatibility); (2) "Communication Style" — interpret the Vashya koota (the mutual-influence dynamic) and the Varna koota (ego/self-respect compatibility); (3) "Relationship Dynamics & Attraction" — interpret the Yoni koota (physical/instinctual compatibility) and the Tara koota (well-being/rapport); (4) "Strengths of This Pairing" — highlight what the highest-scoring kootas suggest comes naturally easily between these two people; (5) "Potential Challenges" — gently frame what the lowest-scoring or zero-scoring kootas (including Bhakoot and Nadi — note "bhakootDosha"/"nadiDosha" if true) suggest as growth areas to be mindful of, explicitly NOT as a dealbreaker or a prediction of failure. If "timeUnknown" is true, add one brief closing line noting a default time (12:00) was used for at least one person in the absence of an exact birth time, which can shift these results.`
+      { ashtakoot: result, timeUnknown, youPresentYogaNames, partnerPresentYogaNames },
+      `The data above is a real Ashtakoot (Vedic astrological match-making) calculation between two people — treat "personA" fields as Person A ("you") and "personB" fields as Person B ("your partner"), and do NOT use the words "bride", "groom", "marriage", or "wedding" anywhere in your response. Each koota (varna, vashya, tara, yoni, grahaMaitri, gana, bhakoot, nadi) is an object with "score"/"outOf"/"personA"/"personB". Interpret this same real data through a modern relationship-dynamics lens, grounded only in the real koota scores given above — never invent a dynamic the data doesn't support. Cover exactly these 5 sections, in this order: (1) "Emotional Compatibility" — interpret the Graha Maitri koota (mental/friendship compatibility, field "grahaMaitri") and the Gana koota (temperament compatibility); (2) "Communication Style" — interpret the Vashya koota (the mutual-influence dynamic) and the Varna koota (ego/self-respect compatibility); (3) "Relationship Dynamics & Attraction" — interpret the Yoni koota (physical/instinctual compatibility) and the Tara koota (well-being/rapport); (4) "Strengths of This Pairing" — highlight what the highest-scoring kootas suggest comes naturally easily between these two people; (5) "Potential Challenges" — gently frame what the lowest-scoring or zero-scoring kootas (including Bhakoot and Nadi — note "bhakootDosha"/"nadiDosha" if true) suggest as growth areas to be mindful of, explicitly NOT as a dealbreaker or a prediction of failure. If "youPresentYogaNames" and/or "partnerPresentYogaNames" is non-empty, briefly name that person's classical yoga(s) as traditionally significant combinations present in their chart (name only, no invented meaning beyond that). If "timeUnknown" is true, add one brief closing line noting a default time (12:00) was used for at least one person in the absence of an exact birth time, which can shift these results.`
     );
   } catch (err) {
     console.error(
@@ -186,5 +240,9 @@ export async function POST(request: Request) {
     reportError,
     youChart: youChartView,
     partnerChart: partnerChartView,
+    youNavamsaChart: youNavamsaView,
+    partnerNavamsaChart: partnerNavamsaView,
+    youYogas,
+    partnerYogas,
   });
 }

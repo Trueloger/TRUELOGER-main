@@ -176,7 +176,18 @@ export function KundliMatchingForm() {
   }
 
   if (status === "success" && result) {
-    const { result: ashtakoot, timeUnknown, report, reportError, brideChart, groomChart } = result;
+    const {
+      result: ashtakoot,
+      timeUnknown,
+      report,
+      reportError,
+      brideChart,
+      groomChart,
+      brideNavamsaChart,
+      groomNavamsaChart,
+      brideYogas,
+      groomYogas,
+    } = result;
     const kootaRows = buildKootaRows(ashtakoot);
     const brideName = valuesA.name.trim();
     const groomName = valuesB.name.trim();
@@ -210,6 +221,95 @@ export function KundliMatchingForm() {
             <div className="space-y-2 text-center">
               <h3 className="text-sm font-medium text-nav-amethyst">Groom</h3>
               <BirthChartCard ascendantSign={groomChart.ascendantSign} planets={groomChart.planets} />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <h2 className="font-serif text-lg text-nav-plum">Navamsa (D9) Charts</h2>
+            <p className="text-xs text-nav-plum/60">
+              Each person&rsquo;s Navamsa placement — traditionally consulted for marriage and a
+              planet&rsquo;s deeper strength.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+            <div className="space-y-2 text-center">
+              <h3 className="text-sm font-medium text-nav-amethyst">Bride</h3>
+              <BirthChartCard
+                ascendantSign={brideNavamsaChart.ascendantSign}
+                planets={brideNavamsaChart.planets}
+              />
+            </div>
+            <div className="space-y-2 text-center">
+              <h3 className="text-sm font-medium text-nav-amethyst">Groom</h3>
+              <BirthChartCard
+                ascendantSign={groomNavamsaChart.ascendantSign}
+                planets={groomNavamsaChart.planets}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
+            <p className="mb-3 text-xs text-nav-plum/60">
+              Classical planetary combinations each chart was checked against.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Bride</h3>
+              {brideYogas.some((y) => y.present) ? (
+                <ul className="grid gap-2">
+                  {brideYogas
+                    .filter((y) => y.present)
+                    .map((y) => (
+                      <li
+                        key={y.id}
+                        className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                      >
+                        <span className="font-medium">{y.name}</span>
+                        {y.strength && (
+                          <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
+                            ({y.strength})
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-nav-plum/70">
+                  None of the classical yogas this engine checks for were detected in this chart.
+                </p>
+              )}
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Groom</h3>
+              {groomYogas.some((y) => y.present) ? (
+                <ul className="grid gap-2">
+                  {groomYogas
+                    .filter((y) => y.present)
+                    .map((y) => (
+                      <li
+                        key={y.id}
+                        className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                      >
+                        <span className="font-medium">{y.name}</span>
+                        {y.strength && (
+                          <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
+                            ({y.strength})
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-nav-plum/70">
+                  None of the classical yogas this engine checks for were detected in this chart.
+                </p>
+              )}
             </div>
           </div>
         </div>

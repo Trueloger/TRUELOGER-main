@@ -22,6 +22,8 @@
 // no test framework, run directly via `node src/lib/astro-engine/isolation.test.ts`.
 import assert from "node:assert/strict";
 import { calculateChart, type ChartData } from "./ephemeris.ts";
+import { calculateDivisionalChart } from "./divisional.ts";
+import { detectYogas } from "./yogas.ts";
 import { calculateAshtakoot, type AshtakootPerson } from "../ashtakoot/calculate.ts";
 
 // ---------------------------------------------------------------------
@@ -273,8 +275,90 @@ function referenceAshtakootPersonFromChart(p: SyntheticPerson): AshtakootPerson 
 }
 
 // ---------------------------------------------------------------------
+// Navamsa (D9) + yogas isolation — the pattern added to
+// src/app/api/kundli-matching/route.ts and src/app/api/compatibility/route.ts:
+// for each person in a two-person tool, calculateDivisionalChart(9, ...)
+// and detectYogas(...) are called once per person's own already-computed
+// ChartData object. Uses two clearly-distinguishable synthetic people
+// (Person A and Person C — different date/time/lat/long from each
+// other) run concurrently/interleaved, and asserts Person A's
+// navamsa/yogas never leak into Person C's result (and vice versa).
+// ---------------------------------------------------------------------
+
+type NavamsaYogaSnapshot = {
+  navamsaAscendant: number;
+  navamsaMoonSign: number;
+  navamsaMoonDegree: number;
+  presentYogaIds: string[];
+};
+
+function computeNavamsaYogaSnapshot(chart: ChartData): NavamsaYogaSnapshot {
+  const navamsa = calculateDivisionalChart(9, chart);
+  const yogas = detectYogas(chart);
+  return {
+    navamsaAscendant: navamsa.ascendant.sign,
+    navamsaMoonSign: navamsa.planets.Moon.sign,
+    navamsaMoonDegree: navamsa.planets.Moon.degreeInVarga,
+    presentYogaIds: yogas.filter((y) => y.present).map((y) => y.ruleId),
+  };
+}
+
+async function interleavedNavamsaYogaSnapshot(p: SyntheticPerson): Promise<NavamsaYogaSnapshot> {
+  const chart = await interleavedCalculateChart(p);
+  // A little extra interleaving between chart resolution and the
+  // navamsa/yogas computation, mirroring how the two-person routes
+  // await both people's charts before computing either's navamsa/yogas.
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, Math.random() * 5));
+  return computeNavamsaYogaSnapshot(chart);
+}
+
+async function runNavamsaYogaIsolationAudit() {
+  const referenceSnapshotA = computeNavamsaYogaSnapshot(referenceCharts.get("A")!);
+  const referenceSnapshotC = computeNavamsaYogaSnapshot(referenceCharts.get("C")!);
+
+  assert.notDeepStrictEqual(
+    referenceSnapshotA,
+    referenceSnapshotC,
+    "test setup: Person A and Person C must produce distinguishable navamsa/yoga snapshots"
+  );
+
+  // Interleave many concurrent "bride"/"groom" (A/C) navamsa+yoga
+  // computations, mixing orderings and repeats, exactly as the shape a
+  // cross-request/cross-person leak would need to manifest under.
+  const jobs: { label: "A" | "C"; promise: Promise<NavamsaYogaSnapshot> }[] = [
+    { label: "A", promise: interleavedNavamsaYogaSnapshot(PERSON_A) },
+    { label: "C", promise: interleavedNavamsaYogaSnapshot(PERSON_C) },
+    { label: "C", promise: interleavedNavamsaYogaSnapshot(PERSON_C) },
+    { label: "A", promise: interleavedNavamsaYogaSnapshot(PERSON_A) },
+  ];
+  for (let i = 0; i < 12; i++) {
+    const person = i % 2 === 0 ? PERSON_A : PERSON_C;
+    jobs.push({
+      label: person.label as "A" | "C",
+      promise: interleavedNavamsaYogaSnapshot(person),
+    });
+  }
+
+  const settled = await Promise.all(jobs.map((j) => j.promise));
+  settled.forEach((snapshot, i) => {
+    const expected = jobs[i].label === "A" ? referenceSnapshotA : referenceSnapshotC;
+    assert.deepStrictEqual(
+      snapshot,
+      expected,
+      `Navamsa/yoga job #${i} (person ${jobs[i].label}): result diverged from that person's own serial reference — possible cross-person data leak`
+    );
+  });
+
+  console.log(
+    "isolation.test.ts: navamsa/yoga isolation audit passed (16 concurrent calculateDivisionalChart+detectYogas snapshots, no cross-person leak)"
+  );
+}
+
+// ---------------------------------------------------------------------
 // Run
 // ---------------------------------------------------------------------
 
 await runConcurrencyAudit();
 runSymmetryAudit();
+await runNavamsaYogaIsolationAudit();
