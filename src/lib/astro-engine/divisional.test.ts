@@ -15,6 +15,12 @@ import {
   calculateD12,
   calculateD16,
   calculateD20,
+  calculateD24,
+  calculateD27,
+  calculateD30,
+  calculateD40,
+  calculateD45,
+  calculateD60,
   calculateDivisionalChart,
   IMPLEMENTED_VARGAS,
   type DivisionalChartResult,
@@ -489,11 +495,357 @@ for (let sign = 1; sign <= 12; sign++) {
 }
 
 // ---------------------------------------------------------------------
+// D24 — Chaturvimshamsa (Siddhamsa): cross-check against research
+// ---------------------------------------------------------------------
+// Sources: https://jagannathhora.com/chaturvimsamsa-chart-d24-education/
+// and https://vedastrology.blogspot.com/2011/12/divisional-charts-d24-d27.html
+// both confirm: "the 1st chaturvimsamsa of an odd sign lands in Leo
+// itself" and "...of an even sign lands in Cancer itself".
+{
+  const ariesHalf = point(1, 0.5); // odd sign, part 1 (span = 30/24 = 1.25)
+  const d24 = calculateD24(ariesHalf);
+  assert.strictEqual(d24.sign, 5, "D24 of Aries 0.5 deg (odd sign, 1st part) must start from Leo (sign 5)");
+
+  const taurusHalf = point(2, 0.5); // even sign, part 1
+  const d24Even = calculateD24(taurusHalf);
+  assert.strictEqual(d24Even.sign, 4, "D24 of Taurus 0.5 deg (even sign, 1st part) must start from Cancer (sign 4)");
+}
+
+// Hand-derived cross-check (a third-party numeric example for "2 deg
+// Aries" was found but re-derivation showed it was arithmetically
+// wrong — 2/1.25 = 1.6, i.e. part 2, not part 1 — so this repo computes
+// its own non-boundary example instead of trusting it): Aries 6 deg:
+// span = 1.25, 6/1.25 = 4.8 -> part 5. Odd sign starts from Leo:
+// Leo(1st), Virgo(2nd), Libra(3rd), Scorpio(4th), Sagittarius(5th).
+{
+  const ariesSix = point(1, 6);
+  const d24 = calculateD24(ariesSix);
+  assert.strictEqual(d24.sign, 9, "D24 of Aries 6 deg (odd sign, 5th part) must be Sagittarius (sign 9)");
+}
+
+// Boundary sensitivity: the first 1.25 deg part boundary flips the sign.
+{
+  const justBelow = calculateD24(point(1, 1.24));
+  const justAbove = calculateD24(point(1, 1.25));
+  assert.notStrictEqual(justBelow.sign, justAbove.sign, "D24 boundary sensitivity failed across the first 1.25 deg part boundary");
+}
+
+// Full 12-sign sweep: every longitude maps to a valid 1-12 sign.
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 1.24, 1.25, 3.33, 7.5, 12.5, 15, 19.99, 22.5, 27.99, 29.999]) {
+    const d24 = calculateD24(point(sign, degree));
+    assert.ok(
+      Number.isInteger(d24.sign) && d24.sign >= 1 && d24.sign <= 12,
+      `D24 at sign ${sign}, degree ${degree}: sign ${d24.sign} out of 1-12 range`
+    );
+  }
+}
+
+// Determinism.
+{
+  const p = point(9, 17.77);
+  assert.deepStrictEqual(calculateD24(p), calculateD24(p), "D24 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
+// D27 — Bhamsa (Nakshatramsa): cross-check against research
+// ---------------------------------------------------------------------
+// Sources: https://jagannathhora.com/bhamsa-chart-d27-strength-weakness/
+// and https://vedastrology.blogspot.com/2011/12/divisional-charts-d24-d27.html
+// both confirm the element -> starting sign rule (fire->Aries,
+// earth->Cancer, air->Libra, water->Capricorn); the "1st bhamsa of the
+// sign = the starting sign itself" case is the direct source-confirmed
+// consequence, checked for all four elements below.
+{
+  const ariesFireStart = point(1, 0.5); // fire sign, part 1 (span = 30/27 = 1.1111)
+  assert.strictEqual(calculateD27(ariesFireStart).sign, 1, "D27 of Aries 0.5 deg (fire, 1st part) must start from Aries (sign 1)");
+
+  const taurusEarthStart = point(2, 0.5); // earth sign, part 1
+  assert.strictEqual(calculateD27(taurusEarthStart).sign, 4, "D27 of Taurus 0.5 deg (earth, 1st part) must start from Cancer (sign 4)");
+
+  const geminiAirStart = point(3, 0.5); // air sign, part 1
+  assert.strictEqual(calculateD27(geminiAirStart).sign, 7, "D27 of Gemini 0.5 deg (air, 1st part) must start from Libra (sign 7)");
+
+  const cancerWaterStart = point(4, 0.5); // water sign, part 1
+  assert.strictEqual(calculateD27(cancerWaterStart).sign, 10, "D27 of Cancer 0.5 deg (water, 1st part) must start from Capricorn (sign 10)");
+}
+
+// Hand-derived non-boundary cross-check: Leo (fire) 5 deg: span =
+// 30/27 = 1.1111, 5/1.1111 = 4.5 -> part 5. Fire signs start from
+// Aries: Aries(1st), Taurus(2nd), Gemini(3rd), Cancer(4th), Leo(5th).
+{
+  const leoFive = point(5, 5);
+  const d27 = calculateD27(leoFive);
+  assert.strictEqual(d27.sign, 5, "D27 of Leo 5 deg (fire, 5th part) must be Leo itself (sign 5)");
+}
+
+// Boundary sensitivity: the first 30/27 deg part boundary flips the sign.
+{
+  const span = 30 / 27;
+  const justBelow = calculateD27(point(1, span - 0.01));
+  const justAbove = calculateD27(point(1, span));
+  assert.notStrictEqual(justBelow.sign, justAbove.sign, "D27 boundary sensitivity failed across the first 30/27 deg part boundary");
+}
+
+// Full 12-sign sweep: every longitude maps to a valid 1-12 sign.
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 30 / 27 - 0.01, 30 / 27, 3.33, 7.5, 12.5, 15, 19.99, 22.5, 27.99, 29.999]) {
+    const d27 = calculateD27(point(sign, degree));
+    assert.ok(
+      Number.isInteger(d27.sign) && d27.sign >= 1 && d27.sign <= 12,
+      `D27 at sign ${sign}, degree ${degree}: sign ${d27.sign} out of 1-12 range`
+    );
+  }
+}
+
+// Determinism.
+{
+  const p = point(11, 21.21);
+  assert.deepStrictEqual(calculateD27(p), calculateD27(p), "D27 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
+// D30 — Trimshamsa: cross-check against research (unequal-segment
+// structure, NOT partIndex-based)
+// ---------------------------------------------------------------------
+// Source: https://desiutils.in/astrology/trimsamsa-d30 and
+// https://jagannathhora.com/trimsamsa-chart-d30-misfortunes-evils/
+// (agree on the exact spans and resulting signs):
+// "A planet at 3 deg Aries (odd sign) falls within the first 5 deg
+// segment, placing it under Mars's rulership" -> Aries (Mars's own odd
+// sign).
+{
+  const ariesThree = point(1, 3);
+  const d30 = calculateD30(ariesThree);
+  assert.strictEqual(d30.sign, 1, "D30 of Aries 3 deg (odd, Mars segment) must be Aries (sign 1), per desiutils.in/jagannathhora.com worked example");
+}
+
+// "A planet at 12 deg in Aries (odd sign) falls within Jupiter's
+// segment (10-18deg), mapping to Sagittarius."
+{
+  const ariesTwelve = point(1, 12);
+  const d30 = calculateD30(ariesTwelve);
+  assert.strictEqual(d30.sign, 9, "D30 of Aries 12 deg (odd, Jupiter segment) must be Sagittarius (sign 9), per jagannathhora.com worked example");
+}
+
+// "A planet at 28 deg Taurus (even sign) falls in the final segment
+// (25-30deg)" -> Mars's even segment -> Scorpio.
+{
+  const taurusTwentyEight = point(2, 28);
+  const d30 = calculateD30(taurusTwentyEight);
+  assert.strictEqual(d30.sign, 8, "D30 of Taurus 28 deg (even, Mars segment) must be Scorpio (sign 8), per jagannathhora.com worked example");
+}
+
+// A middle even-sign segment, hand-verified from the confirmed span
+// table: Taurus 15 deg (even) falls in Jupiter's even segment
+// (12-20deg) -> Pisces.
+{
+  const taurusFifteen = point(2, 15);
+  const d30 = calculateD30(taurusFifteen);
+  assert.strictEqual(d30.sign, 12, "D30 of Taurus 15 deg (even, Jupiter segment) must be Pisces (sign 12)");
+}
+
+// Boundary sensitivity: the odd-sign 5/10/18/25 deg segment boundaries
+// and the even-sign 5/12/20/25 deg segment boundaries all flip the sign.
+{
+  assert.notStrictEqual(calculateD30(point(1, 4.99)).sign, calculateD30(point(1, 5)).sign, "D30 boundary sensitivity failed across the odd-sign 5 deg segment boundary");
+  assert.notStrictEqual(calculateD30(point(1, 9.99)).sign, calculateD30(point(1, 10)).sign, "D30 boundary sensitivity failed across the odd-sign 10 deg segment boundary");
+  assert.notStrictEqual(calculateD30(point(1, 17.99)).sign, calculateD30(point(1, 18)).sign, "D30 boundary sensitivity failed across the odd-sign 18 deg segment boundary");
+  assert.notStrictEqual(calculateD30(point(1, 24.99)).sign, calculateD30(point(1, 25)).sign, "D30 boundary sensitivity failed across the odd-sign 25 deg segment boundary");
+  assert.notStrictEqual(calculateD30(point(2, 4.99)).sign, calculateD30(point(2, 5)).sign, "D30 boundary sensitivity failed across the even-sign 5 deg segment boundary");
+  assert.notStrictEqual(calculateD30(point(2, 11.99)).sign, calculateD30(point(2, 12)).sign, "D30 boundary sensitivity failed across the even-sign 12 deg segment boundary");
+  assert.notStrictEqual(calculateD30(point(2, 19.99)).sign, calculateD30(point(2, 20)).sign, "D30 boundary sensitivity failed across the even-sign 20 deg segment boundary");
+  assert.notStrictEqual(calculateD30(point(2, 24.99)).sign, calculateD30(point(2, 25)).sign, "D30 boundary sensitivity failed across the even-sign 25 deg segment boundary");
+}
+
+// Full 12-sign sweep: every longitude maps to a valid 1-12 sign (no
+// crashes on the segment-lookup structure, unlike every other varga's
+// partIndex()-based structure).
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 2.5, 4.99, 5, 7.5, 9.99, 10, 11.99, 12, 14, 17.99, 18, 19.99, 20, 22.5, 24.99, 25, 27.5, 29.999]) {
+    const d30 = calculateD30(point(sign, degree));
+    assert.ok(
+      Number.isInteger(d30.sign) && d30.sign >= 1 && d30.sign <= 12,
+      `D30 at sign ${sign}, degree ${degree}: sign ${d30.sign} out of 1-12 range`
+    );
+  }
+}
+
+// Determinism.
+{
+  const p = point(7, 13.5);
+  assert.deepStrictEqual(calculateD30(p), calculateD30(p), "D30 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
+// D40 — Khavedamsa: cross-check against research
+// ---------------------------------------------------------------------
+// Source: https://jagannathhora.com/khavedamsa-chart-d40-maternal-lineage/
+// ("a planet in the first khavedamsa of an even sign appears in Libra
+// in the D40") and https://vedastrology.blogspot.com/2011/12/divisional-charts-d40-d45.html
+// (corroborates the same odd->Aries / even->Libra starting-sign rule).
+{
+  const taurusEvenStart = point(2, 0.2); // even sign, part 1 (span = 30/40 = 0.75)
+  const d40 = calculateD40(taurusEvenStart);
+  assert.strictEqual(d40.sign, 7, "D40 of Taurus 0.2 deg (even sign, 1st part) must start from Libra (sign 7), per jagannathhora.com worked example");
+}
+
+// The symmetric odd-sign case (1st part = Aries itself) follows from
+// the same confirmed rule, hand-verified: Gemini (odd) part 1.
+{
+  const geminiOddStart = point(3, 0.2); // odd sign, part 1
+  const d40 = calculateD40(geminiOddStart);
+  assert.strictEqual(d40.sign, 1, "D40 of Gemini 0.2 deg (odd sign, 1st part) must start from Aries (sign 1)");
+}
+
+// Hand-derived non-boundary cross-check: Aries 3.2 deg (odd): span =
+// 0.75, 3.2/0.75 = 4.27 -> part 5. Odd signs start from Aries:
+// Aries(1st), Taurus(2nd), Gemini(3rd), Cancer(4th), Leo(5th).
+{
+  const ariesThreeTwo = point(1, 3.2);
+  const d40 = calculateD40(ariesThreeTwo);
+  assert.strictEqual(d40.sign, 5, "D40 of Aries 3.2 deg (odd, 5th part) must be Leo (sign 5)");
+}
+
+// Boundary sensitivity: the first 0.75 deg part boundary flips the sign.
+{
+  const justBelow = calculateD40(point(1, 0.74));
+  const justAbove = calculateD40(point(1, 0.75));
+  assert.notStrictEqual(justBelow.sign, justAbove.sign, "D40 boundary sensitivity failed across the first 0.75 deg part boundary");
+}
+
+// Full 12-sign sweep: every longitude maps to a valid 1-12 sign.
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 0.74, 0.75, 3.33, 7.5, 12.5, 15, 19.99, 22.5, 27.99, 29.999]) {
+    const d40 = calculateD40(point(sign, degree));
+    assert.ok(
+      Number.isInteger(d40.sign) && d40.sign >= 1 && d40.sign <= 12,
+      `D40 at sign ${sign}, degree ${degree}: sign ${d40.sign} out of 1-12 range`
+    );
+  }
+}
+
+// Determinism.
+{
+  const p = point(10, 8.08);
+  assert.deepStrictEqual(calculateD40(p), calculateD40(p), "D40 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
+// D45 — Akshavedamsa: cross-check against research
+// ---------------------------------------------------------------------
+// Sources: https://jagannathhora.com/akshavedamsa-chart-d45-paternal-lineage/
+// and https://vedastrology.blogspot.com/2011/12/divisional-charts-d40-d45.html
+// (agree on the exact movable->Aries / fixed->Leo / dual->Sagittarius
+// starting-sign rule — identical to D16's own modality scheme); the
+// "1st part of the sign = the starting sign itself" case is the direct
+// source-confirmed consequence, checked for all three modalities below.
+{
+  const cancerMovableStart = point(4, 0.3); // movable sign, part 1 (span = 30/45 = 0.6667)
+  assert.strictEqual(calculateD45(cancerMovableStart).sign, 1, "D45 of Cancer 0.3 deg (movable, 1st part) must start from Aries (sign 1)");
+
+  const scorpioFixedStart = point(8, 0.3); // fixed sign, part 1
+  assert.strictEqual(calculateD45(scorpioFixedStart).sign, 5, "D45 of Scorpio 0.3 deg (fixed, 1st part) must start from Leo (sign 5)");
+
+  const virgoDualStart = point(6, 0.3); // dual sign, part 1
+  assert.strictEqual(calculateD45(virgoDualStart).sign, 9, "D45 of Virgo 0.3 deg (dual, 1st part) must start from Sagittarius (sign 9)");
+}
+
+// Hand-derived cross-check, computed with D45's correct 40' (=0.6667
+// deg) span (a third-party example for "2 deg 15' Taurus" was found but
+// used a 45'-wide span, D40's width, by mistake, giving an unreliable
+// result — this repo re-derives it correctly instead): Taurus (fixed)
+// 2 deg 15' = 2.25 deg: span = 30/45 = 0.66667, 2.25/0.66667 = 3.375 ->
+// part 4. Fixed signs start from Leo: Leo(1st), Virgo(2nd), Libra(3rd),
+// Scorpio(4th).
+{
+  const taurusTwoFifteen = point(2, 2.25);
+  const d45 = calculateD45(taurusTwoFifteen);
+  assert.strictEqual(d45.sign, 8, "D45 of Taurus 2 deg 15' (fixed, 4th part) must be Scorpio (sign 8)");
+}
+
+// Boundary sensitivity: the first 30/45 deg part boundary flips the sign.
+{
+  const span = 30 / 45;
+  const justBelow = calculateD45(point(1, span - 0.01));
+  const justAbove = calculateD45(point(1, span));
+  assert.notStrictEqual(justBelow.sign, justAbove.sign, "D45 boundary sensitivity failed across the first 30/45 deg part boundary");
+}
+
+// Full 12-sign sweep: every longitude maps to a valid 1-12 sign.
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 30 / 45 - 0.01, 30 / 45, 3.33, 7.5, 12.5, 15, 19.99, 22.5, 27.99, 29.999]) {
+    const d45 = calculateD45(point(sign, degree));
+    assert.ok(
+      Number.isInteger(d45.sign) && d45.sign >= 1 && d45.sign <= 12,
+      `D45 at sign ${sign}, degree ${degree}: sign ${d45.sign} out of 1-12 range`
+    );
+  }
+}
+
+// Determinism.
+{
+  const p = point(3, 6.66);
+  assert.deepStrictEqual(calculateD45(p), calculateD45(p), "D45 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
+// D60 — Shashtiamsa: cross-check against research
+// ---------------------------------------------------------------------
+// Source: https://jagannathhora.com/shashtiamsa-chart-d60-past-life-karma/
+// "planet at 0 deg 45' Aries (an odd sign): falls in the second
+// shashtiamsa (0 deg 30' to 1 deg 00'); counting from Aries itself:
+// Aries (1st), Taurus (2nd) -> Taurus in D60."
+{
+  const ariesFortyFive = point(1, 45 / 60);
+  const d60 = calculateD60(ariesFortyFive);
+  assert.strictEqual(d60.sign, 2, "D60 of Aries 0 deg 45' must be Taurus (sign 2), per jagannathhora.com worked example");
+}
+
+// "planet at 0 deg 15' Taurus (an even sign): falls in the first
+// shashtiamsa (0 deg 00' to 0 deg 30'); the 7th sign from Taurus is
+// Scorpio; counting starts there -> Scorpio in D60."
+{
+  const taurusFifteenMin = point(2, 15 / 60);
+  const d60 = calculateD60(taurusFifteenMin);
+  assert.strictEqual(d60.sign, 8, "D60 of Taurus 0 deg 15' must be Scorpio (sign 8), per jagannathhora.com worked example");
+}
+
+// Boundary sensitivity: the first 0.5 deg (30') part boundary flips the
+// sign.
+{
+  const justBelow = calculateD60(point(1, 0.49));
+  const justAbove = calculateD60(point(1, 0.5));
+  assert.notStrictEqual(justBelow.sign, justAbove.sign, "D60 boundary sensitivity failed across the first 0.5 deg part boundary");
+}
+
+// Full 12-sign sweep: every longitude maps to a valid 1-12 sign.
+for (let sign = 1; sign <= 12; sign++) {
+  for (const degree of [0, 0.49, 0.5, 3.33, 7.5, 12.5, 15, 19.99, 22.5, 27.99, 29.999]) {
+    const d60 = calculateD60(point(sign, degree));
+    assert.ok(
+      Number.isInteger(d60.sign) && d60.sign >= 1 && d60.sign <= 12,
+      `D60 at sign ${sign}, degree ${degree}: sign ${d60.sign} out of 1-12 range`
+    );
+  }
+}
+
+// Determinism.
+{
+  const p = point(12, 24.24);
+  assert.deepStrictEqual(calculateD60(p), calculateD60(p), "D60 must be deterministic for identical input");
+}
+
+// ---------------------------------------------------------------------
 // Registry sweep: every implemented varga produces a valid 1-12 sign
 // for longitudes spanning all 12 rashis (a range of degrees per sign).
 // ---------------------------------------------------------------------
 
-assert.deepStrictEqual(IMPLEMENTED_VARGAS, [1, 2, 3, 4, 7, 9, 10, 12, 16, 20], "expected exactly D1/D2/D3/D4/D7/D9/D10/D12/D16/D20 to be registered this pass");
+assert.deepStrictEqual(
+  IMPLEMENTED_VARGAS,
+  [1, 2, 3, 4, 7, 9, 10, 12, 16, 20, 24, 27, 30, 40, 45, 60],
+  "expected exactly D1/D2/D3/D4/D7/D9/D10/D12/D16/D20/D24/D27/D30/D40/D45/D60 to be registered this pass"
+);
 
 const CALCULATORS: Record<number, (p: ChartPoint) => { sign: number }> = {
   1: calculateD1,
@@ -506,6 +858,12 @@ const CALCULATORS: Record<number, (p: ChartPoint) => { sign: number }> = {
   12: calculateD12,
   16: calculateD16,
   20: calculateD20,
+  24: calculateD24,
+  27: calculateD27,
+  30: calculateD30,
+  40: calculateD40,
+  45: calculateD45,
+  60: calculateD60,
 };
 
 for (const varga of IMPLEMENTED_VARGAS) {
@@ -532,7 +890,24 @@ const referenceChart: ChartData = calculateChart(
   77.209
 );
 
-function runAll(chart: ChartData): { d1: DivisionalChartResult; d2: DivisionalChartResult; d3: DivisionalChartResult; d4: DivisionalChartResult; d7: DivisionalChartResult; d9: DivisionalChartResult; d10: DivisionalChartResult; d12: DivisionalChartResult; d16: DivisionalChartResult; d20: DivisionalChartResult } {
+function runAll(chart: ChartData): {
+  d1: DivisionalChartResult;
+  d2: DivisionalChartResult;
+  d3: DivisionalChartResult;
+  d4: DivisionalChartResult;
+  d7: DivisionalChartResult;
+  d9: DivisionalChartResult;
+  d10: DivisionalChartResult;
+  d12: DivisionalChartResult;
+  d16: DivisionalChartResult;
+  d20: DivisionalChartResult;
+  d24: DivisionalChartResult;
+  d27: DivisionalChartResult;
+  d30: DivisionalChartResult;
+  d40: DivisionalChartResult;
+  d45: DivisionalChartResult;
+  d60: DivisionalChartResult;
+} {
   return {
     d1: calculateDivisionalChart(1, chart),
     d2: calculateDivisionalChart(2, chart),
@@ -544,6 +919,12 @@ function runAll(chart: ChartData): { d1: DivisionalChartResult; d2: DivisionalCh
     d12: calculateDivisionalChart(12, chart),
     d16: calculateDivisionalChart(16, chart),
     d20: calculateDivisionalChart(20, chart),
+    d24: calculateDivisionalChart(24, chart),
+    d27: calculateDivisionalChart(27, chart),
+    d30: calculateDivisionalChart(30, chart),
+    d40: calculateDivisionalChart(40, chart),
+    d45: calculateDivisionalChart(45, chart),
+    d60: calculateDivisionalChart(60, chart),
   };
 }
 
@@ -552,7 +933,24 @@ const secondRun = runAll(referenceChart);
 assert.deepStrictEqual(firstRun, secondRun, "calculateDivisionalChart must be deterministic for identical input");
 
 // Sanity on shape: every planet name present, ascendant present, sign 1-12.
-for (const result of [firstRun.d1, firstRun.d2, firstRun.d3, firstRun.d4, firstRun.d7, firstRun.d9, firstRun.d10, firstRun.d12, firstRun.d16, firstRun.d20]) {
+for (const result of [
+  firstRun.d1,
+  firstRun.d2,
+  firstRun.d3,
+  firstRun.d4,
+  firstRun.d7,
+  firstRun.d9,
+  firstRun.d10,
+  firstRun.d12,
+  firstRun.d16,
+  firstRun.d20,
+  firstRun.d24,
+  firstRun.d27,
+  firstRun.d30,
+  firstRun.d40,
+  firstRun.d45,
+  firstRun.d60,
+]) {
   assert.ok(result.ascendant.sign >= 1 && result.ascendant.sign <= 12);
   const planetNames = Object.keys(result.planets);
   assert.strictEqual(planetNames.length, 12, "expected all 12 tracked planets in the divisional result");

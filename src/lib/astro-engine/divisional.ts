@@ -532,11 +532,380 @@ function calculateD20(point: ChartPoint): DivisionalPoint {
 }
 
 // ---------------------------------------------------------------------
-// Registry — varga number -> calculator. D1/D2/D9/D10 are implemented
-// this pass; more vargas (D3, D4, D7, D12, D16, D20, D24, D27, D30,
-// D40, D45, D60, ...) can be added later by researching each one's own
-// classical rule and adding one more entry here, with no changes to
-// the calculators already registered.
+// D24 — Chaturvimshamsa (Siddhamsa)
+// ---------------------------------------------------------------------
+//
+// Classical rule (Brihat Parashara Hora Shastra): each 30° sign is
+// divided into twenty-four 1°15' parts ("chaturvimsamsas"/"siddhamsas").
+// The STARTING sign for the 24-part count depends on odd/even parity
+// (same parity test as D10/D7), but with FIXED starting signs (Leo /
+// Cancer — the Sun's and Moon's own signs) rather than an offset
+// relative to the natal sign itself — structurally the same family as
+// D16/D20's fixed-starting-sign scheme, not D7/D10's relative-offset
+// scheme:
+//   - Odd signs (Aries, Gemini, Leo, Libra, Sagittarius, Aquarius): the
+//     count always starts from Leo.
+//   - Even signs (Taurus, Cancer, Virgo, Scorpio, Capricorn, Pisces):
+//     the count always starts from Cancer.
+//
+// Sources (agree on the exact Leo/Cancer starting-sign rule, both
+// explicitly citing the "1st chaturvimsamsa of an odd/even sign lands
+// in Leo/Cancer itself" case reproduced as a test assertion):
+//  - https://jagannathhora.com/chaturvimsamsa-chart-d24-education/ and
+//    the search synthesis of https://astrosight.ai/divisional-charts/chaturvimshamsa-chart-education
+//    ("For odd signs...the twenty-four chaturvimsamsas are counted
+//    starting from Leo. A planet in the first chaturvimsamsa of an odd
+//    sign appears in Leo in the D24... For even signs...the count
+//    starts from Cancer. A planet in the first chaturvimsamsa of an
+//    even sign appears in Cancer in the D24.")
+//  - https://vedastrology.blogspot.com/2011/12/divisional-charts-d24-d27.html
+//    ("In odd signs counting starts from Leo and in even signs counting
+//    starts from Cancer and move in the same order even after
+//    completing the first cycle of zodiac.")
+// Research note: a third-party numeric example was found in one search
+// synthesis ("2° Aries -> 1st chaturvimsamsa -> Leo"), but re-deriving
+// it (span = 30/24 = 1.25°; 2° / 1.25° = 1.6, i.e. the 2nd part, not
+// the 1st) shows that specific summarized example was arithmetically
+// wrong. The starting-sign RULE itself (which the "1st part = the
+// starting sign itself" case directly demonstrates) is corroborated
+// exactly by both independent sources above, so this repo trusts the
+// rule and re-derives its own numeric cross-checks rather than a
+// miscomputed third-party number.
+
+/** The sign the Chaturvimsamsa count starts from, for a given natal
+ * sign, per the odd/even rule documented above (fixed Leo/Cancer
+ * starts, NOT relative to the natal sign — same structural family as
+ * D16/D20, different parity test source than D9). */
+function chaturvimsamsaStartingSign(natalSign: number): number {
+  return isOddSign(natalSign) ? 5 : 4; // odd: always Leo; even: always Cancer
+}
+
+function calculateD24(point: ChartPoint): DivisionalPoint {
+  const part = partIndex(point.degree, 24); // 1-24
+  const startingSign = chaturvimsamsaStartingSign(point.sign);
+  const resultSign = normalizeSign(startingSign + (part - 1));
+  return toDivisionalPoint(point, resultSign);
+}
+
+// ---------------------------------------------------------------------
+// D27 — Bhamsa (Nakshatramsa)
+// ---------------------------------------------------------------------
+//
+// Classical rule (Brihat Parashara Hora Shastra): each 30° sign is
+// divided into twenty-seven 30/27° (=1°6'40") parts ("bhamsas"/
+// "nakshatramsas"). The STARTING sign depends on the natal sign's
+// ELEMENT (triplicity), not modality or parity — a fourth distinct
+// grouping scheme alongside D9/D16/D20's modality and D7/D10/D24's
+// parity:
+//   - Fire signs (Aries, Leo, Sagittarius): count starts from Aries.
+//   - Earth signs (Taurus, Virgo, Capricorn): count starts from Cancer.
+//   - Air signs (Gemini, Libra, Aquarius): count starts from Libra.
+//   - Water signs (Cancer, Scorpio, Pisces): count starts from
+//     Capricorn.
+// (The four starting signs — Aries/Cancer/Libra/Capricorn — are
+// themselves the four movable signs, one per element.)
+//
+// Sources (agree on the exact fire/earth/air/water -> Aries/Cancer/
+// Libra/Capricorn starting-sign rule):
+//  - https://jagannathhora.com/bhamsa-chart-d27-strength-weakness/
+//    ("For fiery signs...counting starts from Aries. For earthly
+//    signs...counting starts from Cancer. For airy signs...counting
+//    starts from Libra. For watery signs...counting starts from
+//    Capricorn.")
+//  - https://vedastrology.blogspot.com/2011/12/divisional-charts-d24-d27.html
+//    ("For planets/lagna posited in fiery signs counting starts Aries
+//    ... Earthy signs count starts from Cancer... Airy signs counting
+//    starts from Libra... Watery signs counting starts from
+//    Capricorn.")
+// No reliable third-party worked numeric example (specific degree ->
+// resulting sign) was found; the test-file cross-check is therefore
+// the source-confirmed "1st bhamsa of the sign = the starting sign
+// itself" case, hand-verified against the span arithmetic.
+
+/** Sign element/triplicity: 0=fire, 1=earth, 2=air, 3=water. Aries(1)
+ * is fire, Taurus(2) earth, Gemini(3) air, Cancer(4) water, Leo(5)
+ * fire, ... — the standard repeating fire/earth/air/water cycle. */
+function signElement(sign: number): 0 | 1 | 2 | 3 {
+  return ((sign - 1) % 4) as 0 | 1 | 2 | 3;
+}
+
+/** The sign the Bhamsa count starts from, for a given natal sign, per
+ * the element rule documented above (fixed Aries/Cancer/Libra/
+ * Capricorn starts, NOT relative to the natal sign). */
+function bhamsaStartingSign(natalSign: number): number {
+  const element = signElement(natalSign);
+  if (element === 0) return 1; // fire: Aries
+  if (element === 1) return 4; // earth: Cancer
+  if (element === 2) return 7; // air: Libra
+  return 10; // water: Capricorn
+}
+
+function calculateD27(point: ChartPoint): DivisionalPoint {
+  const part = partIndex(point.degree, 27); // 1-27
+  const startingSign = bhamsaStartingSign(point.sign);
+  const resultSign = normalizeSign(startingSign + (part - 1));
+  return toDivisionalPoint(point, resultSign);
+}
+
+// ---------------------------------------------------------------------
+// D30 — Trimshamsa
+// ---------------------------------------------------------------------
+//
+// Classical rule (Brihat Parashara Hora Shastra): UNLIKE every other
+// Varga in this file, the Trimshamsa does NOT divide each sign into 30
+// (or any number of) EQUAL parts. Instead each 30° sign is divided into
+// five UNEQUAL segments, each ruled by one of the five non-luminary
+// planets (Mars, Saturn, Jupiter, Mercury, Venus — the Sun and Moon
+// hold no Trimshamsa), with the degree-spans AND the sign each segment
+// maps to both differing between odd and even signs:
+//
+//   Odd signs (Aries, Gemini, Leo, Libra, Sagittarius, Aquarius):
+//     Mars    0°-5°   -> Aries       (Mars's own odd/"male" sign)
+//     Saturn  5°-10°  -> Aquarius    (Saturn's own odd/"male" sign)
+//     Jupiter 10°-18° -> Sagittarius (Jupiter's own odd/"male" sign)
+//     Mercury 18°-25° -> Gemini      (Mercury's own odd/"male" sign)
+//     Venus   25°-30° -> Libra       (Venus's own odd/"male" sign)
+//
+//   Even signs (Taurus, Cancer, Virgo, Scorpio, Capricorn, Pisces): the
+//   order AND the spans both reverse:
+//     Venus   0°-5°   -> Taurus      (Venus's own even/"female" sign)
+//     Mercury 5°-12°  -> Virgo       (Mercury's own even/"female" sign)
+//     Jupiter 12°-20° -> Pisces      (Jupiter's own even/"female" sign)
+//     Saturn  20°-25° -> Capricorn   (Saturn's own even/"female" sign)
+//     Mars    25°-30° -> Scorpio     (Mars's own even/"female" sign)
+//
+// i.e. each planet's segment always maps to ONE of that planet's own
+// two ruled signs — its odd/"male" sign when the natal sign is odd, its
+// even/"female" sign when the natal sign is even.
+//
+// Sources (agree on the exact spans, planetary order, AND the resulting
+// sign for every segment; both give worked numeric examples reproduced
+// as test assertions):
+//  - https://desiutils.in/astrology/trimsamsa-d30 ("In odd sign the
+//    segments are Mars 0-5deg, Saturn 5-10, Jupiter 10-18, Mercury
+//    18-25 and Venus 25-30... In an even sign both the quantities and
+//    the lordships reverse, so they become Venus 0-5, Mercury 5-12,
+//    Jupiter 12-20, Saturn 20-25 and Mars 25-30.")
+//  - https://jagannathhora.com/trimsamsa-chart-d30-misfortunes-evils/
+//    (identical spans; explicitly gives the resulting SIGN per segment:
+//    "0 to 5 -> Mars (placed in Aries or Scorpio)... 5 to 10 -> Saturn
+//    (placed in Capricorn or Aquarius)... 10 to 18 -> Jupiter (placed
+//    in Sagittarius or Pisces)... 18 to 25 -> Mercury (placed in Gemini
+//    or Virgo)... 25 to 30 -> Venus (placed in Taurus or Libra)";
+//    worked example: "A planet at 12 deg in Aries (odd sign) falls
+//    within Jupiter's segment (10-18deg), mapping to Sagittarius... A
+//    planet at 28 deg Taurus (even sign) falls in the final segment
+//    (25-30deg)" -> Mars's even segment -> Scorpio.)
+// The Sun and Moon are deliberately excluded from Trimshamsa rulership
+// by both sources, consistent with BPHS; this repo's calculator has no
+// special-case for them because it operates purely on degree-in-sign,
+// which is planet-agnostic — the Sun/Moon simply fall into whichever
+// segment their degree lands in, like any other point.
+
+type TrimshamsaSegment = { end: number; sign: number };
+
+/** Odd-sign Trimshamsa segments, in ascending degree order: Mars (0-5,
+ * Aries), Saturn (5-10, Aquarius), Jupiter (10-18, Sagittarius),
+ * Mercury (18-25, Gemini), Venus (25-30, Libra). */
+const TRIMSHAMSA_ODD_SEGMENTS: readonly TrimshamsaSegment[] = [
+  { end: 5, sign: 1 }, // Mars -> Aries
+  { end: 10, sign: 11 }, // Saturn -> Aquarius
+  { end: 18, sign: 9 }, // Jupiter -> Sagittarius
+  { end: 25, sign: 3 }, // Mercury -> Gemini
+  { end: 30, sign: 7 }, // Venus -> Libra
+];
+
+/** Even-sign Trimshamsa segments, in ascending degree order: Venus
+ * (0-5, Taurus), Mercury (5-12, Virgo), Jupiter (12-20, Pisces), Saturn
+ * (20-25, Capricorn), Mars (25-30, Scorpio). */
+const TRIMSHAMSA_EVEN_SEGMENTS: readonly TrimshamsaSegment[] = [
+  { end: 5, sign: 2 }, // Venus -> Taurus
+  { end: 12, sign: 6 }, // Mercury -> Virgo
+  { end: 20, sign: 12 }, // Jupiter -> Pisces
+  { end: 25, sign: 10 }, // Saturn -> Capricorn
+  { end: 30, sign: 8 }, // Mars -> Scorpio
+];
+
+function calculateD30(point: ChartPoint): DivisionalPoint {
+  const segments = isOddSign(point.sign) ? TRIMSHAMSA_ODD_SEGMENTS : TRIMSHAMSA_EVEN_SEGMENTS;
+  // Segments are listed in ascending `end` order, so the first one
+  // whose upper bound exceeds the degree-in-sign is the occupied
+  // segment (mirrors partIndex()'s exclusive-upper-bound convention).
+  // The `?? segments.at(-1)` guard only matters for the exact-30.0 (or
+  // floating-point-nudged-past-30) edge case, same as partIndex().
+  const segment = segments.find((s) => point.degree < s.end) ?? segments[segments.length - 1];
+  return toDivisionalPoint(point, segment.sign);
+}
+
+// ---------------------------------------------------------------------
+// D40 — Khavedamsa
+// ---------------------------------------------------------------------
+//
+// Classical rule (Brihat Parashara Hora Shastra): each 30° sign is
+// divided into forty 45' parts ("khavedamsas"). The STARTING sign
+// depends on odd/even parity, with FIXED starting signs (Aries / Libra
+// — the two equinoctial signs) rather than an offset relative to the
+// natal sign — same structural family as D24 above:
+//   - Odd signs (Aries, Gemini, Leo, Libra, Sagittarius, Aquarius): the
+//     count always starts from Aries.
+//   - Even signs (Taurus, Cancer, Virgo, Scorpio, Capricorn, Pisces):
+//     the count always starts from Libra.
+//
+// Sources (agree on the exact Aries/Libra starting-sign rule):
+//  - https://jagannathhora.com/khavedamsa-chart-d40-maternal-lineage/
+//    ("For odd signs...the forty khavedamsas are counted starting from
+//    Aries. For even signs...the count starts from Libra, and a planet
+//    in the first khavedamsa of an even sign appears in Libra in the
+//    D40.")
+//  - https://vedastrology.blogspot.com/2011/12/divisional-charts-d40-d45.html
+//    ("For odd signs counting starts from Aries and for even signs
+//    counting starts from Libra.")
+// No reliable third-party worked numeric example beyond the "1st part
+// of an even sign -> Libra itself" case (source-confirmed above,
+// reproduced as a test assertion) was found; further cross-checks are
+// hand-derived from the confirmed rule.
+
+/** The sign the Khavedamsa count starts from, for a given natal sign,
+ * per the odd/even rule documented above (fixed Aries/Libra starts). */
+function khavedamsaStartingSign(natalSign: number): number {
+  return isOddSign(natalSign) ? 1 : 7; // odd: always Aries; even: always Libra
+}
+
+function calculateD40(point: ChartPoint): DivisionalPoint {
+  const part = partIndex(point.degree, 40); // 1-40
+  const startingSign = khavedamsaStartingSign(point.sign);
+  const resultSign = normalizeSign(startingSign + (part - 1));
+  return toDivisionalPoint(point, resultSign);
+}
+
+// ---------------------------------------------------------------------
+// D45 — Akshavedamsa
+// ---------------------------------------------------------------------
+//
+// Classical rule (Brihat Parashara Hora Shastra): each 30° sign is
+// divided into forty-five 40' parts ("akshavedamsas"). The STARTING
+// sign depends on modality, using the SAME fixed Aries/Leo/Sagittarius
+// starting signs as D16's shodasamsaStartingSign (confirmed via
+// research to be identical, not assumed):
+//   - Movable signs (Aries, Cancer, Libra, Capricorn): count starts
+//     from Aries.
+//   - Fixed signs (Taurus, Leo, Scorpio, Aquarius): count starts from
+//     Leo.
+//   - Dual signs (Gemini, Virgo, Sagittarius, Pisces): count starts
+//     from Sagittarius.
+//
+// Sources (agree on the exact Aries/Leo/Sagittarius starting-sign
+// rule):
+//  - https://jagannathhora.com/akshavedamsa-chart-d45-paternal-lineage/
+//    ("Akshavedamsa of the signs commences with Aries in movable sign,
+//    Leo in a fixed sign, and Sagittarius in dual signs.")
+//  - https://vedastrology.blogspot.com/2011/12/divisional-charts-d40-d45.html
+//    ("For movable signs counting starts from Aries for fixed signs
+//    counting starts from Leo and for dual signs counting starts from
+//    Sagittarius.")
+// Research note: a third-party numeric worked example was found (in
+// one search synthesis, for 2°15' Taurus), but it used a 45'-wide part
+// span (D40's width) rather than D45's actual 40' width, making its
+// specific numeric result unreliable; the starting-sign RULE itself is
+// corroborated exactly by both independent sources above (and matches
+// D16's own modality starting-sign scheme exactly), so this repo trusts
+// the rule and computes its own correctly-spanned numeric cross-checks
+// rather than reuse the miscomputed third-party number.
+
+function calculateD45(point: ChartPoint): DivisionalPoint {
+  const part = partIndex(point.degree, 45); // 1-45
+  const startingSign = shodasamsaStartingSign(point.sign); // same Aries/Leo/Sagittarius modality scheme as D16
+  const resultSign = normalizeSign(startingSign + (part - 1));
+  return toDivisionalPoint(point, resultSign);
+}
+
+// ---------------------------------------------------------------------
+// D60 — Shashtiamsa
+// ---------------------------------------------------------------------
+//
+// Classical rule (Brihat Parashara Hora Shastra — the Varga to which
+// BPHS gives the single greatest weight of all divisional charts in its
+// Vimsopaka Bala scheme): each 30° sign is divided into sixty 30' parts
+// ("shashtiamsas"). The STARTING sign depends on odd/even parity, using
+// the SAME relative-offset structure as D7/D10 (not a fixed start like
+// D16/D20/D24/D40/D45):
+//   - Odd signs (Aries, Gemini, Leo, Libra, Sagittarius, Aquarius): the
+//     count starts from the sign itself (offset +0).
+//   - Even signs (Taurus, Cancer, Virgo, Scorpio, Capricorn, Pisces):
+//     the count starts from the 7th sign from it, counted inclusively
+//     (offset +6) — identical parity/offset structure to D7's
+//     saptamsaStartingSign, just with 60 parts cycling through the 12
+//     signs five times instead of 7 parts cycling less than once.
+//
+// Research note on a genuine cross-source disagreement: some secondary
+// syntheses describe D60 even signs as counting "from the sign itself
+// but in reverse order" instead of "from the 7th sign forward". Tracing
+// this claim to its context (search results built from
+// https://en.wikipedia.org/wiki/Shashtyamsha-adjacent commentary and
+// forum threads discussing BPHS's Krura/Saumya classification) shows it
+// consistently refers to the REVERSAL OF THE 60 DEITY NAMES' cycling
+// order for even signs (and the reversal of which of the 60 named parts
+// are malefic vs. benefic), not to the resulting SIGN mapping — a
+// different mechanism from the one this calculator implements (sign
+// only, not deity names; see the module-level DivisionalPoint doc for
+// why deity names are out of scope for this engine). The specific
+// SIGN-mapping rule implemented here (7th-sign start for even signs)
+// comes from a source that also supplies a verifiable worked numeric
+// example (reproduced as a test assertion below and independently
+// re-derived from the raw span arithmetic to confirm it), which the
+// deity-name-reversal sources do not attempt to contradict or provide
+// an alternative for — so this repo treats the sign-mapping rule below
+// as settled and documents the deity-name assignment (Ghora, Amrita,
+// Deva, etc., and their Krura/Saumya classification) as an out-of-scope
+// gap, per this task's instructions.
+//
+// Sources:
+//  - https://jagannathhora.com/shashtiamsa-chart-d60-past-life-karma/
+//    ("the sixty shashtiamsa are counted starting from the sign
+//    itself [for odd signs]... the count starts from the 7th sign from
+//    the occupied sign [for even signs]"; worked examples: "planet at
+//    0°45' Aries (an odd sign): this falls in the second shashtiamsa
+//    (0°30' to 1°00'); counting from Aries itself: Aries (1st), Taurus
+//    (2nd) -> Taurus in D60." "planet at 0°15' Taurus (an even sign):
+//    this falls in the first shashtiamsa (0°00' to 0°30'); the 7th sign
+//    from Taurus is Scorpio; counting starts there -> Scorpio in D60.")
+//  - Deity-name/Krura-Saumya reversal cross-referenced via search
+//    synthesis of https://en.wikipedia.org/wiki/Shashtyamsha and
+//    forum commentary at
+//    https://phpbb.lightonvedicastrology.com/viewtopic.php?t=2273 (a
+//    different mechanism from the sign-mapping rule above, as explained
+//    in the research note; deity names/Krura-Saumya are NOT implemented
+//    by this calculator — documented gap, not an oversight).
+//  - General BPHS-derived arithmetic formula corroborating the same
+//    12-sign-cyclical structure, via search synthesis of
+//    https://www.jyotishgher.in/calculator/deity/d60-deity-calculator.php:
+//    "take the degrees the planet traversed in its sign, multiply that
+//    figure by 2 and divide by 12... which will indicate the sign in
+//    which the Shashtiamsa falls" — consistent with this calculator's
+//    part-index-mod-12 behavior (60 parts / 12 signs = 5 full cycles).
+
+/** The sign the Shashtiamsa count starts from, for a given natal sign,
+ * per the odd/even rule documented above (same parity test and 7th-sign
+ * offset as D7's saptamsaStartingSign, just applied to 60 parts instead
+ * of 7). */
+function shashtiamsaStartingSign(natalSign: number): number {
+  if (isOddSign(natalSign)) return natalSign; // odd: start from itself
+  return normalizeSign(natalSign + 6); // even: 7th from it (inclusive count => +6)
+}
+
+function calculateD60(point: ChartPoint): DivisionalPoint {
+  const part = partIndex(point.degree, 60); // 1-60
+  const startingSign = shashtiamsaStartingSign(point.sign);
+  const resultSign = normalizeSign(startingSign + (part - 1));
+  return toDivisionalPoint(point, resultSign);
+}
+
+// ---------------------------------------------------------------------
+// Registry — varga number -> calculator. D1/D2/D3/D4/D7/D9/D10/D12/D16/
+// D20/D24/D27/D30/D40/D45/D60 are implemented as of this pass. Adding a
+// further Varga means researching its own classical rule and adding one
+// more entry here, with no changes to the calculators already
+// registered.
 // ---------------------------------------------------------------------
 
 const VARGA_CALCULATORS: Partial<Record<number, VargaCalculator>> = {
@@ -550,6 +919,12 @@ const VARGA_CALCULATORS: Partial<Record<number, VargaCalculator>> = {
   12: calculateD12,
   16: calculateD16,
   20: calculateD20,
+  24: calculateD24,
+  27: calculateD27,
+  30: calculateD30,
+  40: calculateD40,
+  45: calculateD45,
+  60: calculateD60,
 };
 
 /** Varga numbers currently implemented (not just planned/stubbed). */
@@ -587,4 +962,21 @@ export function calculateDivisionalChart(vargaNumber: number, chartData: ChartDa
 // Individual calculators are also exported directly for callers that
 // only need one Varga without building a full ChartData round-trip
 // (e.g. unit tests, or a caller that already has a raw ChartPoint).
-export { calculateD1, calculateD2, calculateD3, calculateD4, calculateD7, calculateD9, calculateD10, calculateD12, calculateD16, calculateD20 };
+export {
+  calculateD1,
+  calculateD2,
+  calculateD3,
+  calculateD4,
+  calculateD7,
+  calculateD9,
+  calculateD10,
+  calculateD12,
+  calculateD16,
+  calculateD20,
+  calculateD24,
+  calculateD27,
+  calculateD30,
+  calculateD40,
+  calculateD45,
+  calculateD60,
+};
