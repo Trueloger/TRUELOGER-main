@@ -12,7 +12,14 @@
 // "never fabricate astrology input" rule. This is not a general
 // geocoder; it will not resolve non-Indian cities.
 
-import rawCities from "./india-cities.json";
+// The `with { type: "json" }` import attribute is required by plain
+// Node ESM (Next's own bundler ignores it happily either way) — without
+// it, any dev script that imports this file directly via `node
+// --env-file=... some-script.ts` (not through Next) fails with
+// ERR_IMPORT_ATTRIBUTE_MISSING. Several scripts/dev/*.ts scripts import
+// this module transitively (e.g. via panchang/store.ts), so this stays
+// a real, load-bearing fix, not decoration.
+import rawCities from "./india-cities.json" with { type: "json" };
 
 export type CityCoordinates = {
   lat: number;
