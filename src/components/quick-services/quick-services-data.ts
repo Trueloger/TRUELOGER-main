@@ -4,11 +4,11 @@ import {
   KundliMatchIcon,
   HoroscopeDialIcon,
   NumerologyGridIcon,
-  MarsGlyphIcon,
   NakshatraStarsIcon,
   PanchangCalendarIcon,
   FreeServicesGridIcon,
   TalkToExpertIcon,
+  MallBagIcon,
 } from "./icons";
 
 export type QuickService = {
@@ -23,13 +23,16 @@ export type QuickService = {
 // hrefs match the top-level routes used by the nav dropdown's "Free
 // Services" children (see nav-data.ts) — top-level, not nested under
 // /free-services, so this section and the navbar point at the same
-// routes for the same tools. The one exception is the featured first
-// card, "Talk To Astrologer", which routes to the PAID consultation
-// catalogue (/consult) rather than a free tool — it took the
-// highest-visibility (featured) slot, with "Free Kundli" kept as the
-// second card right beside it rather than dropped. "Sade Sati" was
-// removed outright per the same task, rather than backfilled with
-// another tile — the remaining tiles simply shift up to fill the grid.
+// routes for the same tools. Two exceptions: the featured first card,
+// "Talk To Astrologer", routes to the PAID consultation catalogue
+// (/consult) rather than a free tool, and "TRUELOGER Mall" (3rd
+// position) routes to /mall, the mall category-overview page — both
+// paid-commerce entry points, not free tools, deliberately placed near
+// the top for visibility. "Free Kundli" is kept as the second card.
+// "Mangal Dosha" was removed outright to make room for the Mall card
+// (rather than being backfilled elsewhere) and "Sade Sati" was removed
+// outright per an earlier task — the remaining tiles simply shift up
+// to fill the grid.
 export const QUICK_SERVICES: QuickService[] = [
   {
     id: "talk-to-astrologer",
@@ -45,6 +48,13 @@ export const QUICK_SERVICES: QuickService[] = [
     description: "Create your Vedic birth chart",
     href: "/free-kundli",
     Icon: KundliChartIcon,
+  },
+  {
+    id: "truloger-mall",
+    title: "TRUELOGER Mall",
+    description: "Shop gemstones, rudraksha & spiritual products",
+    href: "/mall",
+    Icon: MallBagIcon,
   },
   {
     id: "kundli-matching",
@@ -66,13 +76,6 @@ export const QUICK_SERVICES: QuickService[] = [
     description: "Discover the power of your numbers",
     href: "/numerology",
     Icon: NumerologyGridIcon,
-  },
-  {
-    id: "mangal-dosha",
-    title: "Mangal Dosha",
-    description: "Check Mangal Dosha in your chart",
-    href: "/mangal-dosha",
-    Icon: MarsGlyphIcon,
   },
   {
     id: "nakshatra",

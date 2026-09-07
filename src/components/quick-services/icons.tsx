@@ -144,6 +144,18 @@ export function FreeServicesGridIcon(props: IconProps) {
   );
 }
 
+/** TRUELOGER Mall — a shopping bag with a small lotus/sparkle mark, so
+ * it reads as "spiritual mall" rather than a generic e-commerce glyph. */
+export function MallBagIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6.5 8 7.6 4.2a1.6 1.6 0 0 1 1.5-1.1h5.8a1.6 1.6 0 0 1 1.5 1.1L17.5 8" />
+      <rect x="4.2" y="8" width="15.6" height="12.8" rx="2" />
+      <path d="M9 11.2c0 1.7 1.3 3 3 3s3-1.3 3-3" opacity="0.85" />
+    </svg>
+  );
+}
+
 /** Talk To Astrologer — a person in profile speaking, with a small
  * radiating-connection mark, standing in for a live consultation
  * rather than a static reading. */

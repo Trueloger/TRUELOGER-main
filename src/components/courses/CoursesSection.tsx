@@ -31,7 +31,7 @@ export function CoursesSection() {
   return (
     <section
       aria-label="Courses — Learn. Explore. Transform. Learn astrology, spirituality, healing, and ancient wisdom through guided courses designed for your journey."
-      className="relative -mt-px w-full bg-gradient-to-b from-nav-lavender-soft to-nav-ivory px-4 py-10 sm:px-6 md:px-8 md:py-16"
+      className="relative -mt-px w-full bg-gradient-to-b from-nav-lavender-soft to-nav-ivory px-4 py-8 sm:px-6 md:px-8 md:py-12"
     >
       <div className="relative mx-auto max-w-[1320px] overflow-hidden rounded-2xl md:rounded-3xl">
         <Image

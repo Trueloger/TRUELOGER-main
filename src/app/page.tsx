@@ -15,7 +15,6 @@ export default function Home() {
     <main className="flex flex-1 flex-col">
       <HeroCarousel />
       <HeroToServicesCurve />
-      <HoroscopeSection />
 
       {/* QuickServices, ExploreServices, PersonalizedReportsBanner and
           HealingSection share ONE continuous background wash instead of
@@ -49,6 +48,7 @@ export default function Home() {
       <PujaSection />
       <ProductsSection />
       <CoursesSection />
+      <HoroscopeSection />
       <TestimonialsSection />
     </main>
   );

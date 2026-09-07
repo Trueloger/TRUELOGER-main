@@ -22,7 +22,7 @@ export function PujaSection() {
   return (
     <section
       aria-labelledby="puja-heading"
-      className="relative -mt-px bg-gradient-to-b from-nav-lavender-soft via-nav-pearl to-nav-ivory py-16 md:py-24"
+      className="relative -mt-px bg-gradient-to-b from-nav-lavender-soft via-nav-pearl to-nav-ivory py-10 md:py-16"
     >
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         {/* Heading */}

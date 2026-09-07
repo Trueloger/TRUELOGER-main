@@ -2,16 +2,20 @@ import { LotusIcon } from "@/components/quick-services/icons";
 import { ZodiacGrid } from "./ZodiacGrid";
 import { ZodiacCarousel } from "./ZodiacCarousel";
 
-/** Homepage zodiac section — sits directly under HeroToServicesCurve,
- * taking over the "tuck under the dome" negative-margin that used to
- * belong to the wash div wrapping QuickServices (see page.tsx). Static:
- * cards show symbol/name/date-range only, no daily content, so this
- * section needs no data fetch — see spec §3. */
+/** Homepage zodiac section — placed after CoursesSection (see page.tsx).
+ * Flat nav-ivory background on both sides (CoursesSection ends ivory,
+ * TestimonialsSection starts ivory), so it drops in with no seam to
+ * manage — unlike its original position directly under
+ * HeroToServicesCurve's dome, which required this exact "-mt-px +
+ * ivory" combination (that role is now carried by the QuickServices
+ * wash div instead — see page.tsx). Static: cards show symbol/name/
+ * date-range only, no daily content, so this section needs no data
+ * fetch — see spec §3. */
 export function HoroscopeSection() {
   return (
     <section
       aria-labelledby="horoscope-heading"
-      className="relative -mt-px bg-nav-ivory pb-12 pt-10 md:pb-20 md:pt-14"
+      className="relative -mt-px bg-nav-ivory pb-10 pt-8 md:pb-14 md:pt-10"
     >
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">

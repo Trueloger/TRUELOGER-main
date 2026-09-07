@@ -8,7 +8,7 @@ export function ExploreServices() {
   return (
     <section
       aria-labelledby="explore-services-heading"
-      className="relative py-16 md:py-24"
+      className="relative py-10 md:py-16"
     >
       {/* No background here — the page-level wrapper (see page.tsx) now
           paints one continuous wash behind this, QuickServices and

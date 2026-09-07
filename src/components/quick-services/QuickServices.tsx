@@ -16,7 +16,7 @@ export function QuickServices() {
       {/* No background here — the page-level wrapper (see page.tsx) now
           paints one continuous wash behind this, ExploreServices and
           PersonalizedReportsBanner together. */}
-      <div className="relative pb-12 md:pb-24">
+      <div className="relative pb-10 md:pb-14">
         <BackgroundAtmosphere />
 
         <div className="relative mx-auto max-w-[1300px] px-4 pt-8 sm:px-6 md:px-8 md:pt-12">
@@ -25,7 +25,7 @@ export function QuickServices() {
               id="quick-services-heading"
               className="scroll-mt-28 font-serif text-[1.7rem] leading-[1.15] text-nav-violet sm:text-3xl md:text-4xl md:scroll-mt-32 lg:text-[2.75rem]"
             >
-              Explore Astrology, <span className="text-nav-amethyst">Instantly.</span>
+              Our <span className="text-nav-amethyst">Services</span>
             </h2>
             <SectionDivider />
           </div>

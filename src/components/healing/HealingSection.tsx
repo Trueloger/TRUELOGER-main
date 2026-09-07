@@ -22,7 +22,7 @@ export function HealingSection() {
     <section aria-labelledby="healing-heading" className="relative">
       <HealingAtmosphere />
 
-      <div className="relative mx-auto max-w-[1320px] px-4 py-16 sm:px-6 md:px-8 md:py-24">
+      <div className="relative mx-auto max-w-[1320px] px-4 py-10 sm:px-6 md:px-8 md:py-16">
         {/* Heading */}
         <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
           <div className="flex items-center justify-center gap-3">

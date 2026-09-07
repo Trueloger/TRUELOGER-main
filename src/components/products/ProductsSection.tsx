@@ -24,7 +24,7 @@ export function ProductsSection() {
   return (
     <section
       aria-labelledby="products-heading"
-      className="relative -mt-px bg-gradient-to-b from-nav-ivory via-nav-pearl to-nav-lavender-soft py-16 md:py-24"
+      className="relative -mt-px bg-gradient-to-b from-nav-ivory via-nav-pearl to-nav-lavender-soft py-10 md:py-16"
     >
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         {/* Heading */}

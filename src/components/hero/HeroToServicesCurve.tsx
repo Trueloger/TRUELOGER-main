@@ -8,8 +8,10 @@ import { LotusIcon } from "@/components/quick-services/icons";
  * Pure SVG/CSS (no raster image), so it stays crisp and resizes with the
  * viewport instead of being baked into a fixed asset.
  *
- * Sits directly under HeroCarousel, before HoroscopeSection — see
- * page.tsx for why this moved out of QuickServices. */
+ * Sits directly under HeroCarousel, before the QuickServices wash div
+ * (which carries the matching "-mt-px + ivory" tuck-under-the-dome
+ * treatment) — see page.tsx. HoroscopeSection used to sit here instead
+ * and carried that treatment; it now lives further down the page. */
 export function HeroToServicesCurve() {
   return (
     <div
