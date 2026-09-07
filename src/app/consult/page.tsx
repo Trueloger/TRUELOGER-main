@@ -29,7 +29,7 @@ export default function ConsultPage() {
 
         <ul className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 md:mt-8 lg:grid-cols-3 xl:grid-cols-4">
           {CONSULTATION_SERVICES.map((service) => (
-            <li key={service.id}>
+            <li key={service.id} className="h-full">
               <ServiceCard service={service} />
             </li>
           ))}

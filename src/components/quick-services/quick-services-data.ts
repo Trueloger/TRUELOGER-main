@@ -1,5 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
 import {
+  KundliChartIcon,
   KundliMatchIcon,
   HoroscopeDialIcon,
   NumerologyGridIcon,
@@ -24,12 +25,11 @@ export type QuickService = {
 // /free-services, so this section and the navbar point at the same
 // routes for the same tools. The one exception is the featured first
 // card, "Talk To Astrologer", which routes to the PAID consultation
-// catalogue (/consult) rather than a free tool — it replaced "Free
-// Kundli" here specifically to give the highest-visibility slot on the
-// homepage to the new paid-consultation entry point. "Sade Sati" was
-// removed outright (not replaced) per the same task, rather than
-// backfilled with another tile — the remaining tiles simply shift up
-// to fill the grid.
+// catalogue (/consult) rather than a free tool — it took the
+// highest-visibility (featured) slot, with "Free Kundli" kept as the
+// second card right beside it rather than dropped. "Sade Sati" was
+// removed outright per the same task, rather than backfilled with
+// another tile — the remaining tiles simply shift up to fill the grid.
 export const QUICK_SERVICES: QuickService[] = [
   {
     id: "talk-to-astrologer",
@@ -38,6 +38,13 @@ export const QUICK_SERVICES: QuickService[] = [
     href: "/consult",
     Icon: TalkToExpertIcon,
     featured: true,
+  },
+  {
+    id: "free-kundli",
+    title: "Free Kundli",
+    description: "Create your Vedic birth chart",
+    href: "/free-kundli",
+    Icon: KundliChartIcon,
   },
   {
     id: "kundli-matching",
