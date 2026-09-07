@@ -9,6 +9,7 @@
 // Body scroll is locked while open and focus is trapped/returned to the
 // trigger, mirroring src/components/nav/MobileNav.tsx's MobileMenuPanel.
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   DURATION_PRESETS,
   consultationVariantId,
@@ -137,7 +138,19 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
     }
   }
 
-  return (
+  // Portaled straight into document.body rather than rendered inline
+  // where ServiceCard places this component — ServiceCard's root card
+  // div has `hover:-translate-y-1`, and ANY CSS transform on an
+  // ancestor (even a hover-only one) establishes a new containing
+  // block for a `position: fixed` descendant. Without the portal, this
+  // sheet rendered pinned inside — and shrunk to — the card's own box
+  // instead of the viewport, then visibly snapped between the two
+  // layouts every time :hover toggled as the cursor crossed the
+  // misplaced panel/backdrop. Portaling sidesteps any ancestor's
+  // transform/filter/contain entirely, the standard fix for any
+  // modal/sheet that can be triggered from inside a hover-animated
+  // card.
+  return createPortal(
     <div className="fixed inset-0 z-[70]">
       {/* backdrop */}
       <button
@@ -273,6 +286,7 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

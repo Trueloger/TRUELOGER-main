@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { formatInr } from "@/lib/consultation/pricing";
@@ -37,7 +38,13 @@ export function CartDrawer() {
 
   if (!isOpen) return null;
 
-  return (
+  // Portaled to document.body for the same reason DurationSheet and
+  // DemoReportViewer are (see DurationSheet.tsx's doc comment): any
+  // ancestor with a CSS transform — including a hover-only one on a
+  // card that opened the cart from deep in the tree — would otherwise
+  // trap this `position: fixed` drawer inside that ancestor's box
+  // instead of the viewport.
+  return createPortal(
     <div className="fixed inset-0 z-[70]">
       {/* overlay */}
       <button
@@ -115,7 +122,8 @@ export function CartDrawer() {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -8,6 +8,7 @@
 // Scroll-lock + focus + Escape-to-close pattern mirrors
 // MobileMenuPanel in src/components/nav/MobileNav.tsx.
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import type { ConsultationService } from "@/lib/consultation/types";
 
@@ -43,7 +44,12 @@ export function DemoReportViewer({
 
   const { demoReport } = service;
 
-  return (
+  // Portaled to document.body — see DurationSheet.tsx's doc comment on
+  // its own portal for why: a `position: fixed` element nested inside
+  // an ancestor with any CSS transform (ServiceDurationPicker/the
+  // triggering card can sit inside hover-animated containers) gets
+  // trapped inside that ancestor's box instead of the viewport.
+  return createPortal(
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <button
         type="button"
@@ -104,6 +110,7 @@ export function DemoReportViewer({
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
