@@ -19,6 +19,15 @@
 //   5. Viparita Raja Yoga (Harsha/Sarala/Vimala)
 //   6. A basic Dhana Yoga check
 //   7. A basic Raja Yoga check
+// Extended in a later session, same registry pattern, appended in this
+// order:
+//   8.  Chandra-Mangal Yoga
+//   9.  Kemadruma Yoga (+ 2 well-attested cancellations)
+//   10. Amala Yoga
+//   11. Vasumati Yoga
+//   12. Parivartana Yoga (base + Maha/Kahala/Dainya classification)
+//   13. Shubha-Kartari / Papa-Kartari Yoga
+//   14. Adhi Yoga
 // Every rule documents, in its own comment block, which sourced
 // classical variant it follows where sources disagreed, and which
 // refinements/exceptions/sub-variants were knowingly skipped for scope.
@@ -162,6 +171,43 @@ function isConnected(ctx: YogaContext, planetA: ClassicalPlanetName, planetB: Cl
   // Sign exchange (Parivartana): each occupies the sign the other rules.
   const isExchange = OWN_SIGNS[planetA].includes(b.sign) && OWN_SIGNS[planetB].includes(a.sign);
   return isExchange;
+}
+
+/** Waxing (Sukla Paksha, New->Full Moon) vs waning test — same
+ * elongation convention `bhavabala.ts`/`shadbala.ts` already use for
+ * their own `isMoonWaxing`/`isBeneficAspector` helpers (duplicated here
+ * rather than imported since those are private module internals; see
+ * this module's existing precedent of duplicating small static tables,
+ * e.g. `OWN_SIGNS` above). Used below only by the natural benefic/
+ * malefic classification the new (session-2) rules need. */
+function isMoonWaxing(chart: ChartData): boolean {
+  const elongation = ((chart.planets.Moon.longitude - chart.planets.Sun.longitude) % 360 + 360) % 360;
+  return elongation < 180;
+}
+
+/** Natural (Naisargika) benefic classification used by the Amala/
+ * Vasumati/Kartari/Adhi rules below: Jupiter, Venus and Mercury are
+ * always natural benefics; the Moon is benefic only while waxing. This
+ * is the same convention `shadbala.ts`/`bhavabala.ts` already use for
+ * their own Drik Bala aspect-sign tests (`isBeneficAspector`), applied
+ * here to PLACEMENT rather than aspect. Mercury's classical "benefic
+ * unless conjunct a malefic" refinement is intentionally NOT checked
+ * (documented as skipped per-rule below) — Mercury is treated as
+ * unconditionally benefic here, matching this module's existing
+ * Budha-Aditya treatment of Mercury. */
+function isNaturalBenefic(ctx: YogaContext, planet: ClassicalPlanetName): boolean {
+  if (planet === "Jupiter" || planet === "Venus" || planet === "Mercury") return true;
+  if (planet === "Moon") return isMoonWaxing(ctx.chart);
+  return false;
+}
+
+/** Natural malefic classification (mirror of `isNaturalBenefic` above,
+ * used only by the Papa-Kartari half of rule 13): Sun, Mars, Saturn,
+ * Rahu and Ketu are always natural malefics; the Moon is malefic only
+ * while waning (mirroring `isNaturalBenefic`'s waxing test). */
+function isNaturalMalefic(ctx: YogaContext, planet: ChartPlanetName): boolean {
+  if (planet === "Moon") return !isMoonWaxing(ctx.chart);
+  return planet === "Sun" || planet === "Mars" || planet === "Saturn" || planet === "Rahu" || planet === "Ketu";
 }
 
 function buildContext(chart: ChartData): YogaContext {
@@ -501,6 +547,441 @@ const RAJA_YOGA_RULE: YogaRule = {
   interpretationKey: "raja-yoga.kendra-trikona",
 };
 
+// =======================================================================
+// 8. Chandra-Mangal Yoga
+// =======================================================================
+//
+// Classical rule (confirmed across 2 independent sources):
+//   - https://astroparasar.com/moon-and-mars-conjunction/
+//   - https://www.indastro.com/planet-conjuction/moon-mars-conjunction.html
+// (cross-checked against https://www.ganeshaspeaks.com/learn-astrology/chandra-mangal-yoga/)
+// "Chandra Mangal Yoga (also Shashi Mangal Yoga) forms when the Moon
+// and Mars occupy the same sign (conjunction)" — a wealth/ambition
+// combination. All sources checked describe the conjunction case only;
+// none of the sources found describe a "mutual aspect" variant for
+// THIS specific yoga (unlike Gaja Kesari, which is explicitly
+// kendra/aspect-based by definition) — so no disagreement was found
+// requiring resolution, and no aspect-based alternative is implemented:
+// same-sign conjunction (`isConjunct`, this module's one existing
+// conjunction convention) is the sole, well-attested condition.
+//
+// SKIPPED (documented): sources mention the yoga's wealth effects are
+// stronger when Mars and Moon are each dignified/unafflicted — no
+// source gives a precise graded-strength scale (only qualitative
+// "stronger/weaker"), so `strength` is intentionally omitted (binary
+// yoga, same treatment as Budha-Aditya's base test before its
+// specifically-sourced combustion grading).
+const CHANDRA_MANGAL_RULE: YogaRule = {
+  id: "chandra-mangal",
+  name: "Chandra-Mangal Yoga",
+  category: "dhana",
+  conditions: [
+    (ctx) => isConjunct(ctx.chart.planets.Moon, ctx.chart.planets.Mars),
+  ],
+  interpretationKey: "chandra-mangal",
+};
+
+// =======================================================================
+// 9. Kemadruma Yoga
+// =======================================================================
+//
+// Classical formation (confirmed across 2 independent sources):
+//   - https://jagannathhora.com/kemadruma-yoga-moon-isolation-complete-guide/
+//   - https://vedicmarga.com/kemadruma-yoga/
+// (cross-checked against https://www.astromangal.in/learn/kemadruma-yoga)
+// Base condition: no classical planet (Rahu/Ketu explicitly excluded by
+// both sources — "Rahu and Ketu do not count") occupies the 2nd or the
+// 12th sign from the Moon, AND the Moon has no planet conjunct it and
+// receives no Parashari aspect from any other planet ("a conjoined
+// Moon is not structurally isolated regardless of what occupies the
+// adjacent houses" — jagannathhora). All 3 sub-conditions (2nd empty,
+// 12th empty, Moon itself unconjoined/unaspected) are required for the
+// base (uncancelled) dosha; this module implements all 3, exactly as
+// sourced.
+//
+// Cancellation (Bhanga) — both sources list several routes; per the
+// task's "1-2 well-attested cancellation checks" instruction, this
+// module implements the 2 MOST consistently-cited across both:
+//   (a) The Moon itself is in a Kendra (1st/4th/7th/10th) from the
+//       Ascendant ("classical sources generally hold that Kemadruma is
+//       cancelled or substantially weakened" — jagannathhora; listed
+//       first among vedicmarga's cancellations too).
+//   (b) Any classical planet occupies a Kendra from the MOON itself
+//       (4th, 7th or 10th from Moon specifically — the 1st-from-Moon
+//       case is conjunction, already excluded by the base condition
+//       above, so only 4/7/10 are tested here to avoid double-counting
+//       the same fact two different ways).
+//
+// SKIPPED (documented, not silently dropped): (1) "Moon aspected by a
+// benefic" / "Jupiter aspecting the Moon" as a distinct cancellation
+// route — already subsumed here by the base condition itself (ANY
+// aspect on the Moon, benefic or not, already disqualifies the base
+// dosha per (a) above in the base-condition list, not as a separate
+// bhanga), so is not implemented as an additional bhanga check; (2)
+// Moon's own dignity (own-sign/exalted) as a mitigating factor; (3)
+// waxing-phase / overall Shadbala strength as a mitigating factor —
+// (2) and (3) are graded/qualitative mitigations, not the classical
+// binary cancellations named by both sources, and are out of scope for
+// this binary `present` test.
+//
+// `present` here means "the Kemadruma affliction genuinely obtains"
+// (formed AND not cancelled) — the same "present = the named classical
+// condition truly holds" semantics this module already uses for
+// Neecha Bhanga (which reports the CANCELLATION of an affliction, the
+// mirror case). No source gives a graded strength scale for Kemadruma
+// itself, so `strength` is omitted (binary).
+const KEMADRUMA_RULE: YogaRule = {
+  id: "kemadruma",
+  name: "Kemadruma Yoga",
+  category: "other",
+  conditions: [
+    (ctx) => {
+      const moon = ctx.chart.planets.Moon;
+      const secondSign = signOffset(moon.sign, 1);
+      const twelfthSign = signOffset(moon.sign, 11);
+      const otherPlanets = CLASSICAL_PLANETS.filter((p) => p !== "Moon");
+
+      const secondEmpty = !otherPlanets.some((p) => ctx.chart.planets[p].sign === secondSign);
+      const twelfthEmpty = !otherPlanets.some((p) => ctx.chart.planets[p].sign === twelfthSign);
+      const moonUnconjoined = !otherPlanets.some((p) => ctx.chart.planets[p].sign === moon.sign);
+      const moonUnaspected = !otherPlanets.some((p) => aspectsSign(ctx, p, moon.sign));
+      const formed = secondEmpty && twelfthEmpty && moonUnconjoined && moonUnaspected;
+      if (!formed) return false;
+
+      const cancelledByMoonKendra = isKendraFromAscendant(moon); // (a)
+      const cancelledByKendraFromMoon = otherPlanets.some((p) => {
+        const house = signHouseNumber(moon.sign, ctx.chart.planets[p].sign);
+        return house === 4 || house === 7 || house === 10; // (b), excluding the 1st (conjunction, already ruled out above)
+      });
+      return !(cancelledByMoonKendra || cancelledByKendraFromMoon);
+    },
+  ],
+  interpretationKey: "kemadruma",
+};
+
+// =======================================================================
+// 10. Amala Yoga
+// =======================================================================
+//
+// Classical rule (confirmed across 2 independent sources):
+//   - https://www.sanatanveda.com/astrology/amala-yoga-in-vedic-astrology/
+//   - https://www.mpanchang.com/articles/astrology/amala-yoga/
+// "Amala Yoga is formed when a natural benefic planet (Jupiter, Venus,
+// Mercury, or an unafflicted Moon) is positioned in the 10th house from
+// EITHER the Lagna (Ascendant) OR the Moon." Both reference points are
+// explicitly named by both sources (not a single-reference-point
+// disagreement) — this module implements BOTH, `present` if either
+// holds for any of the 4 natural benefics (Moon tested only against
+// the Ascendant reference, since "10th from itself" is not meaningful).
+//
+// SKIPPED (documented): the "should be strong/unafflicted/own-sign/
+// exalted for full potency" refinement is a qualitative strength note,
+// not a precisely graded scale — no source gives discrete grade
+// thresholds the way Vasumati/Adhi below do, so `strength` is
+// intentionally omitted (binary yoga).
+const AMALA_BENEFIC_CANDIDATES: ClassicalPlanetName[] = ["Jupiter", "Venus", "Mercury", "Moon"];
+
+const AMALA_YOGA_RULE: YogaRule = {
+  id: "amala-yoga",
+  name: "Amala Yoga",
+  category: "other",
+  conditions: [
+    (ctx) =>
+      AMALA_BENEFIC_CANDIDATES.some((planet) => {
+        if (!isNaturalBenefic(ctx, planet)) return false;
+        const entry = ctx.chart.planets[planet];
+        const fromLagna = entry.house === 10;
+        const fromMoon = planet !== "Moon" && signHouseNumber(ctx.chart.planets.Moon.sign, entry.sign) === 10;
+        return fromLagna || fromMoon;
+      }),
+  ],
+  interpretationKey: "amala-yoga",
+};
+
+// =======================================================================
+// 11. Vasumati Yoga
+// =======================================================================
+//
+// Classical rule (confirmed across 2 independent sources):
+//   - https://vedicmystics.com/2019/10/18/vasumati-wealth-yoga/
+//   - https://www.mpanchang.com/articles/astrology/vasumathi-yoga/
+// "Vasumati Yoga is formed when [natural] benefics — Jupiter, Venus and
+// Mercury — occupy the Upachaya houses (3rd, 6th, 10th, 11th) from the
+// Ascendant OR the Moon" (both reference points explicitly named, both
+// implemented, same "either" convention as Amala above; the Moon is
+// NOT itself counted as one of the 3 benefics here — both sources name
+// only Jupiter/Venus/Mercury for this specific yoga, unlike Amala,
+// which explicitly also names the Moon).
+//
+// Strength grading (sourced, vedicmystics): "If the entire lot of the
+// natural benefic planets is located in the upachaya houses ... the
+// man is extremely rich. If two ... highly rich. If only one ... he is
+// only moderately rich." This maps directly onto this module's
+// strong/moderate/weak scale: 3 qualifying benefics -> strong, 2 ->
+// moderate, 1 -> weak.
+const VASUMATI_BENEFICS: ClassicalPlanetName[] = ["Jupiter", "Venus", "Mercury"];
+const UPACHAYA_HOUSES = new Set([3, 6, 10, 11]);
+
+function isInUpachaya(ctx: YogaContext, planet: ClassicalPlanetName): boolean {
+  const entry = ctx.chart.planets[planet];
+  const fromLagna = UPACHAYA_HOUSES.has(entry.house);
+  const fromMoon = UPACHAYA_HOUSES.has(signHouseNumber(ctx.chart.planets.Moon.sign, entry.sign));
+  return fromLagna || fromMoon;
+}
+
+const VASUMATI_YOGA_RULE: YogaRule = {
+  id: "vasumati-yoga",
+  name: "Vasumati Yoga",
+  category: "dhana",
+  conditions: [(ctx) => VASUMATI_BENEFICS.some((p) => isInUpachaya(ctx, p))],
+  interpretationKey: "vasumati-yoga",
+  grade: (ctx) => {
+    const count = VASUMATI_BENEFICS.filter((p) => isInUpachaya(ctx, p)).length;
+    return count >= 3 ? "strong" : count === 2 ? "moderate" : "weak";
+  },
+};
+
+// =======================================================================
+// 12. Parivartana Yoga (base + Maha / Kahala / Dainya classification)
+// =======================================================================
+//
+// Base classical rule (confirmed across 2 independent sources):
+//   - https://ishvaram.com/yoga/parivartana/
+//   - https://www.astrosharmistha.com/parivartan-yoga-mutual-exchange/
+// "Parivartana Yoga occurs when two planets exchange signs — each
+// occupies the sign ruled by the other." This module tests every
+// distinct pair of the 12 houses (from the Ascendant): if house h1's
+// lord and house h2's lord are two different planets, and each sits in
+// a sign OWNED BY THE OTHER, that (h1, h2) pair is a genuine exchange
+// instance. (This is a generalization of the sign-exchange half of the
+// existing private `isConnected` helper used by Dhana/Raja Yoga above,
+// re-implemented as its own named function below rather than reusing
+// `isConnected` directly, since `isConnected` ALSO accepts a mutual-
+// aspect or conjunction as "connected" — Parivartana is sign-exchange
+// ONLY, a strictly narrower and distinct classical category. Per the
+// task instruction not to restructure existing rules, `isConnected`
+// itself is left untouched.)
+//
+// Sub-classification (confirmed across 2 independent sources):
+//   - http://astrohominis.blogspot.com/2016/03/parivartana-yoga-dhainya-kahala-maha-parivartana-yoga.html
+//   - https://astrosight.ai/yogas/parivartana-yoga
+// "Maha Parivartana Yoga: both exchanged lords belong to the
+// Kendra/Kona/Dhana/Labha houses (1, 2, 4, 5, 7, 9, 10 or 11)."
+// "Kahala Parivartana Yoga: exchange between the 3rd lord and a lord
+// of 1, 2, 4, 5, 7, 9, 10 or 11." "Dainya Parivartana Yoga: one of the
+// exchanged lords rules a Dusthana (6, 8, 12), the other a non-
+// Dusthana house (1, 2, 3, 4, 5, 7, 9, 10 or 11)." These three named
+// house-sets are a complete, non-overlapping partition of all 12
+// houses ({1,2,4,5,7,9,10,11} + {3} + {6,8,12} = 12 houses, no
+// overlaps) per both sources, so a genuine exchange pair falls into
+// AT MOST one of the three named categories — implemented as 3
+// mutually-exclusive checks below, plus the base "any exchange exists"
+// rule (which also fires for a same-Dusthana-pair exchange, e.g. a
+// 6th-lord/8th-lord exchange, that no source names — that residual
+// case is intentionally left unclassified, documented here rather than
+// silently misfiled into one of the three named sub-types).
+//
+// No source gives a graded strength scale for any of these 4 rules
+// (only a qualitative auspicious/energetic/inauspicious character per
+// sub-type), so `strength` is omitted from all 4 (binary yogas).
+const PARIVARTANA_MAHA_HOUSES = new Set([1, 2, 4, 5, 7, 9, 10, 11]);
+const PARIVARTANA_KAHALA_HOUSE = 3;
+
+function isSignExchange(chart: ChartData, planetA: ClassicalPlanetName, planetB: ClassicalPlanetName): boolean {
+  const a = chart.planets[planetA];
+  const b = chart.planets[planetB];
+  return OWN_SIGNS[planetA].includes(b.sign) && OWN_SIGNS[planetB].includes(a.sign);
+}
+
+/** Every distinct pair of houses (1-12, from the Ascendant) whose
+ * lords are two different planets in a genuine mutual sign exchange. */
+function findParivartanaHousePairs(chart: ChartData): [number, number][] {
+  const pairs: [number, number][] = [];
+  for (let h1 = 1; h1 <= 12; h1++) {
+    for (let h2 = h1 + 1; h2 <= 12; h2++) {
+      const lord1 = lordOfHouseFromAscendant(chart, h1);
+      const lord2 = lordOfHouseFromAscendant(chart, h2);
+      if (lord1 === lord2) continue;
+      if (isSignExchange(chart, lord1, lord2)) pairs.push([h1, h2]);
+    }
+  }
+  return pairs;
+}
+
+const PARIVARTANA_YOGA_RULE: YogaRule = {
+  id: "parivartana-yoga",
+  name: "Parivartana Yoga (Sign Exchange)",
+  category: "other",
+  conditions: [(ctx) => findParivartanaHousePairs(ctx.chart).length > 0],
+  interpretationKey: "parivartana-yoga",
+};
+
+const PARIVARTANA_MAHA_RULE: YogaRule = {
+  id: "parivartana-maha",
+  name: "Maha Parivartana Yoga",
+  category: "raja",
+  conditions: [
+    (ctx) => findParivartanaHousePairs(ctx.chart).some(([h1, h2]) => PARIVARTANA_MAHA_HOUSES.has(h1) && PARIVARTANA_MAHA_HOUSES.has(h2)),
+  ],
+  interpretationKey: "parivartana-yoga.maha",
+};
+
+const PARIVARTANA_KAHALA_RULE: YogaRule = {
+  id: "parivartana-kahala",
+  name: "Kahala Parivartana Yoga",
+  category: "other",
+  conditions: [
+    (ctx) =>
+      findParivartanaHousePairs(ctx.chart).some(
+        ([h1, h2]) =>
+          (h1 === PARIVARTANA_KAHALA_HOUSE && PARIVARTANA_MAHA_HOUSES.has(h2)) ||
+          (h2 === PARIVARTANA_KAHALA_HOUSE && PARIVARTANA_MAHA_HOUSES.has(h1)),
+      ),
+  ],
+  interpretationKey: "parivartana-yoga.kahala",
+};
+
+const PARIVARTANA_DAINYA_RULE: YogaRule = {
+  id: "parivartana-dainya",
+  name: "Dainya Parivartana Yoga",
+  category: "other",
+  conditions: [
+    (ctx) =>
+      findParivartanaHousePairs(ctx.chart).some(
+        ([h1, h2]) => DUSTHANA_HOUSES.has(h1) !== DUSTHANA_HOUSES.has(h2),
+      ),
+  ],
+  interpretationKey: "parivartana-yoga.dainya",
+};
+
+// =======================================================================
+// 13. Shubha-Kartari Yoga / Papa-Kartari Yoga
+// =======================================================================
+//
+// Classical rule (confirmed across 2 independent sources):
+//   - https://www.sanatanveda.com/astrology/kartari-yoga-in-vedic-astrology/
+//   - https://www.kalmanas.com/yoga/papa-kartari
+// "Kartari" (scissors): a reference point hemmed in on both sides — by
+// the sign 2 houses away and the sign 12 houses away from it (i.e. the
+// immediately adjacent houses on either side) — by planets of one
+// nature only. Shubha (benefic) Kartari: "natural benefics — Jupiter,
+// Venus, and an unafflicted Mercury — occupy the 2nd AND 12th house
+// from a particular house/point." Papa (malefic) Kartari: the mirror
+// case with natural malefics.
+//
+// SCOPE CHOICE (documented, sources vary on the reference point):
+// sources describe the principle generally ("from a certain house") and
+// separately as applying to the Moon (a distinct, commonly-cited
+// special case: Moon hemmed by malefics = Papa Kartari for the Moon)
+// or to any planet/house. Per the task instruction to "pick the most
+// commonly-cited [scope] and document", this module implements the
+// single MOST universally-cited textbook example across both sources
+// checked: the yoga applied to the ASCENDANT (Lagna) itself — the
+// classic "Lagna hemmed in by benefics/malefics" case both sources lead
+// with. The Moon-specific and fully-general any-house/any-planet
+// variants are NOT implemented here (documented as skipped scope, not
+// silently dropped).
+//
+// Natural benefic/malefic classification: same convention as Amala/
+// Vasumati above (Jupiter/Venus/Mercury always benefic, Moon benefic
+// only while waxing) plus, for the malefic side, Sun/Mars/Saturn/Rahu/
+// Ketu always malefic, Moon malefic only while waning (`isNaturalMalefic`
+// above). Mercury's classical "unless afflicted" qualifier is NOT
+// checked (documented as skipped, same as Amala Yoga above).
+//
+// No source gives a graded strength scale for either rule, so
+// `strength` is omitted from both (binary yogas).
+const KARTARI_CANDIDATES: ChartPlanetName[] = [...CLASSICAL_PLANETS, "Rahu", "Ketu"];
+
+function occupantsOfSign(chart: ChartData, sign: number): ChartPlanetName[] {
+  return KARTARI_CANDIDATES.filter((p) => chart.planets[p].sign === sign);
+}
+
+const SHUBHA_KARTARI_RULE: YogaRule = {
+  id: "shubha-kartari",
+  name: "Shubha-Kartari Yoga",
+  category: "other",
+  conditions: [
+    (ctx) => {
+      const secondSign = signOffset(ctx.chart.ascendant.sign, 1);
+      const twelfthSign = signOffset(ctx.chart.ascendant.sign, 11);
+      const second = occupantsOfSign(ctx.chart, secondSign);
+      const twelfth = occupantsOfSign(ctx.chart, twelfthSign);
+      if (second.length === 0 || twelfth.length === 0) return false;
+      const isBenefic = (p: ChartPlanetName) =>
+        (CLASSICAL_PLANETS as readonly ChartPlanetName[]).includes(p) && isNaturalBenefic(ctx, p as ClassicalPlanetName);
+      return second.every(isBenefic) && twelfth.every(isBenefic);
+    },
+  ],
+  interpretationKey: "shubha-kartari",
+};
+
+const PAPA_KARTARI_RULE: YogaRule = {
+  id: "papa-kartari",
+  name: "Papa-Kartari Yoga",
+  category: "other",
+  conditions: [
+    (ctx) => {
+      const secondSign = signOffset(ctx.chart.ascendant.sign, 1);
+      const twelfthSign = signOffset(ctx.chart.ascendant.sign, 11);
+      const second = occupantsOfSign(ctx.chart, secondSign);
+      const twelfth = occupantsOfSign(ctx.chart, twelfthSign);
+      if (second.length === 0 || twelfth.length === 0) return false;
+      return second.every((p) => isNaturalMalefic(ctx, p)) && twelfth.every((p) => isNaturalMalefic(ctx, p));
+    },
+  ],
+  interpretationKey: "papa-kartari",
+};
+
+// =======================================================================
+// 14. Adhi Yoga
+// =======================================================================
+//
+// Classical rule (confirmed across 2 independent sources, both citing
+// the same BPHS verse):
+//   - https://blog.indianastrologysoftware.com/adhi-yoga-part1/ (cites BPHS ch.38, sloka 5)
+//   - https://astromedha.in/insights/vedic/adhi-yoga
+// "When benefics [Jupiter, Venus, Mercury] occupy the 6th, 7th and 8th
+// [houses] from the Moon, Adhi Yoga results" — the Moon, NOT the
+// Ascendant, is the reference point (distinct from Amala/Vasumati
+// above, which test the Ascendant as well as the Moon; Adhi is
+// Moon-only per both sources, no Ascendant variant found).
+//
+// Strength grading (sourced, indianastrologysoftware quoting the same
+// BPHS verse): "If there is one planet ... in any one of these signs,
+// that person becomes a leader. If there are two, he will be a
+// minister and if there are three, he will occupy an eminent station
+// in life." This maps directly onto this module's strong/moderate/weak
+// scale, the same count-based mapping Vasumati above uses: 3
+// qualifying benefics -> strong, 2 -> moderate, 1 -> weak.
+//
+// SKIPPED (documented): the further "strength of the individual
+// benefics themselves sets a ceiling on the result" qualitative
+// refinement mentioned by some sources is not implemented — this rule
+// grades ONLY by count of qualifying benefics, per the explicit
+// BPHS count-based scale quoted above, not by the benefics' own
+// dignity/strength.
+const ADHI_YOGA_RULE: YogaRule = {
+  id: "adhi-yoga",
+  name: "Adhi Yoga",
+  category: "raja",
+  conditions: [
+    (ctx) =>
+      VASUMATI_BENEFICS.some((planet) => {
+        const house = signHouseNumber(ctx.chart.planets.Moon.sign, ctx.chart.planets[planet].sign);
+        return house === 6 || house === 7 || house === 8;
+      }),
+  ],
+  interpretationKey: "adhi-yoga",
+  grade: (ctx) => {
+    const count = VASUMATI_BENEFICS.filter((planet) => {
+      const house = signHouseNumber(ctx.chart.planets.Moon.sign, ctx.chart.planets[planet].sign);
+      return house === 6 || house === 7 || house === 8;
+    }).length;
+    return count >= 3 ? "strong" : count === 2 ? "moderate" : "weak";
+  },
+};
+
 // ---------------------------------------------------------------------
 // Registry + detection entry point
 // ---------------------------------------------------------------------
@@ -513,6 +994,17 @@ const YOGA_REGISTRY: YogaRule[] = [
   ...VIPARITA_RULES,
   DHANA_YOGA_RULE,
   RAJA_YOGA_RULE,
+  CHANDRA_MANGAL_RULE,
+  KEMADRUMA_RULE,
+  AMALA_YOGA_RULE,
+  VASUMATI_YOGA_RULE,
+  PARIVARTANA_YOGA_RULE,
+  PARIVARTANA_MAHA_RULE,
+  PARIVARTANA_KAHALA_RULE,
+  PARIVARTANA_DAINYA_RULE,
+  SHUBHA_KARTARI_RULE,
+  PAPA_KARTARI_RULE,
+  ADHI_YOGA_RULE,
 ];
 
 /**

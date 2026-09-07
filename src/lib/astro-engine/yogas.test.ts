@@ -321,6 +321,246 @@ function resultFor(chart: ChartData, ruleId: string) {
 }
 
 // =======================================================================
+// 8. Chandra-Mangal Yoga
+// =======================================================================
+
+// Moon and Mars conjunct (both in Cancer(4)) -> present.
+{
+  const chart = syntheticChart(1, { Mars: { sign: 4, degree: 15 } });
+  const r = resultFor(chart, "chandra-mangal");
+  assert.strictEqual(r.present, true, "Chandra-Mangal: Moon/Mars conjunct must be present");
+  assert.strictEqual(r.strength, undefined, "binary yoga: no strength reported");
+}
+
+// Default baseline (Moon Cancer(4), Mars Aries(1)) -> not conjunct -> absent.
+{
+  const chart = syntheticChart(1, {});
+  const r = resultFor(chart, "chandra-mangal");
+  assert.strictEqual(r.present, false, "Chandra-Mangal: Moon/Mars not conjunct must be absent");
+}
+
+// =======================================================================
+// 9. Kemadruma Yoga
+// =======================================================================
+// Moon in Cancer(4): 2nd-from-Moon=Leo(5), 12th-from-Moon=Gemini(3),
+// Kendra-from-Moon(4th/7th/10th)=Libra(7)/Capricorn(10)/Aries(1). Every
+// other classical planet placed OUTSIDE all of {1,3,4,5,7,10} (at
+// 2/6/8/9/11/12) so the base dosha forms (no occupant of the 2nd/12th
+// from Moon, no conjunction with Moon, and — verified by hand above —
+// none of these placements' 7th/special Parashari aspects land back on
+// Moon's own sign(4) either).
+
+// Ascendant Taurus(2) -> Moon's house = signHouseNumber(2,4) = 3, NOT a
+// Kendra from the Ascendant, and no other planet sits in a Kendra from
+// Moon -> both cancellations absent -> Kemadruma genuinely PRESENT.
+{
+  const overrides = {
+    Sun: { sign: 2, degree: 15 },
+    Mars: { sign: 6, degree: 15 },
+    Mercury: { sign: 8, degree: 15 },
+    Jupiter: { sign: 9, degree: 15 },
+    Venus: { sign: 11, degree: 15 },
+    Saturn: { sign: 12, degree: 15 },
+  };
+  const ascendantSign = 2;
+  const moonHouse = signHouseNumber(ascendantSign, 4);
+  assert.ok(![1, 4, 7, 10].includes(moonHouse), "test setup: Moon must NOT be in a Kendra from this Ascendant");
+  const chart = syntheticChart(ascendantSign, overrides);
+  const r = resultFor(chart, "kemadruma");
+  assert.strictEqual(r.present, true, "Kemadruma: isolated, uncancelled Moon must be present");
+  assert.strictEqual(r.strength, undefined, "binary yoga: no strength reported");
+}
+
+// Same planet placements, but Ascendant Aries(1) -> Moon's house =
+// signHouseNumber(1,4) = 4, a KENDRA from the Ascendant -> cancellation
+// (a) applies -> absent despite the dosha otherwise being "formed".
+{
+  const overrides = {
+    Sun: { sign: 2, degree: 15 },
+    Mars: { sign: 6, degree: 15 },
+    Mercury: { sign: 8, degree: 15 },
+    Jupiter: { sign: 9, degree: 15 },
+    Venus: { sign: 11, degree: 15 },
+    Saturn: { sign: 12, degree: 15 },
+  };
+  const chart = syntheticChart(1, overrides);
+  const r = resultFor(chart, "kemadruma");
+  assert.strictEqual(r.present, false, "Kemadruma: Moon in Kendra from Ascendant must cancel the dosha");
+}
+
+// Default baseline (Sun default in Leo(5) = the 2nd sign from Moon's
+// Cancer(4)) -> the 2nd-from-Moon is occupied -> dosha never formed -> absent.
+{
+  const chart = syntheticChart(1, {});
+  const r = resultFor(chart, "kemadruma");
+  assert.strictEqual(r.present, false, "Kemadruma: 2nd-from-Moon occupied (default baseline) must be absent");
+}
+
+// =======================================================================
+// 10. Amala Yoga
+// =======================================================================
+
+// Jupiter in Capricorn(10), Ascendant Aries(1) -> house 10 -> present.
+{
+  const chart = syntheticChart(1, { Jupiter: { sign: 10, degree: 15 } });
+  const r = resultFor(chart, "amala-yoga");
+  assert.strictEqual(r.present, true, "Amala: benefic in the 10th from Lagna must be present");
+  assert.strictEqual(r.strength, undefined, "binary yoga: no strength reported");
+}
+
+// Default baseline: no natural benefic (Jupiter/Venus/Mercury/waxing
+// Moon) sits in the 10th from either Lagna or the Moon -> absent.
+{
+  const chart = syntheticChart(1, {});
+  const r = resultFor(chart, "amala-yoga");
+  assert.strictEqual(r.present, false, "Amala: no benefic in the 10th from Lagna or Moon must be absent");
+}
+
+// =======================================================================
+// 11. Vasumati Yoga
+// =======================================================================
+// Ascendant Aries(1): house number = sign number.
+
+// All three benefics in Upachaya houses (Jupiter->3rd, Venus->6th,
+// Mercury->10th) -> present, "strong" (all 3 qualify).
+{
+  const chart = syntheticChart(1, {
+    Jupiter: { sign: 3, degree: 15 },
+    Venus: { sign: 6, degree: 15 },
+    Mercury: { sign: 10, degree: 15 },
+  });
+  const r = resultFor(chart, "vasumati-yoga");
+  assert.strictEqual(r.present, true, "Vasumati: all 3 benefics in Upachaya must be present");
+  assert.strictEqual(r.strength, "strong", "Vasumati: 3 qualifying benefics grades strong");
+}
+
+// None of the 3 benefics in an Upachaya house from Lagna or Moon
+// (Jupiter->5th, Venus->7th, Mercury->8th; verified against Moon's
+// Cancer(4) Upachaya-from-Moon set {1,2,6,9} too) -> absent.
+{
+  const chart = syntheticChart(1, {
+    Jupiter: { sign: 5, degree: 15 },
+    Venus: { sign: 7, degree: 15 },
+    Mercury: { sign: 8, degree: 15 },
+  });
+  const r = resultFor(chart, "vasumati-yoga");
+  assert.strictEqual(r.present, false, "Vasumati: no benefic in Upachaya from Lagna or Moon must be absent");
+  assert.strictEqual(r.strength, undefined, "absent yoga must not report a strength");
+}
+
+// =======================================================================
+// 12. Parivartana Yoga (base + Maha / Kahala / Dainya)
+// =======================================================================
+// Ascendant Aries(1): house number = sign number, so house-lords are
+// read directly off SIGN_LORD (Moon/4, Venus/2,7, Mercury/3,6,
+// Sun/5, Mars/1,8, Jupiter/9,12, Saturn/10,11).
+
+// Maha: Moon (lord of house 4, a Kendra) <-> Venus (lord of house 7, a
+// Kendra) exchange signs (Moon in Venus's Libra(7), Venus in Moon's
+// Cancer(4)) -> both houses (4,7) are in the Maha house-set -> present.
+{
+  const chart = syntheticChart(1, { Moon: { sign: 7, degree: 15 }, Venus: { sign: 4, degree: 15 } });
+  assert.strictEqual(resultFor(chart, "parivartana-yoga").present, true, "Parivartana (base): a genuine exchange must be present");
+  assert.strictEqual(resultFor(chart, "parivartana-maha").present, true, "Maha Parivartana: Kendra<->Kendra lord exchange must be present");
+}
+
+// Kahala / Dainya: Sun (lord of house 5, in the Maha set) <-> Mercury
+// (lord of houses 3 AND 6) exchange signs (Sun in Mercury's Gemini(3),
+// Mercury in Sun's Leo(5)). This forms TWO house-pairs simultaneously
+// (Mercury rules both 3 and 6): (3,5) -> 3rd lord + Maha-set lord ->
+// Kahala; (5,6) -> Maha-set lord + Dusthana(6) lord -> Dainya. Both
+// named sub-yogas are therefore genuinely present together in this
+// chart (a real, documented consequence of Mercury owning 2 signs —
+// see this module's Parivartana doc comment).
+{
+  const chart = syntheticChart(1, { Sun: { sign: 3, degree: 15 }, Mercury: { sign: 5, degree: 15 } });
+  assert.strictEqual(resultFor(chart, "parivartana-kahala").present, true, "Kahala Parivartana: 3rd-lord exchange with a Maha-set lord must be present");
+  assert.strictEqual(resultFor(chart, "parivartana-dainya").present, true, "Dainya Parivartana: Dusthana-lord exchange with a non-Dusthana lord must be present");
+}
+
+// Default baseline (every planet in its own primary sign, no exchange
+// anywhere) -> all 4 Parivartana rules absent.
+{
+  const chart = syntheticChart(1, {});
+  assert.strictEqual(resultFor(chart, "parivartana-yoga").present, false, "Parivartana (base): no exchange in the default baseline");
+  assert.strictEqual(resultFor(chart, "parivartana-maha").present, false, "Maha Parivartana: absent in the default baseline");
+  assert.strictEqual(resultFor(chart, "parivartana-kahala").present, false, "Kahala Parivartana: absent in the default baseline");
+  assert.strictEqual(resultFor(chart, "parivartana-dainya").present, false, "Dainya Parivartana: absent in the default baseline");
+}
+
+// =======================================================================
+// 13. Shubha-Kartari Yoga / Papa-Kartari Yoga
+// =======================================================================
+// Ascendant Aries(1): 2nd sign = Taurus(2), 12th sign = Pisces(12).
+
+// Shubha Kartari: Jupiter alone in the 2nd (Taurus), Venus alone in the
+// 12th (Pisces) — Ketu moved off Pisces(12), its default placement, so
+// it doesn't co-occupy the 12th and break the "only benefics" test —
+// both hemming signs occupied ONLY by natural benefics -> present.
+{
+  const chart = syntheticChart(1, { Jupiter: { sign: 2, degree: 15 }, Venus: { sign: 12, degree: 15 }, Ketu: { sign: 6, degree: 15 } });
+  const r = resultFor(chart, "shubha-kartari");
+  assert.strictEqual(r.present, true, "Shubha-Kartari: Lagna hemmed by only benefics must be present");
+  assert.strictEqual(r.strength, undefined, "binary yoga: no strength reported");
+}
+
+// Papa Kartari: Mars alone in the 2nd, Saturn (+ Ketu, also a natural
+// malefic) in the 12th — Venus moved off Taurus(2), its default
+// placement, so the 2nd is hemmed by only malefics -> present.
+{
+  const chart = syntheticChart(1, { Mars: { sign: 2, degree: 15 }, Venus: { sign: 7, degree: 15 }, Saturn: { sign: 12, degree: 15 } });
+  const r = resultFor(chart, "papa-kartari");
+  assert.strictEqual(r.present, true, "Papa-Kartari: Lagna hemmed by only malefics must be present");
+}
+
+// Default baseline: Venus (a benefic) occupies the 2nd by default, and
+// Ketu (a malefic) the 12th by default -> mixed nature on each side ->
+// both Shubha and Papa Kartari absent.
+{
+  const chart = syntheticChart(1, {});
+  assert.strictEqual(resultFor(chart, "shubha-kartari").present, false, "Shubha-Kartari: malefic (Ketu) present in the 12th must be absent");
+  assert.strictEqual(resultFor(chart, "papa-kartari").present, false, "Papa-Kartari: benefic (Venus) present in the 2nd must be absent");
+}
+
+// =======================================================================
+// 14. Adhi Yoga
+// =======================================================================
+// Moon in Cancer(4): 6th/7th/8th-from-Moon = Virgo(9)/Libra(10)/Scorpio(11).
+
+// Default baseline: Jupiter already sits in Sagittarius(9) (its own
+// sign, 6th-from-Moon) while Venus(2)/Mercury(3) do not -> exactly 1
+// qualifying benefic -> present, "weak".
+{
+  const chart = syntheticChart(1, {});
+  const r = resultFor(chart, "adhi-yoga");
+  assert.strictEqual(r.present, true, "Adhi: 1 benefic in the 6th/7th/8th from Moon (default baseline) must be present");
+  assert.strictEqual(r.strength, "weak", "Adhi: exactly 1 qualifying benefic grades weak");
+}
+
+// All 3 benefics placed across the 6th/7th/8th from Moon (Jupiter stays
+// in Sagittarius(9), Venus moved to Libra(10), Mercury moved to
+// Scorpio(11)) -> present, "strong".
+{
+  const chart = syntheticChart(1, { Venus: { sign: 10, degree: 15 }, Mercury: { sign: 11, degree: 15 } });
+  const r = resultFor(chart, "adhi-yoga");
+  assert.strictEqual(r.present, true, "Adhi: all 3 benefics in the 6th/7th/8th from Moon must be present");
+  assert.strictEqual(r.strength, "strong", "Adhi: 3 qualifying benefics grades strong");
+}
+
+// None of the 3 benefics in the 6th/7th/8th from Moon (all moved to
+// Taurus(2)) -> absent.
+{
+  const chart = syntheticChart(1, {
+    Jupiter: { sign: 2, degree: 15 },
+    Venus: { sign: 2, degree: 15 },
+    Mercury: { sign: 2, degree: 15 },
+  });
+  const r = resultFor(chart, "adhi-yoga");
+  assert.strictEqual(r.present, false, "Adhi: no benefic in the 6th/7th/8th from Moon must be absent");
+  assert.strictEqual(r.strength, undefined, "absent yoga must not report a strength");
+}
+
+// =======================================================================
 // Registry-wide robustness: no rule ever throws, across a sweep of 10+
 // real charts (varied birth dates/locations), and every result carries
 // a valid boolean `present`.
