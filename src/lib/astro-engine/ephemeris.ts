@@ -96,22 +96,59 @@ const REAL_BODIES: { name: ChartPlanetName; body: Astronomy.Body }[] = [
 /**
  * Tropical geocentric-topocentric ecliptic longitude of `body` at
  * `time`, as seen by `observer`. Uses `Equator(body, time, observer,
- * true, true)` (`ofdate` + `aberration` both true) → `.vec` →
+ * false, true)` (`ofdate=false`, `aberration=true`) → `.vec` →
  * `Ecliptic(vec)` rather than plain `GeoVector`, because that applies
  * the topocentric parallax correction — for the Moon specifically this
  * differs from a pure-geocentric position by up to ~1°, which matters
- * for sign-boundary cases. This is exactly the pattern astronomy-engine's
- * own docs demonstrate for topocentric ecliptic coordinates.
- * Source: astronomy-engine API reference (Equator/Ecliptic functions):
- * https://github.com/cosinekitty/astronomy/blob/master/source/js/README.md
+ * for sign-boundary cases.
+ *
+ * IMPORTANT — `ofdate` MUST be `false` here, not `true`. This was a
+ * real, shipped bug (found and fixed during the ayanamsha-precision
+ * investigation below — see the long doc comment in ./ayanamsha.ts for
+ * the full story) that silently double-applied precession for every
+ * planet at every date away from J2000, growing to ~0.3-0.5° of error
+ * by the 1975/2035 ends of this project's typical birth-date range:
+ *   - `Astronomy.Equator(body, time, observer, ofdate, aberration)`:
+ *     per astronomy-engine's own doc comment on the twin
+ *     `ObserverVector`, `ofdate=true` returns coordinates in the
+ *     EQUATOR-OF-DATE frame (already precessed + nutated to `time`);
+ *     `ofdate=false` returns the J2000 mean-equator (EQJ) frame.
+ *   - `Astronomy.Ecliptic(eqj)`: per its own doc comment, this
+ *     function's INPUT is assumed to already be EQJ ("Converts a J2000
+ *     mean equator (EQJ) vector to a true ecliptic of date (ECT)
+ *     vector") — internally it does its own
+ *     `precession(eqj_pos, eqj.t, From2000)` + `nutation(...)` to
+ *     reach the ecliptic of date.
+ *   Passing an `ofdate=true` (already-precessed) vector into `Ecliptic`
+ *   therefore applies precession+nutation TWICE — once inside
+ *   `Equator`, once again inside `Ecliptic` — which happens to cancel
+ *   to ~0 at T=0 (J2000, since "precess to date" is a no-op there) but
+ *   grows roughly LINEARLY with distance from J2000 in either
+ *   direction, i.e. it looks exactly like a precession-rate error of
+ *   roughly double the true ~50.29"/yr rate — which is exactly the
+ *   symptom that was originally (and incorrectly) attributed to
+ *   `lahiriAyanamsha()` in ayanamsha.ts. Verified numerically: at
+ *   1975-01-01T12:00Z the buggy form gave Sun tropical=280.0976°
+ *   vs. the correct (geocentric `Astronomy.SunPosition`, no
+ *   observer/topocentric complexity to confound the comparison)
+ *   reference of 280.4442° (0.347° off); at 2035-01-01T12:00Z buggy
+ *   gave 281.3690° vs. reference 280.8830° (0.486° off, OPPOSITE
+ *   sign) — while the `ofdate=false` form used below matches the
+ *   geocentric reference everywhere in 1975-2035 to within ~0.002°
+ *   (exactly the documented sub-0.003° topocentric-parallax
+ *   difference, nothing more).
+ * Source: astronomy-engine API reference (Equator/Ecliptic functions
+ * and their doc comments in node_modules/astronomy-engine/astronomy.js
+ * — `ObserverVector`'s `ofdate` param doc, and `Ecliptic`'s own doc
+ * comment): https://github.com/cosinekitty/astronomy/blob/master/source/js/README.md
  */
 function topocentricTropicalLongitude(
   body: Astronomy.Body,
   time: Astronomy.AstroTime,
   observer: Astronomy.Observer
 ): number {
-  const equatorOfDate = Astronomy.Equator(body, time, observer, true, true);
-  const ecliptic = Astronomy.Ecliptic(equatorOfDate.vec);
+  const equatorJ2000 = Astronomy.Equator(body, time, observer, false, true);
+  const ecliptic = Astronomy.Ecliptic(equatorJ2000.vec);
   return normalizeDegrees(ecliptic.elon);
 }
 
