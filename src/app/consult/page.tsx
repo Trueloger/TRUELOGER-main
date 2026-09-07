@@ -27,7 +27,14 @@ export default function ConsultPage() {
           Choose a consultation below, pick a duration, and connect with an expert.
         </p>
 
-        <ul className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 md:mt-8 lg:grid-cols-3 xl:grid-cols-4">
+        {/* 3 columns from the narrowest phone up through tablet — every
+            card (ServiceCard) has its own responsive compact layout
+            below sm so 3-per-row stays readable/tappable at 320px —
+            then 4 columns from desktop (lg) up. gap-3 on mobile keeps a
+            real, deliberate gap between cards without eating too much
+            of the ~88px-per-card width at 320px; gap-5 once cards have
+            room to breathe from sm up. */}
+        <ul className="mt-6 grid grid-cols-3 gap-3 sm:gap-5 md:mt-8 lg:grid-cols-4">
           {CONSULTATION_SERVICES.map((service) => (
             <li key={service.id} className="h-full">
               <ServiceCard service={service} />
