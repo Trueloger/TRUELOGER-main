@@ -46,14 +46,29 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Consult",
     href: "/consult",
     icon: UserRound,
-    children: childrenFrom("/consult", [
-      "Vedic Astrology",
-      "Numerology",
-      "Tarot",
-      "Vastu",
-      "Spiritual Healing",
-      "Puja & Rituals",
-    ]),
+    // Explicit (not slugify-derived) so every href matches
+    // CONSULTATION_SERVICES' own `slug` field exactly (see
+    // src/lib/consultation/services-data.ts) — this is the single
+    // navigation surface for the paid consultation catalogue; the
+    // /consult landing page's own cards link to the same routes.
+    // Puja & Rituals is deliberately NOT listed here per the "remove
+    // Puja from the consultation dropdown" requirement — the Puja
+    // section itself still exists at its own top-level nav entry below.
+    children: [
+      { label: "Vedic Astrology", href: "/consult/vedic-astrology" },
+      { label: "Tarot Reading", href: "/consult/tarot-reading" },
+      { label: "Numerology", href: "/consult/numerology" },
+      { label: "Vastu", href: "/consult/vastu" },
+      { label: "Spiritual Healing", href: "/consult/spiritual-healing" },
+      { label: "Palmistry", href: "/consult/palmistry" },
+      { label: "Lal Kitab", href: "/consult/lal-kitab" },
+      { label: "KP Astrology", href: "/consult/kp-astrology" },
+      { label: "Nadi Astrology", href: "/consult/nadi-astrology" },
+      { label: "Love & Relationship Astrology", href: "/consult/love-relationship-astrology" },
+      { label: "Career Astrology", href: "/consult/career-astrology" },
+      { label: "Marriage Astrology", href: "/consult/marriage-astrology" },
+      { label: "Prashna / Horary", href: "/consult/prashna-horary" },
+    ],
   },
   {
     label: "Predictions",

@@ -143,3 +143,17 @@ export function FreeServicesGridIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Talk To Astrologer — a person in profile speaking, with a small
+ * radiating-connection mark, standing in for a live consultation
+ * rather than a static reading. */
+export function TalkToExpertIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="9.5" cy="8" r="3.2" />
+      <path d="M4 20c0-3.6 2.5-6 5.5-6s5.5 2.4 5.5 6" />
+      <path d="M16.5 7.2c1.1.5 1.9 1.6 1.9 2.9s-.8 2.4-1.9 2.9" opacity="0.85" />
+      <path d="M19 5.6c1.9.9 3.2 2.7 3.2 4.9s-1.3 4-3.2 4.9" opacity="0.55" />
+    </svg>
+  );
+}

@@ -29,11 +29,12 @@ function isActive(pathname: string, href: string) {
 }
 
 export function MobileHeaderControls({ onOpenMenu }: { onOpenMenu: () => void }) {
-  const { itemCount } = useCart();
+  const { itemCount, openCart } = useCart();
   return (
     <div className="flex items-center gap-1 lg:hidden">
-      <Link
-        href="/cart"
+      <button
+        type="button"
+        onClick={openCart}
         aria-label={`Cart, ${itemCount} item${itemCount === 1 ? "" : "s"}`}
         className="relative flex h-11 w-11 items-center justify-center rounded-full text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist"
       >
@@ -46,7 +47,7 @@ export function MobileHeaderControls({ onOpenMenu }: { onOpenMenu: () => void })
             {itemCount}
           </span>
         )}
-      </Link>
+      </button>
       <button
         type="button"
         onClick={onOpenMenu}

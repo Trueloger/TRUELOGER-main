@@ -245,10 +245,11 @@ function MallControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
 }
 
 function CartButton() {
-  const { itemCount } = useCart();
+  const { itemCount, openCart } = useCart();
   return (
-    <Link
-      href="/cart"
+    <button
+      type="button"
+      onClick={openCart}
       aria-label={`Cart, ${itemCount} item${itemCount === 1 ? "" : "s"}`}
       className="relative flex h-10 w-10 items-center justify-center rounded-full text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist"
     >
@@ -259,7 +260,7 @@ function CartButton() {
       >
         {itemCount}
       </span>
-    </Link>
+    </button>
   );
 }
 
