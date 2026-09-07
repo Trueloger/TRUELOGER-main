@@ -36,7 +36,12 @@ export function ServiceCard({ service }: { service: ConsultationService }) {
     <div className="group relative flex h-full flex-col rounded-[1.4rem] border border-nav-lavender-line bg-gradient-to-b from-white to-nav-lavender-mist p-5 text-center shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_34px_-14px_rgba(70,40,120,0.4)] sm:text-left">
       <CornerTicks />
 
-      <div className="flex flex-col items-center sm:flex-row sm:items-start sm:gap-4">
+      {/* items-center (not items-start): a short, single-line service
+          name sitting next to the fixed h-14 icon badge needs to be
+          vertically centered against it, not pinned to the top — a
+          two-line name's height happens to roughly match the icon's,
+          so centering leaves that case visually unchanged. */}
+      <div className="flex flex-col items-center sm:flex-row sm:items-center sm:gap-4">
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-nav-lavender-line bg-nav-lavender-mist text-nav-amethyst-deep transition-colors duration-300 group-hover:bg-nav-lavender-soft">
           <ConsultServiceIcon icon={service.icon} className="h-6 w-6" />
         </span>
