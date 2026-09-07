@@ -144,13 +144,15 @@ export const MALL_ITEM: NavItem = {
   label: "TRUELOGER Mall",
   href: "/mall",
   icon: ShoppingBag,
-  children: childrenFrom("/mall", [
-    "Gemstones",
-    "Rudraksha",
-    "Bracelets",
-    "Yantras",
-    "Spiritual Products",
-  ]),
+  // "Gemstones" is explicit (not slugify-derived via childrenFrom) —
+  // it routes to the dedicated /gemstones catalogue (see
+  // src/lib/gemstones/gemstone-data.ts), not /mall/gemstones. The
+  // other Mall categories are unrelated to this task and keep their
+  // existing /mall/* placeholder routes.
+  children: [
+    { label: "Gemstones", href: "/gemstones" },
+    ...childrenFrom("/mall", ["Rudraksha", "Bracelets", "Yantras", "Spiritual Products"]),
+  ],
 };
 
 export const PROFILE_MENU: NavChild[] = [

@@ -67,16 +67,18 @@ export default function CheckoutPage() {
 
 function CheckoutLineRow({ item }: { item: CartItem }) {
   const isConsultation = item.type === "consultation";
+  const isGemstone = item.type === "gemstone";
+  const consultMeta = isConsultation ? (item.meta as { serviceName: string; duration: number } | undefined) : undefined;
+  const gemstoneMeta = isGemstone ? (item.meta as { productName: string; ratti: number } | undefined) : undefined;
 
   return (
     <li className="flex items-start justify-between gap-3 rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-3">
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium text-nav-violet">
-          {isConsultation ? item.meta?.serviceName ?? item.name : item.name}
+          {consultMeta?.serviceName ?? gemstoneMeta?.productName ?? item.name}
         </span>
-        {isConsultation && item.meta?.duration && (
-          <span className="text-xs text-nav-plum">{item.meta.duration} min</span>
-        )}
+        {consultMeta && <span className="text-xs text-nav-plum">{consultMeta.duration} min</span>}
+        {gemstoneMeta && <span className="text-xs text-nav-plum">{gemstoneMeta.ratti} Ratti</span>}
         <span className="text-xs text-nav-plum">Qty: {item.quantity}</span>
       </div>
       {typeof item.price === "number" && (

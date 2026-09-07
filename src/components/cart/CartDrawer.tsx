@@ -129,12 +129,15 @@ export function CartDrawer() {
 
 function CartLineRow({ item, onRemove }: { item: CartItem; onRemove: () => void }) {
   const isConsultation = item.type === "consultation";
+  const isGemstone = item.type === "gemstone";
+  const consultMeta = isConsultation ? (item.meta as { serviceName: string; duration: number } | undefined) : undefined;
+  const gemstoneMeta = isGemstone ? (item.meta as { productName: string; ratti: number } | undefined) : undefined;
 
   return (
     <li className="flex flex-col gap-1 rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <span className="text-sm font-medium text-nav-violet">
-          {isConsultation ? item.meta?.serviceName ?? item.name : item.name}
+          {consultMeta?.serviceName ?? gemstoneMeta?.productName ?? item.name}
         </span>
         {typeof item.price === "number" && (
           <span className="shrink-0 text-sm font-semibold text-nav-amethyst-deep">
@@ -143,9 +146,8 @@ function CartLineRow({ item, onRemove }: { item: CartItem; onRemove: () => void 
         )}
       </div>
 
-      {isConsultation && item.meta?.duration && (
-        <span className="text-xs text-nav-plum">{item.meta.duration} min</span>
-      )}
+      {consultMeta && <span className="text-xs text-nav-plum">{consultMeta.duration} min</span>}
+      {gemstoneMeta && <span className="text-xs text-nav-plum">{gemstoneMeta.ratti} Ratti</span>}
 
       <div className="mt-1 flex items-center justify-between">
         {item.quantity > 1 ? (

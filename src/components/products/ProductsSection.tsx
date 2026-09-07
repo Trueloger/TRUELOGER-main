@@ -1,22 +1,24 @@
 import { LotusIcon } from "@/components/quick-services/icons";
-import { FEATURED_PRODUCTS } from "./product-data";
-import { ProductCard } from "./ProductCard";
-import { ProductCarousel } from "./ProductCarousel";
+import { GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
+import { GemstoneCard } from "@/components/gemstones/GemstoneCard";
+import { GemstoneCarousel } from "@/components/gemstones/GemstoneCarousel";
 
 /**
- * Sacred Gemstones — a homepage featured-products showcase, not the full
- * Mall catalog. Exactly six cards, sourced from the first six images in
- * public/gemstones image/ (see product-data.ts). Heading and ornament
- * follow the same structure as ExploreServices/HealingSection/PujaSection
- * above it. -mt-px pulls this section's background up over Puja's last
- * device pixel for the same reason those sections overlap by 1px instead
- * of abutting — see PujaSection's comment for the full explanation.
+ * Sacred Gemstones — a homepage showcase of the real gemstone catalogue
+ * (all eight GEMSTONE_PRODUCTS, see src/lib/gemstones/gemstone-data.ts),
+ * not a curated subset. Each GemstoneCard's own "View Details" link is
+ * what leads through to the full catalogue at /gemstones — nothing else
+ * to wire here. Heading and ornament follow the same structure as
+ * ExploreServices/HealingSection/PujaSection above it. -mt-px pulls this
+ * section's background up over Puja's last device pixel for the same
+ * reason those sections overlap by 1px instead of abutting — see
+ * PujaSection's comment for the full explanation.
  *
  * Under md: a swipeable previous/main/next peek carousel (see
- * ProductCarousel), same pattern as PujaSection. md and up: plain grid,
- * 3 columns from sm so tablets get a 3x2 layout, and all six in a single
- * row from lg once there's room for six ~200px-wide cards to stay
- * readable.
+ * GemstoneCarousel), same pattern as PujaSection. md and up: plain grid,
+ * 3 columns from sm so tablets get a readable layout, and 4 columns from
+ * lg (matching /gemstones' own desktop grid) so all eight products lay
+ * out as two even rows of four.
  */
 export function ProductsSection() {
   return (
@@ -48,12 +50,12 @@ export function ProductsSection() {
         </div>
 
         <div className="mt-10 md:mt-14">
-          <ProductCarousel />
+          <GemstoneCarousel />
 
-          <ul className="hidden md:grid sm:grid-cols-3 sm:gap-6 lg:grid-cols-6">
-            {FEATURED_PRODUCTS.map((product) => (
+          <ul className="hidden md:grid sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+            {GEMSTONE_PRODUCTS.map((product) => (
               <li key={product.id}>
-                <ProductCard product={product} />
+                <GemstoneCard product={product} />
               </li>
             ))}
           </ul>

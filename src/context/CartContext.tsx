@@ -2,40 +2,52 @@
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
-export type CartItemType = "product" | "consultation";
+export type CartItemType = "product" | "consultation" | "gemstone";
+
+export type ConsultationCartMeta = {
+  serviceId: string;
+  serviceName: string;
+  duration: number;
+};
+
+export type GemstoneCartMeta = {
+  productId: string;
+  productName: string;
+  ratti: number;
+};
 
 export type CartItem = {
   /** Unique cart line identity. A physical product uses its own product
    * id directly (unchanged legacy behavior); a consultation uses
    * `consultationVariantId(serviceId, duration)` (see
-   * src/lib/consultation/types.ts) so the SAME service at two
-   * different durations — e.g. "Vedic Astrology, 30 min" and "Vedic
-   * Astrology, 60 min" — are two distinct, independently-removable
-   * line items instead of one overwriting the other. */
+   * src/lib/consultation/types.ts) and a gemstone uses
+   * `gemstoneVariantId(productId, ratti)` (see
+   * src/lib/gemstones/types.ts) so the SAME service/product at two
+   * different durations/weights — e.g. "Blue Sapphire, 3 Ratti" and
+   * "Blue Sapphire, 5 Ratti" — are two distinct, independently-
+   * removable line items instead of one overwriting the other. */
   id: string;
   name: string;
   quantity: number;
   /** Unit price in whole rupees. Optional/omitted for any legacy
    * product line added before pricing existed on this context — those
    * render as "quantity only" wherever a UI needs to fall back
-   * gracefully. Every consultation line always sets this, sourced from
-   * `getConsultationPrice()` (see src/lib/consultation/pricing.ts) —
-   * never a client-typed literal. */
+   * gracefully. Every consultation/gemstone line always sets this,
+   * sourced from `getConsultationPrice()` /`getGemstonePrice()` — never
+   * a client-typed literal. */
   price?: number;
   /** Defaults to "product" when omitted, preserving the exact prior
    * behavior for every existing addItem({id, name}) call site (e.g.
    * ProductCard.tsx) — this field is additive, not a breaking change. */
   type?: CartItemType;
-  /** Consultation-only metadata, present only when type === "consultation".
-   * Kept as a nested object (rather than flattening serviceId/duration
-   * onto CartItem directly) so a future second variant dimension
-   * (expert, language, mode) can be added here without another
-   * top-level CartItem field. */
-  meta?: {
-    serviceId: string;
-    serviceName: string;
-    duration: number;
-  };
+  /** Present only when `type` is "consultation" or "gemstone" — the
+   * two meta shapes are a union (not merged into one loose object) so
+   * a consumer that already checked `type` gets real field names for
+   * the matching shape, not an ambiguous grab-bag. Kept nested (rather
+   * than flattened onto CartItem) so a future second variant dimension
+   * (expert, language, mode, gemstone treatment) can be added to either
+   * shape without another top-level CartItem field. */
+  meta?: ConsultationCartMeta | GemstoneCartMeta;
 };
 
 type AddCartItemInput = {
