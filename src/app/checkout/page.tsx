@@ -1,15 +1,105 @@
 "use client";
 
+// src/app/checkout/page.tsx
+// Real Cashfree checkout. Requires sign-in (per "require login before
+// checkout" — the cart itself survives login/signup since CartContext
+// is just in-memory React state untouched by auth, so nothing is lost
+// redirecting through /login). Flow: read cart -> build {category,
+// productId|serviceId, ratti|duration, quantity} HINTS only (never a
+// price) -> POST /api/payments/create-order (server re-prices
+// authoritatively and creates the internal order + Cashfree order) ->
+// open Cashfree's hosted checkout with the returned paymentSessionId.
+import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { formatInr } from "@/lib/consultation/pricing";
+import { useAuth } from "@/context/AuthContext";
+import { authedFetch } from "@/lib/auth/authed-fetch";
+
+declare global {
+  interface Window {
+    Cashfree?: (config: { mode: "sandbox" | "production" }) => {
+      checkout: (options: { paymentSessionId: string; redirectTarget?: "_self" | "_modal" | "_blank" }) => void;
+    };
+  }
+}
+
+function cartItemToLineHint(item: CartItem) {
+  if (item.type === "gemstone" && item.meta && "productId" in item.meta) {
+    return { category: "gemstone", productId: item.meta.productId, ratti: item.meta.ratti, quantity: item.quantity };
+  }
+  if (item.type === "consultation" && item.meta && "serviceId" in item.meta) {
+    return { category: "consultation", serviceId: item.meta.serviceId, duration: item.meta.duration, quantity: item.quantity };
+  }
+  return null;
+}
 
 export default function CheckoutPage() {
   const { items, subtotal } = useCart();
+  const { currentUser, loading } = useAuth();
+  const router = useRouter();
+  const [sdkReady, setSdkReady] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const paying = useRef(false); // guards against a double-click firing two payment attempts
+
+  useEffect(() => {
+    if (!loading && !currentUser) {
+      router.replace(`/login?redirect=${encodeURIComponent("/checkout")}`);
+    }
+  }, [loading, currentUser, router]);
+
+  async function handlePay() {
+    if (paying.current) return; // ignore a second click while the first request is in flight
+    paying.current = true;
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const lines = items.map(cartItemToLineHint).filter((l): l is NonNullable<typeof l> => l !== null);
+      if (lines.length === 0) {
+        setError("Nothing in your cart can be checked out right now.");
+        return;
+      }
+
+      const res = await authedFetch("/api/payments/create-order", {
+        method: "POST",
+        body: JSON.stringify({ lines }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.paymentSessionId) {
+        setError((data && data.error) || "Unable to start payment. Please try again.");
+        return;
+      }
+
+      if (!sdkReady || !window.Cashfree) {
+        setError("Payment is still loading — please try again in a moment.");
+        return;
+      }
+
+      const cashfree = window.Cashfree({ mode: data.mode === "production" ? "production" : "sandbox" });
+      cashfree.checkout({ paymentSessionId: data.paymentSessionId, redirectTarget: "_self" });
+    } catch {
+      setError("Network error — please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+      paying.current = false;
+    }
+  }
+
+  if (loading || !currentUser) {
+    return (
+      <main className="flex min-h-[70vh] items-center justify-center bg-nav-ivory">
+        <p className="text-sm text-nav-plum/70">Loading…</p>
+      </main>
+    );
+  }
 
   if (items.length === 0) {
     return (
-      <main className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-4 px-6 text-center">
+      <main className="flex min-h-[70vh] w-full flex-col items-center justify-center gap-4 bg-nav-ivory px-6 text-center">
         <h1 className="font-serif text-2xl font-semibold text-nav-amethyst-deep">
           Your cart is empty
         </h1>
@@ -27,7 +117,13 @@ export default function CheckoutPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-10">
+    <main className="min-h-[70vh] w-full bg-nav-ivory px-6 py-10">
+      <div className="mx-auto w-full max-w-2xl">
+      <Script
+        src="https://sdk.cashfree.com/js/v3/cashfree.js"
+        onLoad={() => setSdkReady(true)}
+      />
+
       <h1 className="mb-6 font-serif text-2xl font-semibold text-nav-amethyst-deep">
         Checkout Summary
       </h1>
@@ -47,20 +143,24 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {error && (
+        <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+
       <button
         type="button"
-        onClick={() => {
-          // No live payment gateway is wired up yet — this is intentionally
-          // a no-op placeholder rather than a fabricated success flow.
-          console.log("Proceed to Payment clicked — payment gateway not yet integrated.");
-        }}
-        className="mt-6 flex w-full items-center justify-center rounded-full bg-nav-amethyst px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst focus-visible:ring-offset-2 focus-visible:ring-offset-nav-pearl"
+        onClick={handlePay}
+        disabled={submitting}
+        className="mt-6 flex w-full items-center justify-center rounded-full bg-nav-amethyst px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst focus-visible:ring-offset-2 focus-visible:ring-offset-nav-pearl"
       >
-        Proceed to Payment
+        {submitting ? "Starting payment…" : "Pay Securely"}
       </button>
       <p className="mt-2 text-center text-xs text-nav-plum">
-        Payment is not yet enabled — this button does not place a real order.
+        Secured by Cashfree. You will be redirected to complete your payment.
       </p>
+      </div>
     </main>
   );
 }

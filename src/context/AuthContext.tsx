@@ -1,38 +1,131 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
-
-/**
- * Placeholder auth context — this repo has no Firebase wiring yet.
- * Shape (user / login / logout) mirrors what a real Firebase auth
- * listener would provide, so swapping in `onAuthStateChanged` later
- * only touches this file, not the nav components that consume it.
- */
-export type NavUser = {
-  name: string;
-  email: string;
-  photoURL?: string | null;
-};
+// src/context/AuthContext.tsx
+// Real Firebase Authentication + profile layer, replacing the earlier
+// placeholder (fake `login()` that just set a hardcoded name). This is
+// the ONE auth listener for the whole app — every page/component reads
+// auth state through `useAuth()`, never its own `onAuthStateChanged`.
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  createUserWithEmailAndPassword,
+  onIdTokenChanged,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User,
+} from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
+import { firebaseAuth, firestoreDb } from "@/lib/firebase-client";
+import { isProfileComplete as computeIsProfileComplete, type UserProfile } from "@/lib/profile/types";
 
 type AuthContextValue = {
-  user: NavUser | null;
-  login: () => void;
-  logout: () => void;
+  currentUser: User | null;
+  profile: UserProfile | null;
+  loading: boolean;
+  isAuthenticated: boolean;
+  isProfileComplete: boolean;
+  isAdmin: boolean;
+  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  sendReset: (email: string) => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
+  /** Firebase ID tokens cache custom claims for up to an hour — call
+   * this right after a claim change (e.g. right after the admin
+   * bootstrap script runs) to force a fresh token instead of waiting. */
+  refreshClaims: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<NavUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Single source of truth for auth state — fires on sign-in/out AND
+  // whenever the ID token itself refreshes (which is also when a
+  // custom-claim change actually becomes visible client-side).
+  useEffect(() => {
+    const unsubscribe = onIdTokenChanged(firebaseAuth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        try {
+          const tokenResult = await user.getIdTokenResult();
+          setIsAdmin(tokenResult.claims.admin === true);
+        } catch {
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+        setProfile(null);
+      }
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Live profile doc — Firestore rules restrict this read to the
+  // signed-in owner (or an admin), see firestore.rules.
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = onSnapshot(
+      doc(firestoreDb, "users", currentUser.uid),
+      (snap) => setProfile(snap.exists() ? (snap.data() as UserProfile) : null),
+      () => setProfile(null),
+    );
+    return unsubscribe;
+  }, [currentUser]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user,
-      login: () =>
-        setUser({ name: "Anjali Sharma", email: "anjali@example.com", photoURL: null }),
-      logout: () => setUser(null),
+      currentUser,
+      profile,
+      loading,
+      isAuthenticated: !!currentUser,
+      isProfileComplete: computeIsProfileComplete(profile),
+      isAdmin,
+      async signUp(email, password, fullName) {
+        const cred = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        if (fullName.trim()) {
+          await updateProfile(cred.user, { displayName: fullName.trim() });
+        }
+        await sendEmailVerification(cred.user);
+        // The profile document itself is created by the Profile
+        // Completion step (src/app/profile/complete/page.tsx via
+        // PUT /api/profile), not here — signUp's only job is the
+        // Firebase Auth account.
+      },
+      async signIn(email, password) {
+        await signInWithEmailAndPassword(firebaseAuth, email, password);
+      },
+      async logout() {
+        await signOut(firebaseAuth);
+      },
+      async sendReset(email) {
+        await sendPasswordResetEmail(firebaseAuth, email);
+      },
+      async resendVerificationEmail() {
+        if (firebaseAuth.currentUser) await sendEmailVerification(firebaseAuth.currentUser);
+      },
+      async refreshClaims() {
+        if (firebaseAuth.currentUser) {
+          const tokenResult = await firebaseAuth.currentUser.getIdTokenResult(true);
+          setIsAdmin(tokenResult.claims.admin === true);
+        }
+      },
     }),
-    [user],
+    [currentUser, profile, loading, isAdmin],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

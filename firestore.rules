@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// Production Firestore Security Rules for TRUELOGER.
+//
+// Design:
+// - `users/{uid}` is the profile doc. The owner may read/update it
+//   directly via the client SDK, but NEVER through this rule set can
+//   they write `admin`-flavoured fields into it — admin status lives
+//   exclusively in the Firebase Auth custom claim (`request.auth.token.admin`),
+//   never in a Firestore document a user could otherwise edit.
+// - `orders/{orderId}` is written EXCLUSIVELY by server code using the
+//   Admin SDK (create-order/verify/webhook routes), which bypasses
+//   these rules entirely. Client-side writes are therefore denied
+//   outright — there is no legitimate path for a browser to create or
+//   modify an order document directly. Reads are limited to the
+//   order's own owner or an admin.
+// - `adminAuditLog/{entryId}` is admin-read-only, server-write-only —
+//   same reasoning as orders.
+// - No collection here uses `allow read, write: if true` anywhere.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // The ONLY admin check this rule set trusts — a Firebase Auth
+    // custom claim, set exclusively by scripts/dev/set-admin-claim.ts
+    // running with Admin SDK privileges. Never based on email.
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      // A user may create/update their OWN profile document, but never
+      // introduce or change a field that would look like a role/claim
+      // — `admin` is never a legal field on this document at all.
+      allow create, update: if isOwner(uid) && !("admin" in request.resource.data);
+      allow delete: if false; // account deletion goes through a controlled server flow, not a raw doc delete
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      // No direct client writes at all — every order write goes
+      // through the Admin SDK (create-order / verify / webhook routes
+      // and the admin fulfillment-update route), which is a superuser
+      // context these rules don't apply to. A client attempting to
+      // write here directly is therefore always denied.
+      allow write: if false;
+    }
+
+    match /adminAuditLog/{entryId} {
+      allow read: if isAdmin();
+      allow write: if false; // server (Admin SDK) only
+    }
+
+    // Default deny for anything not explicitly matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

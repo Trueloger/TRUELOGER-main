@@ -265,20 +265,21 @@ function CartButton() {
 }
 
 function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { open: boolean }) {
-  const { user, login, logout } = useAuth();
+  const { currentUser, profile, logout } = useAuth();
 
-  if (!user) {
+  if (!currentUser) {
     return (
-      <button
-        type="button"
-        onClick={login}
+      <Link
+        href="/login"
         className="flex items-center gap-2 rounded-full border border-nav-lavender-line bg-nav-pearl px-4 py-2 text-sm font-medium text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist"
       >
         <LogIn className="h-4 w-4" aria-hidden="true" />
         Login / Sign Up
-      </button>
+      </Link>
     );
   }
+
+  const displayName = profile?.fullName || currentUser.displayName || currentUser.email || "Account";
 
   return (
     <div className="relative" onMouseEnter={onOpen} onMouseLeave={onLeave} onBlur={onBlur}>
@@ -287,7 +288,7 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="nav-menu-profile"
-        aria-label={`Account menu for ${user.name}`}
+        aria-label={`Account menu for ${displayName}`}
         onClick={onOpen}
         onFocus={onOpen}
         className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 pr-3 text-sm font-medium transition-colors duration-200 ${
@@ -297,7 +298,7 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
         }`}
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-nav-amethyst text-xs font-semibold text-white">
-          {getInitials(user.name)}
+          {getInitials(displayName)}
         </span>
         <ChevronDown
           aria-hidden="true"
@@ -313,7 +314,7 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
           className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[210px] rounded-xl border border-nav-lavender-line bg-nav-pearl p-2 shadow-[0_12px_32px_rgba(80,50,130,0.14)]"
         >
           <div className="px-3 py-2 text-sm font-semibold text-nav-violet truncate">
-            {user.name}
+            {displayName}
           </div>
           <div className="my-1 h-px bg-nav-lavender-line" />
           {PROFILE_MENU.map((entry) => (
@@ -330,7 +331,7 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
           <button
             type="button"
             role="menuitem"
-            onClick={logout}
+            onClick={() => void logout()}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />

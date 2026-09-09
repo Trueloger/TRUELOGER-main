@@ -9,7 +9,12 @@ import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 let app: App | undefined;
 
-function getAdminApp(): App {
+/** Shared Admin SDK app singleton — also used by
+ * src/lib/auth/verify-request.ts (ID token verification) and the admin
+ * custom-claim bootstrap script, so there is only ever one Admin app
+ * instance per process regardless of which server module initializes
+ * it first. */
+export function getAdminApp(): App {
   if (app) return app;
 
   const existing = getApps();
@@ -38,6 +43,19 @@ function getAdminApp(): App {
       privateKey: privateKeyRaw.replace(/\\n/g, "\n"),
     }),
   });
+
+  // Optional order/profile fields (customerPhone, customerName, etc.)
+  // are frequently `undefined` rather than omitted — plain object
+  // spreads and TypeScript's optional-field shapes produce that
+  // naturally. The Admin SDK rejects `undefined` field values by
+  // default ("Cannot use 'undefined' as a Firestore value"), which
+  // otherwise turns every optional field into a landmine at write
+  // time. Settings must be applied exactly once, before the first
+  // Firestore operation on this app — safe here since this only runs
+  // on the branch that just created the app, before anyone else has
+  // had a chance to call getFirestore(app) yet.
+  getFirestore(app).settings({ ignoreUndefinedProperties: true });
+
   return app;
 }
 

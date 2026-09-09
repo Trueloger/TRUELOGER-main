@@ -64,7 +64,7 @@ export function MobileHeaderControls({ onOpenMenu }: { onOpenMenu: () => void })
 
 export function MobileMenuPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  const { user, login } = useAuth();
+  const { currentUser } = useAuth();
   const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -161,7 +161,7 @@ export function MobileMenuPanel({ open, onClose }: { open: boolean; onClose: () 
                 </li>
               );
             })}
-            {user ? (
+            {currentUser ? (
               <MobileProfileRow
                 expanded={openAccordion === "profile"}
                 onToggle={() => toggleAccordion("profile")}
@@ -169,17 +169,14 @@ export function MobileMenuPanel({ open, onClose }: { open: boolean; onClose: () 
               />
             ) : (
               <li className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    login();
-                    onClose();
-                  }}
+                <Link
+                  href="/login"
+                  onClick={onClose}
                   className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full border border-nav-lavender-line bg-nav-pearl px-4 py-3 text-[0.95rem] font-medium text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist"
                 >
                   <LogIn className="h-4.5 w-4.5 shrink-0" aria-hidden="true" />
                   Login / Sign Up
-                </button>
+                </Link>
               </li>
             )}
           </ul>
@@ -280,8 +277,9 @@ function MobileProfileRow({
   onToggle: () => void;
   onNavigate: () => void;
 }) {
-  const { user, logout } = useAuth();
-  if (!user) return null;
+  const { currentUser, profile, logout } = useAuth();
+  if (!currentUser) return null;
+  const displayName = profile?.fullName || currentUser.displayName || currentUser.email || "Account";
 
   const panelId = "mobile-accordion-profile";
 
@@ -292,7 +290,7 @@ function MobileProfileRow({
         onClick={onToggle}
         aria-expanded={expanded}
         aria-controls={panelId}
-        aria-label={`Account menu for ${user.name}`}
+        aria-label={`Account menu for ${displayName}`}
         className={`flex min-h-[52px] w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[1rem] font-medium transition-colors duration-150 ${
           expanded
             ? "bg-nav-lavender-soft text-nav-violet font-semibold"
@@ -300,9 +298,9 @@ function MobileProfileRow({
         }`}
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-nav-amethyst text-xs font-semibold text-white">
-          {getInitials(user.name)}
+          {getInitials(displayName)}
         </span>
-        <span className="flex-1 truncate">{user.name}</span>
+        <span className="flex-1 truncate">{displayName}</span>
         <ChevronDown
           aria-hidden="true"
           className={`h-4.5 w-4.5 shrink-0 text-nav-violet transition-transform duration-200 ${
@@ -330,7 +328,7 @@ function MobileProfileRow({
             <button
               type="button"
               onClick={() => {
-                logout();
+                void logout();
                 onNavigate();
               }}
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left text-[0.92rem] text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
