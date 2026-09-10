@@ -53,6 +53,16 @@ export type CreateCashfreeOrderInput = {
   customerPhone?: string;
   customerName?: string;
   returnUrl: string;
+  /** Explicit per-order webhook target — set on every order rather
+   * than relying on whatever (if anything) is configured as the
+   * default in the Cashfree merchant dashboard, which is exactly the
+   * kind of environment-drift bug that made `returnUrl` point at
+   * localhost in production before this field existed. This is what
+   * lets the webhook (the FAST, push-based confirmation path — often
+   * faster than the browser's own redirect completes) actually work,
+   * instead of every confirmation depending solely on the
+   * confirmation page polling Cashfree's REST API after redirect. */
+  notifyUrl: string;
 };
 
 export type CashfreeOrderResult = {
@@ -82,6 +92,7 @@ export async function createCashfreeOrder(
       },
       order_meta: {
         return_url: input.returnUrl,
+        notify_url: input.notifyUrl,
       },
     }),
   });
@@ -108,8 +119,13 @@ export type CashfreeOrderStatus = {
  * — this is the source of truth the return-URL page and the
  * reconciliation path both call, never trusting a URL query param. */
 export async function getCashfreeOrderStatus(orderId: string): Promise<CashfreeOrderStatus> {
+  // A hard timeout on every outbound Cashfree call — without one, a
+  // slow/hung upstream response leaves the whole verify request (and
+  // therefore the browser's own fetch, and therefore the confirmation
+  // page's spinner) waiting indefinitely with nothing to show or retry.
   const orderRes = await fetch(`${BASE_URL}/orders/${encodeURIComponent(orderId)}`, {
     headers: authHeaders(),
+    signal: AbortSignal.timeout(8000),
   });
   const order = await orderRes.json().catch(() => null);
   if (!orderRes.ok || !order) {
@@ -120,6 +136,7 @@ export async function getCashfreeOrderStatus(orderId: string): Promise<CashfreeO
   try {
     const paymentsRes = await fetch(`${BASE_URL}/orders/${encodeURIComponent(orderId)}/payments`, {
       headers: authHeaders(),
+      signal: AbortSignal.timeout(8000),
     });
     const payments = await paymentsRes.json().catch(() => null);
     if (paymentsRes.ok && Array.isArray(payments) && payments.length > 0) {

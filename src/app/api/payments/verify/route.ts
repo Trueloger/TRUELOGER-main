@@ -13,6 +13,14 @@ import { getOrder, applyPaymentStatus } from "@/lib/orders/store";
 import { getCashfreeOrderStatus } from "@/lib/cashfree/server";
 import type { PaymentStatus } from "@/lib/orders/types";
 
+// Bounds how long a single verify call can run — Cashfree's status
+// calls normally complete in well under a second; capping this means a
+// hung upstream call fails fast with a clear error the confirmation
+// page can retry, instead of silently eating the platform's default
+// function timeout and leaving the browser's own fetch hanging with no
+// response at all (the actual "never stops" symptom this fixes).
+export const maxDuration = 15;
+
 function mapCashfreeStatus(orderStatus: string, latestPaymentStatus: string | null): PaymentStatus | null {
   if (latestPaymentStatus === "SUCCESS" || orderStatus === "PAID") return "PAID";
   if (latestPaymentStatus === "FAILED") return "FAILED";

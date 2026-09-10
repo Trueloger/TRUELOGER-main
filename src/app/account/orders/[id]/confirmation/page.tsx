@@ -27,8 +27,20 @@ import { authedFetch } from "@/lib/auth/authed-fetch";
 import { formatInr } from "@/lib/consultation/pricing";
 import type { Order, PaymentStatus } from "@/lib/orders/types";
 
-const MAX_AUTO_RETRIES = 5;
-const RETRY_DELAY_MS = 3500;
+// Front-loaded delays: most payments (cards, most UPI apps) have
+// already settled at Cashfree's end by the time the browser lands back
+// on this page, so the first couple of retries fire fast to catch that
+// common case quickly instead of making everyone wait a flat 3.5s
+// before even a second check — later attempts space out since a
+// payment still pending after several seconds is less likely to
+// resolve any faster from checking again immediately.
+const RETRY_DELAYS_MS = [1200, 1800, 2500, 3500, 5000];
+const MAX_AUTO_RETRIES = RETRY_DELAYS_MS.length;
+// Caps a single verify call so a slow/hung request never leaves the
+// "Verifying…" spinner stuck with no way out — see the matching
+// server-side AbortSignal.timeout in cashfree/server.ts and this
+// route's `maxDuration` for the two other bounds on the same call.
+const VERIFY_TIMEOUT_MS = 10000;
 
 type VerifyState =
   | { phase: "verifying" }
@@ -58,6 +70,7 @@ function ConfirmationContent({ orderId }: { orderId: string }) {
       const res = await authedFetch("/api/payments/verify", {
         method: "POST",
         body: JSON.stringify({ orderId }),
+        signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS),
       });
       const data = (await res.json()) as { paymentStatus?: PaymentStatus; error?: string };
       if (!res.ok || !data.paymentStatus) {
@@ -68,10 +81,13 @@ function ConfirmationContent({ orderId }: { orderId: string }) {
         return;
       }
       setVerify({ phase: "done", paymentStatus: data.paymentStatus });
-    } catch {
+    } catch (err) {
       setVerify({
         phase: "error",
-        message: "We couldn't verify your payment right now. Please check again.",
+        message:
+          err instanceof Error && err.name === "TimeoutError"
+            ? "Verifying is taking longer than expected. Please check again."
+            : "We couldn't verify your payment right now. Please check again.",
       });
     } finally {
       inFlightRef.current = false;
@@ -113,10 +129,11 @@ function ConfirmationContent({ orderId }: { orderId: string }) {
     if (verify.paymentStatus !== "PENDING" && verify.paymentStatus !== "CREATED") return;
     if (attempt >= MAX_AUTO_RETRIES) return;
 
+    const delay = RETRY_DELAYS_MS[attempt - 1] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
     const timer = window.setTimeout(() => {
       setAttempt((a) => a + 1);
       runVerify();
-    }, RETRY_DELAY_MS);
+    }, delay);
     return () => window.clearTimeout(timer);
   }, [verify, attempt, runVerify]);
 
@@ -229,7 +246,7 @@ function PendingState({
         else needs to be done on your end right now.
       </p>
       {!exhausted && (
-        <p className="text-xs text-nav-plum/50">Checking automatically… (attempt {attempt} of 5)</p>
+        <p className="text-xs text-nav-plum/50">Checking automatically… (attempt {attempt} of {MAX_AUTO_RETRIES})</p>
       )}
       <button
         type="button"

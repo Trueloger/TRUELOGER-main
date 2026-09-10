@@ -14,6 +14,8 @@ import { verifyCashfreeWebhookSignature } from "@/lib/cashfree/server";
 import { applyPaymentStatus } from "@/lib/orders/store";
 import type { PaymentStatus } from "@/lib/orders/types";
 
+export const maxDuration = 15;
+
 function mapWebhookEventType(type: string, paymentStatus: string | undefined): PaymentStatus | null {
   if (type === "PAYMENT_SUCCESS_WEBHOOK" || paymentStatus === "SUCCESS") return "PAID";
   if (type === "PAYMENT_FAILED_WEBHOOK" || paymentStatus === "FAILED") return "FAILED";

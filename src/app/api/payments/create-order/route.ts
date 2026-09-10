@@ -92,6 +92,7 @@ export async function POST(request: Request) {
       customerPhone,
       customerName,
       returnUrl: `${appUrl}/account/orders/${orderId}/confirmation`,
+      notifyUrl: `${appUrl}/api/payments/cashfree/webhook`,
     });
     await attachCashfreeSession(orderId, cf.cfOrderId, cf.paymentSessionId);
 
