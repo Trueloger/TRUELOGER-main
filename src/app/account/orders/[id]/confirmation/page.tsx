@@ -40,6 +40,7 @@ import { CheckCircle2, Sparkles, XCircle } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { firestoreDb } from "@/lib/firebase-client";
+import { useCart } from "@/context/CartContext";
 import { formatInr } from "@/lib/consultation/pricing";
 import type { Order, PaymentStatus } from "@/lib/orders/types";
 
@@ -69,6 +70,8 @@ function ConfirmationContent({ orderId }: { orderId: string }) {
   // readable) — those are different states, not the same "no order".
   const [liveOrder, setLiveOrder] = useState<Order | null | undefined>(undefined);
   const [docMissing, setDocMissing] = useState(false);
+  const { clearCart } = useCart();
+  const clearedRef = useRef(false);
 
   // Live Firestore listener — the actual fix. Fires immediately with
   // whatever the document currently holds, then again on every write,
@@ -127,6 +130,20 @@ function ConfirmationContent({ orderId }: { orderId: string }) {
   }, [liveOrder, orderId]);
 
   const status = liveOrder?.paymentStatus;
+
+  // Clear the cart exactly once, only once payment is confirmed PAID —
+  // never on a failed/pending/cancelled outcome, and never as a side
+  // effect of merely landing on this page (this used to happen
+  // "for free" as an accident of the cart living only in memory and
+  // getting wiped by Cashfree's full-page redirect; now that the cart
+  // persists across that redirect — see CartContext.tsx — this has to
+  // be explicit, or a successful purchase would leave already-bought
+  // items sitting in the cart).
+  useEffect(() => {
+    if (status !== "PAID" || clearedRef.current) return;
+    clearedRef.current = true;
+    clearCart();
+  }, [status, clearCart]);
 
   return (
     <main className="bg-gradient-to-b from-nav-ivory via-nav-pearl to-nav-lavender-soft">

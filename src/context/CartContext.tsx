@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type CartItemType = "product" | "consultation" | "gemstone";
 
@@ -86,6 +86,12 @@ type CartContextValue = {
    * explicit "Remove" action, distinct from removeItem's one-at-a-time
    * decrement (kept for the existing product quantity-stepper use). */
   removeLine: (id: string) => void;
+  /** Empties the whole cart — used exactly once, by the order
+   * confirmation page, and ONLY after a payment is confirmed PAID
+   * (never on a failed/pending/cancelled outcome, and never as a side
+   * effect of navigation — see the persistence comment above for why
+   * this needs to be explicit now that the cart survives reloads). */
+  clearCart: () => void;
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
@@ -93,9 +99,67 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+// Persisted so the cart survives a full browser navigation, not just
+// client-side routing — this context previously lived ONLY in React
+// memory, which worked fine for in-app Link navigation (CartProvider
+// sits above the router) but not for the one flow that forces a real,
+// full-page navigation away from and back to the site: Cashfree's
+// hosted checkout redirect (`redirectTarget: "_self"` in
+// checkout/page.tsx actually replaces the tab, it doesn't SPA-route).
+// That wiped the cart on return regardless of whether the payment
+// succeeded or failed — harmless on success (there's nothing left to
+// buy), but on a FAILED payment it meant "Try Payment Again" sent the
+// user to a checkout page with an empty cart and nothing to pay for.
+// localStorage is the fix: same survives-everything guarantee, still
+// entirely client-side/per-browser, no account or server involved.
+const CART_STORAGE_KEY = "trueloger-cart-v1";
+
+function readStoredCart(): CartItem[] {
+  try {
+    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as CartItem[]) : [];
+  } catch {
+    // Corrupted JSON, storage disabled, or private-mode quota — fail
+    // open to an empty cart rather than crashing the whole app.
+    return [];
+  }
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  // Guards the persist-effect below from firing (and overwriting the
+  // real saved cart with an empty array) before the hydrate-effect has
+  // actually had a chance to read localStorage — both effects run
+  // after the same initial render, so without this the persist-effect
+  // could run first.
+  const hydratedRef = useRef(false);
+
+  // Client-only hydration from localStorage, deliberately NOT a lazy
+  // useState initializer — reading localStorage during the render that
+  // also produces the server-rendered HTML would make the client's
+  // first render disagree with that HTML (a hydration mismatch)
+  // anywhere the cart's contents affect what's shown (cart badge
+  // count, drawer contents). Running it in an effect means it applies
+  // just after hydration completes instead, which is the same
+  // trade-off CookieConsentBanner already makes for the same reason.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync with an external system (localStorage), not derived state
+    setItems(readStoredCart());
+    hydratedRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      // Storage full/disabled — the cart still works for this session,
+      // it just won't survive a full page reload. Not worth surfacing.
+    }
+  }, [items]);
 
   const value = useMemo<CartContextValue>(() => {
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -125,6 +189,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             .filter((item) => item.quantity > 0),
         ),
       removeLine: (id) => setItems((prev) => prev.filter((item) => item.id !== id)),
+      clearCart: () => setItems([]),
       isOpen,
       openCart: () => setIsOpen(true),
       closeCart: () => setIsOpen(false),
