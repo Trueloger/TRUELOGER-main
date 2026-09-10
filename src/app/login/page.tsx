@@ -13,6 +13,8 @@ import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { LotusIcon } from "@/components/quick-services/icons";
 import { fieldLabelClass, fieldInputClass } from "@/components/forms/field-styles";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { mapGoogleAuthError } from "@/lib/auth/google-error";
 
 /** Only ever redirect to a same-origin relative path — never let a
  * `?redirect=` query param send a signed-in user off-site (open
@@ -55,7 +57,7 @@ function LoadingShell() {
 }
 
 function LoginForm() {
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -63,12 +65,35 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const redirectParam = searchParams.get("redirect");
   const signupHref = redirectParam
     ? `/signup?redirect=${encodeURIComponent(redirectParam)}`
     : "/signup";
+
+  async function handleGoogleSignIn() {
+    setError(null);
+    setGoogleSubmitting(true);
+    try {
+      await signInWithGoogle();
+      // Always route through /profile/complete rather than straight to
+      // the target — it redirects on through instantly if this Google
+      // account already has a complete profile from an earlier
+      // session, and shows the completion form if not (e.g. brand-new
+      // Google sign-up), exactly like the email/password signup flow.
+      const target = redirectParam
+        ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}`
+        : "/profile/complete";
+      router.replace(target);
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code ?? "";
+      const message = mapGoogleAuthError(code);
+      if (message) setError(message);
+      setGoogleSubmitting(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -183,6 +208,16 @@ function LoginForm() {
               {submitting ? "Signing in…" : "Log In"}
             </button>
           </form>
+
+          <div className="mt-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-nav-lavender-line" aria-hidden="true" />
+            <span className="text-xs font-medium uppercase tracking-wide text-nav-plum/50">or</span>
+            <span className="h-px flex-1 bg-nav-lavender-line" aria-hidden="true" />
+          </div>
+
+          <div className="mt-6">
+            <GoogleSignInButton onClick={handleGoogleSignIn} disabled={googleSubmitting} />
+          </div>
 
           <p className="mt-6 text-center text-sm text-nav-plum/70">
             Don&apos;t have an account?{" "}

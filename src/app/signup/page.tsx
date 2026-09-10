@@ -15,6 +15,8 @@ import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { LotusIcon } from "@/components/quick-services/icons";
 import { fieldLabelClass, fieldInputClass } from "@/components/forms/field-styles";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { mapGoogleAuthError } from "@/lib/auth/google-error";
 
 /** sessionStorage key the mobile number entered here is stashed under so
  * /profile/complete (the very next step) can pre-fill it — signUp()
@@ -51,7 +53,7 @@ function LoadingShell() {
 }
 
 function SignupForm() {
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -63,12 +65,34 @@ function SignupForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const redirectParam = searchParams.get("redirect");
   const loginHref = redirectParam
     ? `/login?redirect=${encodeURIComponent(redirectParam)}`
     : "/login";
+
+  async function handleGoogleSignIn() {
+    setError(null);
+    setGoogleSubmitting(true);
+    try {
+      await signInWithGoogle();
+      // Same "always route through /profile/complete" pattern as the
+      // email/password signup flow above — Firebase creates the
+      // account automatically on first Google sign-in, there's no
+      // separate signup step to call.
+      const target = redirectParam
+        ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}`
+        : "/profile/complete";
+      router.replace(target);
+    } catch (err) {
+      const code = (err as { code?: string } | null)?.code ?? "";
+      const message = mapGoogleAuthError(code);
+      if (message) setError(message);
+      setGoogleSubmitting(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -266,6 +290,16 @@ function SignupForm() {
               {submitting ? "Creating account…" : "Create Account"}
             </button>
           </form>
+
+          <div className="mt-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-nav-lavender-line" aria-hidden="true" />
+            <span className="text-xs font-medium uppercase tracking-wide text-nav-plum/50">or</span>
+            <span className="h-px flex-1 bg-nav-lavender-line" aria-hidden="true" />
+          </div>
+
+          <div className="mt-6">
+            <GoogleSignInButton onClick={handleGoogleSignIn} disabled={googleSubmitting} label="Sign up with Google" />
+          </div>
 
           <p className="mt-6 text-center text-sm text-nav-plum/70">
             Already have an account?{" "}

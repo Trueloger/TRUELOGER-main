@@ -15,10 +15,12 @@ import {
 } from "react";
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onIdTokenChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile,
   type User,
@@ -36,6 +38,14 @@ type AuthContextValue = {
   isAdmin: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  /** Google sign-in/sign-up via a popup — used identically by /login
+   * and /signup (there's no separate "Google signup" flow; Firebase
+   * creates the account on first sign-in automatically). Like
+   * email/password signUp, this never touches the Firestore profile
+   * doc itself — the caller always routes through /profile/complete
+   * afterward, which redirects straight through if the profile (from
+   * an earlier session) is already complete. */
+  signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   sendReset: (email: string) => Promise<void>;
   resendVerificationEmail: () => Promise<void>;
@@ -108,6 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signIn(email, password) {
         await signInWithEmailAndPassword(firebaseAuth, email, password);
+      },
+      async signInWithGoogle() {
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(firebaseAuth, provider);
       },
       async logout() {
         await signOut(firebaseAuth);
