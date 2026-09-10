@@ -6,7 +6,7 @@
 // the form UI, client-side validation, and a friendly presentation of
 // whatever Firebase Auth error comes back (never the raw Firebase
 // error code/message, per this project's UX rule).
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -57,7 +57,7 @@ function LoadingShell() {
 }
 
 function LoginForm() {
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, consumeGoogleRedirectResult } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -73,26 +73,56 @@ function LoginForm() {
     ? `/signup?redirect=${encodeURIComponent(redirectParam)}`
     : "/signup";
 
-  async function handleGoogleSignIn() {
+  // Always route a completed Google sign-in through /profile/complete
+  // rather than straight to the target — it redirects on through
+  // instantly if this Google account already has a complete profile
+  // from an earlier session, and shows the completion form if not
+  // (e.g. brand-new Google sign-up), exactly like the email/password
+  // signup flow.
+  function profileCompleteTarget() {
+    return redirectParam ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}` : "/profile/complete";
+  }
+
+  // Google sign-in uses a full-page redirect, not a popup (popups are
+  // blocked by default in enough real browsers — especially mobile
+  // Safari and in-app browsers — that a popup-based flow reliably
+  // fails for a meaningful slice of users). That means the actual
+  // completion happens on the NEXT page load, after the browser comes
+  // back from Google — this effect checks for that on every mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const justSignedIn = await consumeGoogleRedirectResult();
+        if (justSignedIn && !cancelled) {
+          router.replace(profileCompleteTarget());
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const code = (err as { code?: string } | null)?.code ?? "";
+        const message = mapGoogleAuthError(code);
+        if (message) setError(message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- redirectParam intentionally excluded: re-running this on every search-param change would re-check a redirect result that only exists once, right after mount
+  }, [consumeGoogleRedirectResult, router]);
+
+  function handleGoogleSignIn() {
     setError(null);
     setGoogleSubmitting(true);
-    try {
-      await signInWithGoogle();
-      // Always route through /profile/complete rather than straight to
-      // the target — it redirects on through instantly if this Google
-      // account already has a complete profile from an earlier
-      // session, and shows the completion form if not (e.g. brand-new
-      // Google sign-up), exactly like the email/password signup flow.
-      const target = redirectParam
-        ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}`
-        : "/profile/complete";
-      router.replace(target);
-    } catch (err) {
+    // Not awaited — signInWithRedirect navigates the browser away, it
+    // doesn't resolve on this page. If it throws synchronously (rare —
+    // an unsupported environment), surface that instead of leaving the
+    // button stuck in a loading state forever.
+    signInWithGoogle().catch((err) => {
       const code = (err as { code?: string } | null)?.code ?? "";
       const message = mapGoogleAuthError(code);
       if (message) setError(message);
       setGoogleSubmitting(false);
-    }
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

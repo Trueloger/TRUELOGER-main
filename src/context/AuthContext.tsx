@@ -15,12 +15,13 @@ import {
 } from "react";
 import {
   createUserWithEmailAndPassword,
+  getRedirectResult,
   GoogleAuthProvider,
   onIdTokenChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   type User,
@@ -38,14 +39,28 @@ type AuthContextValue = {
   isAdmin: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  /** Google sign-in/sign-up via a popup — used identically by /login
-   * and /signup (there's no separate "Google signup" flow; Firebase
-   * creates the account on first sign-in automatically). Like
-   * email/password signUp, this never touches the Firestore profile
-   * doc itself — the caller always routes through /profile/complete
-   * afterward, which redirects straight through if the profile (from
-   * an earlier session) is already complete. */
+  /** Google sign-in/sign-up via a full-page redirect — used identically
+   * by /login and /signup (there's no separate "Google signup" flow;
+   * Firebase creates the account on first sign-in automatically). A
+   * redirect, not a popup: popups are blocked by default in enough
+   * real browsers (especially mobile Safari/in-app browsers) that a
+   * popup-based flow reliably fails for a meaningful slice of users —
+   * a redirect can't be popup-blocked since there's no popup. Calling
+   * this navigates the browser away immediately; it does not resolve
+   * before that happens, so callers should not await it expecting
+   * further code on the same page to run afterward. See
+   * consumeGoogleRedirectResult below for how the return trip is
+   * handled. */
   signInWithGoogle: () => Promise<void>;
+  /** Call once on mount of /login and /signup: resolves true if the
+   * browser just returned from a Google sign-in redirect (so the
+   * caller should navigate on to /profile/complete), false on a normal
+   * page load with nothing to resolve. Firebase Auth itself already
+   * establishes the session before this resolves (onIdTokenChanged
+   * above will have already fired) — this exists purely so the
+   * calling page knows WHY it's on this page again and where to send
+   * the user next. */
+  consumeGoogleRedirectResult: () => Promise<boolean>;
   logout: () => Promise<void>;
   sendReset: (email: string) => Promise<void>;
   resendVerificationEmail: () => Promise<void>;
@@ -121,7 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signInWithGoogle() {
         const provider = new GoogleAuthProvider();
-        await signInWithPopup(firebaseAuth, provider);
+        await signInWithRedirect(firebaseAuth, provider);
+      },
+      async consumeGoogleRedirectResult() {
+        const result = await getRedirectResult(firebaseAuth);
+        return result !== null;
       },
       async logout() {
         await signOut(firebaseAuth);

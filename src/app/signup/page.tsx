@@ -8,7 +8,7 @@
 // create the Firestore profile doc, so signup always continues into
 // /profile/complete rather than dropping a user into the app with an
 // empty profile.
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -53,7 +53,7 @@ function LoadingShell() {
 }
 
 function SignupForm() {
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle, consumeGoogleRedirectResult } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -73,25 +73,47 @@ function SignupForm() {
     ? `/login?redirect=${encodeURIComponent(redirectParam)}`
     : "/login";
 
-  async function handleGoogleSignIn() {
+  function profileCompleteTarget() {
+    return redirectParam ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}` : "/profile/complete";
+  }
+
+  // Google sign-in uses a full-page redirect, not a popup — see
+  // AuthContext.tsx's signInWithGoogle doc comment for why. This
+  // effect is what notices the browser just came back from Google and
+  // sends the user on to /profile/complete; same pattern as
+  // /login/page.tsx.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const justSignedIn = await consumeGoogleRedirectResult();
+        if (justSignedIn && !cancelled) {
+          router.replace(profileCompleteTarget());
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const code = (err as { code?: string } | null)?.code ?? "";
+        const message = mapGoogleAuthError(code);
+        if (message) setError(message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- redirectParam intentionally excluded: re-running this on every search-param change would re-check a redirect result that only exists once, right after mount
+  }, [consumeGoogleRedirectResult, router]);
+
+  function handleGoogleSignIn() {
     setError(null);
     setGoogleSubmitting(true);
-    try {
-      await signInWithGoogle();
-      // Same "always route through /profile/complete" pattern as the
-      // email/password signup flow above — Firebase creates the
-      // account automatically on first Google sign-in, there's no
-      // separate signup step to call.
-      const target = redirectParam
-        ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}`
-        : "/profile/complete";
-      router.replace(target);
-    } catch (err) {
+    // Not awaited — signInWithRedirect navigates the browser away, it
+    // doesn't resolve on this page.
+    signInWithGoogle().catch((err) => {
       const code = (err as { code?: string } | null)?.code ?? "";
       const message = mapGoogleAuthError(code);
       if (message) setError(message);
       setGoogleSubmitting(false);
-    }
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
