@@ -22,13 +22,12 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function GemstonesPage() {
-  // The internal ₹1 test-payment item is excluded from the public grid
-  // the same way PUBLIC_GEMSTONE_PRODUCTS used to filter it out — it
-  // stays directly reachable at /gemstones/test-payment for checkout
-  // testing, just never shown to real shoppers.
-  const products = (await listPublishedProducts("gemstone"))
-    .filter((p) => p.slug !== "test-payment")
-    .map(toGemstoneProduct);
+  // The ₹1 test-payment item is shown on the grid (not filtered out)
+  // per explicit request — makes it easy to trigger a real Cashfree
+  // checkout for the smallest possible charge without knowing/typing
+  // the direct /gemstones/test-payment URL. Its name/description/gallery
+  // already label it unmistakably as a test item, not a real gemstone.
+  const products = (await listPublishedProducts("gemstone")).map(toGemstoneProduct);
   return (
     <main className="bg-gradient-to-b from-nav-ivory via-nav-pearl to-nav-lavender-soft">
       <div className="mx-auto max-w-[1320px] px-4 pt-24 pb-16 sm:px-6 md:px-8 md:pt-28 md:pb-24">
