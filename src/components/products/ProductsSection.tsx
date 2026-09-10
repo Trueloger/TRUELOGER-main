@@ -1,12 +1,13 @@
 import { LotusIcon } from "@/components/quick-services/icons";
-import { GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
+import { PUBLIC_GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
 import { GemstoneCard } from "@/components/gemstones/GemstoneCard";
 import { GemstoneCarousel } from "@/components/gemstones/GemstoneCarousel";
 
 /**
  * Sacred Gemstones — a homepage showcase of the real gemstone catalogue
- * (all eight GEMSTONE_PRODUCTS, see src/lib/gemstones/gemstone-data.ts),
- * not a curated subset. Each GemstoneCard's own "View Details" link is
+ * (PUBLIC_GEMSTONE_PRODUCTS — every real product, excluding the internal
+ * ₹1 test-payment item; see src/lib/gemstones/gemstone-data.ts), not a
+ * curated subset. Each GemstoneCard's own "View Details" link is
  * what leads through to the full catalogue at /gemstones — nothing else
  * to wire here. Heading and ornament follow the same structure as
  * ExploreServices/HealingSection/PujaSection above it. -mt-px pulls this
@@ -53,7 +54,7 @@ export function ProductsSection() {
           <GemstoneCarousel />
 
           <ul className="hidden md:grid sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {GEMSTONE_PRODUCTS.map((product) => (
+            {PUBLIC_GEMSTONE_PRODUCTS.map((product) => (
               <li key={product.id}>
                 <GemstoneCard product={product} />
               </li>

@@ -654,6 +654,51 @@ export const GEMSTONE_PRODUCTS: GemstoneProduct[] = [
         "Explore Cat's Eye (Lehsunia), the traditional Ketu gemstone, with transparent per-Ratti pricing and guidance on care, wearing method, and traditional benefits.",
     },
   },
+
+  // ---------------------------------------------------------------------
+  // Test Payment (₹1) — NOT a real gemstone. Exists solely so the
+  // Cashfree checkout flow can be exercised end-to-end for the price of
+  // ₹1 instead of a real product's real price. Everywhere this appears
+  // (card, product page, cart line, order) it is unmistakably labeled
+  // as a test item, never presented as if it were real inventory.
+  // Remove this entry once live-payment testing is complete.
+  // ---------------------------------------------------------------------
+  {
+    id: "test-payment",
+    slug: "test-payment",
+    name: "Test Payment (₹1)",
+    category: "test",
+    shortDescription: "Not a real gemstone — a ₹1 item for testing checkout only.",
+    description:
+      "This is a test item, not a gemstone. It exists only so the payment flow (Cashfree checkout, order creation, webhook confirmation) can be verified end-to-end for the smallest possible real charge. Please do not purchase this expecting a physical product.",
+    image: { alt: "Test payment item — placeholder, not a real product" },
+    gallery: [
+      { role: "main", label: "Test item — no real image" },
+      { role: "angle", label: "Test item — no real image" },
+      { role: "closeup", label: "Test item — no real image" },
+      { role: "detail", label: "Test item — no real image" },
+      { role: "lifestyle", label: "Test item — no real image" },
+    ],
+    rattiOptions: [1],
+    defaultRatti: 1,
+    pricing: {
+      1: { mrp: 1, salePrice: 1 },
+    },
+    rulingPlanet: "None — test item",
+    careInstructions: ["Not applicable — this is a test item, not a physical product."],
+    benefits: ["None — this item exists only to test the payment flow."],
+    astrologicalSignificance: "None. This is a test item, not a gemstone.",
+    faqs: [
+      {
+        question: "Is this a real gemstone?",
+        answer: "No. This is a ₹1 test item used only to verify the checkout and payment flow.",
+      },
+    ],
+    seo: {
+      title: "Test Payment (₹1) | TRUELOGER",
+      description: "Internal test item for verifying the Cashfree checkout flow — not a real product.",
+    },
+  },
 ];
 
 export function getGemstoneById(id: string): GemstoneProduct | undefined {
@@ -663,3 +708,14 @@ export function getGemstoneById(id: string): GemstoneProduct | undefined {
 export function getAllGemstoneSlugs(): string[] {
   return GEMSTONE_PRODUCTS.map((product) => product.slug);
 }
+
+/** GEMSTONE_PRODUCTS minus the "test" category — this is what the
+ * public storefront (the /gemstones grid and the homepage "Sacred
+ * Gemstones" carousel/grid) should iterate over, so a ₹1 internal
+ * test item never appears to a real shopper. The test item is still
+ * fully reachable directly — getGemstoneById/getAllGemstoneSlugs above
+ * still include it, so /gemstones/test-payment, its static page, and
+ * /api/gemstones/validate all still work for exercising checkout. */
+export const PUBLIC_GEMSTONE_PRODUCTS: GemstoneProduct[] = GEMSTONE_PRODUCTS.filter(
+  (product) => product.category !== "test",
+);

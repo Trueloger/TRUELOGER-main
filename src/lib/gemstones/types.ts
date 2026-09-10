@@ -50,7 +50,11 @@ export type GemstoneCategory =
   | "yellow-sapphire"
   | "blue-sapphire"
   | "hessonite"
-  | "cats-eye";
+  | "cats-eye"
+  /** Not a real gemstone — a ₹1 line item that exists solely to test
+   * the Cashfree checkout flow end-to-end cheaply. See its entry in
+   * gemstone-data.ts for the full disclosure/labeling requirements. */
+  | "test";
 
 export type GemstoneFaq = {
   question: string;

@@ -9,10 +9,10 @@ import {
   type TouchEvent as ReactTouchEvent,
   type TransitionEvent as ReactTransitionEvent,
 } from "react";
-import { GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
+import { PUBLIC_GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
 import { GemstoneCard } from "@/components/gemstones/GemstoneCard";
 
-const N = GEMSTONE_PRODUCTS.length;
+const N = PUBLIC_GEMSTONE_PRODUCTS.length;
 const TRANSITION_MS = 600;
 const SWIPE_THRESHOLD_PX = 40;
 // Below this many px of movement we haven't committed to a direction yet —
@@ -28,7 +28,7 @@ const GAP = 6;
 // One clone of the last card prepended, one clone of the first appended —
 // standard jump-free infinite loop on a physically translating track.
 // trackIndex runs 0..N+1; 0 and N+1 are the clones.
-const EXTENDED = [GEMSTONE_PRODUCTS[N - 1], ...GEMSTONE_PRODUCTS, GEMSTONE_PRODUCTS[0]];
+const EXTENDED = [PUBLIC_GEMSTONE_PRODUCTS[N - 1], ...PUBLIC_GEMSTONE_PRODUCTS, PUBLIC_GEMSTONE_PRODUCTS[0]];
 
 /**
  * Mobile-only (< md) peek carousel for the Sacred Gemstones cards —
@@ -210,7 +210,7 @@ export function GemstoneCarousel() {
       {/* Dot indicators — primary orientation cue since arrows would
           crowd the peeking neighbor cards at this width. */}
       <div className="mt-5 flex items-center justify-center gap-2">
-        {GEMSTONE_PRODUCTS.map((product, i) => (
+        {PUBLIC_GEMSTONE_PRODUCTS.map((product, i) => (
           <button
             key={product.id}
             type="button"
@@ -227,7 +227,7 @@ export function GemstoneCarousel() {
       </div>
 
       <p className="sr-only" aria-live="polite">
-        {`Showing ${GEMSTONE_PRODUCTS[activeRealIndex].name}, ${activeRealIndex + 1} of ${N}`}
+        {`Showing ${PUBLIC_GEMSTONE_PRODUCTS[activeRealIndex].name}, ${activeRealIndex + 1} of ${N}`}
       </p>
     </div>
   );

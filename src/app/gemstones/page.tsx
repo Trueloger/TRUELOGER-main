@@ -7,7 +7,7 @@
 import type { Metadata } from "next";
 import { GemstoneHero } from "@/components/gemstones/GemstoneHero";
 import { GemstoneCard } from "@/components/gemstones/GemstoneCard";
-import { GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
+import { PUBLIC_GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
 
 export const metadata: Metadata = {
   title: "Gemstones | TRUELOGER",
@@ -33,7 +33,7 @@ export default function GemstonesPage() {
             src/app/consult/page.tsx), since GemstoneCard already
             solves the compact-below-sm responsive layout itself. */}
         <ul className="mt-6 grid grid-cols-3 gap-3 sm:gap-5 md:mt-8 lg:grid-cols-4">
-          {GEMSTONE_PRODUCTS.map((product) => (
+          {PUBLIC_GEMSTONE_PRODUCTS.map((product) => (
             <li key={product.id} className="h-full">
               <GemstoneCard product={product} />
             </li>
