@@ -110,7 +110,20 @@ export async function applyPaymentStatus(
       // conflict of this kind needs manual investigation; recording
       // the attempted event id (without changing status) at least
       // leaves a trace for that investigation.
-      await ref.update({ lastCashfreeEventId: eventId, updatedAt: Date.now() });
+      //
+      // Writes inside a transaction callback MUST go through `tx`
+      // (tx.update/tx.set/tx.delete), never a direct `ref.update()` —
+      // a raw write to the same document the transaction is reading
+      // breaks the SDK's optimistic-concurrency tracking and causes
+      // the transaction to conflict with itself on every retry. This
+      // was a real production bug (not a transport issue): it made
+      // every webhook/verify call for a real order hang for the full
+      // function timeout and left the document "Too much contention"
+      // errors for anything else touching it, which is exactly what
+      // happened live — confirmed via Vercel logs and a direct
+      // reproduction. `ref.update()` here (previously also below) was
+      // the bug; `tx.update()` is the fix.
+      tx.update(ref, { lastCashfreeEventId: eventId, updatedAt: Date.now() });
       return { order, justPaid: false };
     }
 
@@ -127,7 +140,7 @@ export async function applyPaymentStatus(
       lastCashfreeEventId: eventId,
       updatedAt: Date.now(),
     };
-    await ref.update(updated);
+    tx.update(ref, updated);
     // justPaid is true ONLY on the transition INTO PAID that this
     // exact call performs — never true again for the same order on any
     // later call (whether a duplicate event, a same-status repeat, or
