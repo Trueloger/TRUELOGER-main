@@ -245,12 +245,12 @@ export default function AdminProductFormPage() {
 
   return (
     <div className="mx-auto max-w-4xl pb-16">
-      <header className="mb-5 flex items-center justify-between gap-2">
-        <div>
-          <h1 className="font-serif text-2xl text-nav-violet sm:text-3xl">{isNew ? "Add Product" : `Edit: ${form.name || "Product"}`}</h1>
+      <header className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-serif text-2xl text-nav-violet sm:text-3xl break-words">{isNew ? "Add Product" : `Edit: ${form.name || "Product"}`}</h1>
           <p className="mt-1.5 text-sm text-nav-plum/70">{isNew ? "Create a new catalogue product." : "Update this product's details."}</p>
         </div>
-        <Link href="/admin/products" className="text-sm font-medium text-nav-amethyst-deep hover:underline">
+        <Link href="/admin/products" className="shrink-0 text-sm font-medium text-nav-amethyst-deep hover:underline">
           Back to list
         </Link>
       </header>

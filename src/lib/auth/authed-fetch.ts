@@ -17,7 +17,12 @@ export async function authedFetch(path: string, init: RequestInit = {}): Promise
   const idToken = await user.getIdToken();
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${idToken}`);
-  if (init.body && !headers.has("Content-Type")) {
+  // FormData bodies (e.g. the admin product-image upload) must NOT get
+  // an explicit Content-Type here — the browser sets one itself with
+  // the correct multipart boundary parameter, which we have no way to
+  // replicate by hand. Forcing "application/json" on top of it would
+  // silently break the server's multipart parsing.
+  if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   return fetch(path, { ...init, headers });

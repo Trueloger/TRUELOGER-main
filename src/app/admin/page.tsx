@@ -50,6 +50,12 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
+  // Failed payment attempts are noise here — they never became a real
+  // order — so they're filtered out of both the stat tiles and the
+  // recent-orders list below. Same filter admin/orders/page.tsx
+  // applies to its default "All" view.
+  const visibleOrders = state.status === "ready" ? state.orders.filter((o) => o.paymentStatus !== "FAILED") : [];
+
   return (
     <div className="mx-auto max-w-5xl">
       <header className="mb-6 md:mb-8">
@@ -76,7 +82,7 @@ export default function AdminDashboardPage() {
 
       {state.status === "ready" && (
         <>
-          <StatTiles orders={state.orders} userCount={state.userCount} />
+          <StatTiles orders={visibleOrders} userCount={state.userCount} />
 
           <section className="mt-8">
             <div className="mb-3 flex items-center justify-between">
@@ -86,20 +92,20 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
 
-            {state.orders.length === 0 ? (
+            {visibleOrders.length === 0 ? (
               <p className="rounded-2xl border border-nav-lavender-line bg-nav-pearl px-6 py-10 text-center text-sm text-nav-plum/70">
                 No orders yet.
               </p>
             ) : (
               <ul className="flex flex-col gap-2">
-                {state.orders.slice(0, 10).map((order) => (
+                {visibleOrders.slice(0, 10).map((order) => (
                   <li key={order.id}>
                     <Link
                       href={`/admin/orders/${order.id}`}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-nav-lavender-line bg-white px-4 py-3 text-sm transition-colors hover:bg-nav-lavender-mist"
+                      className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl border border-nav-lavender-line bg-white px-4 py-3 text-sm transition-colors hover:bg-nav-lavender-mist"
                     >
                       <span className="font-medium text-nav-violet">#{order.id.slice(-8).toUpperCase()}</span>
-                      <span className="text-nav-plum/70">{order.customerEmail}</span>
+                      <span className="min-w-0 break-all text-nav-plum/70">{order.customerEmail}</span>
                       <span className="font-semibold text-nav-amethyst-deep">{formatInr(order.subtotal)}</span>
                       <DashboardBadge status={order.paymentStatus} />
                     </Link>

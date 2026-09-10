@@ -42,6 +42,12 @@ export function getAdminApp(): App {
       // otherwise) — turn them back into real newlines.
       privateKey: privateKeyRaw.replace(/\\n/g, "\n"),
     }),
+    // Reused from the client-side var (a bucket name isn't a secret —
+    // it's already public in every browser bundle) so
+    // getStorage(app).bucket() (used by the admin product-image
+    // upload route) resolves the right bucket without a second env
+    // var to keep in sync.
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   });
 
   // Optional order/profile fields (customerPhone, customerName, etc.)

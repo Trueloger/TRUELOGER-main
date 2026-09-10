@@ -400,7 +400,7 @@ function ProductCard({
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-nav-lavender-line pt-3">
         <Link
           href={`/admin/products/${product.id}`}
-          className="flex min-h-9 flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-3 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
+          className="flex min-h-11 flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-3 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
         >
           Edit
         </Link>
@@ -409,7 +409,7 @@ function ProductCard({
             type="button"
             disabled={busy}
             onClick={onToggleStatus}
-            className="flex min-h-9 flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-3 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex min-h-11 flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-3 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist disabled:cursor-not-allowed disabled:opacity-60"
           >
             {product.status === "published" ? "Set draft" : "Publish"}
           </button>
@@ -418,7 +418,7 @@ function ProductCard({
           type="button"
           disabled={busy}
           onClick={onDelete}
-          className="flex min-h-9 flex-1 items-center justify-center rounded-full border border-rose-200 bg-white px-3 py-1.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex min-h-11 flex-1 items-center justify-center rounded-full border border-rose-200 bg-white px-3 py-1.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Delete
         </button>

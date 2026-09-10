@@ -346,11 +346,11 @@ function CouponCard({
       <div className="mt-2">
         <CategoryRestrictionTags categories={coupon.categoryRestriction} productCount={coupon.productRestriction?.length} />
       </div>
-      <div className="mt-3 flex items-center justify-between gap-2 border-t border-nav-lavender-line pt-3">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-nav-lavender-line pt-3">
         <button
           type="button"
           onClick={onEdit}
-          className="flex min-h-9 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-4 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
+          className="flex min-h-11 flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-4 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
         >
           Edit
         </button>
@@ -358,7 +358,7 @@ function CouponCard({
           type="button"
           disabled={busy}
           onClick={onToggleActive}
-          className="flex min-h-9 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-4 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex min-h-11 flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-4 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist disabled:cursor-not-allowed disabled:opacity-60"
         >
           {coupon.active ? "Deactivate" : "Activate"}
         </button>
@@ -366,7 +366,7 @@ function CouponCard({
           type="button"
           disabled={busy}
           onClick={onDelete}
-          className="flex min-h-9 items-center justify-center rounded-full border border-rose-200 bg-white px-4 py-1.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex min-h-11 flex-1 items-center justify-center rounded-full border border-rose-200 bg-white px-4 py-1.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Delete
         </button>

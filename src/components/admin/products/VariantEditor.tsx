@@ -58,7 +58,7 @@ export function VariantEditor({
         <button
           type="button"
           onClick={addRow}
-          className="rounded-full border border-nav-lavender-line bg-white px-3 py-1.5 text-xs font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
+          className="flex min-h-10 shrink-0 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-3.5 py-1.5 text-xs font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
         >
           + Add variant
         </button>
@@ -87,7 +87,7 @@ export function VariantEditor({
                 onClick={() => removeRow(index)}
                 disabled={variants.length <= 1}
                 aria-label="Remove variant"
-                className="rounded-full p-1.5 text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Trash2 aria-hidden="true" className="h-4 w-4" />
               </button>
@@ -142,8 +142,9 @@ export function VariantEditor({
                   className={INPUT_CLASS}
                 />
               </Field>
-              <Field label="In stock">
-                <label className="flex h-9 items-center gap-2 text-sm text-nav-plum/80">
+              <div>
+                <span className={LABEL_CLASS}>Availability</span>
+                <label className="flex min-h-10 items-center gap-2 text-sm text-nav-plum/80">
                   <input
                     type="checkbox"
                     checked={variant.inStock}
@@ -152,7 +153,7 @@ export function VariantEditor({
                   />
                   In stock
                 </label>
-              </Field>
+              </div>
             </div>
           </div>
         ))}

@@ -27,6 +27,16 @@ const nextConfig: NextConfig = {
         hostname: "storage.googleapis.com",
         pathname: "/trueloger-d4432.firebasestorage.app/site-images/**",
       },
+      {
+        // Admin-uploaded product gallery photos (see
+        // src/app/api/admin/products/upload-image/route.ts) land under
+        // this separate prefix in the same bucket — allowlisted here so
+        // next/image (used by the public gemstone gallery) can actually
+        // render them instead of 400ing on an un-allowlisted host/path.
+        protocol: "https",
+        hostname: "storage.googleapis.com",
+        pathname: "/trueloger-d4432.firebasestorage.app/products/**",
+      },
     ],
   },
 };

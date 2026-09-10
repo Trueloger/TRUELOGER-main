@@ -26,7 +26,7 @@ export function FaqEditor({ faqs, onChange }: { faqs: ProductFaq[]; onChange: (f
         <button
           type="button"
           onClick={addRow}
-          className="rounded-full border border-nav-lavender-line bg-white px-3 py-1.5 text-xs font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
+          className="flex min-h-10 shrink-0 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-3.5 py-1.5 text-xs font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
         >
           + Add FAQ
         </button>
@@ -43,7 +43,7 @@ export function FaqEditor({ faqs, onChange }: { faqs: ProductFaq[]; onChange: (f
                 type="button"
                 onClick={() => removeRow(index)}
                 aria-label="Remove FAQ"
-                className="rounded-full p-1.5 text-rose-600 transition-colors hover:bg-rose-50"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-rose-600 transition-colors hover:bg-rose-50"
               >
                 <Trash2 aria-hidden="true" className="h-4 w-4" />
               </button>

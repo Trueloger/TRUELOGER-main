@@ -214,6 +214,13 @@ export default function AdminOrdersPage() {
 
   const visibleOrders = useMemo(() => {
     let list = orders;
+    // Failed payment attempts are noise in the default view — they
+    // never became a real order to fulfill. Still reachable via the
+    // explicit "Failed" filter pill above for anyone who genuinely
+    // needs to audit failed attempts; just not shown in "All".
+    if (paymentFilter === "ALL") {
+      list = list.filter((o) => o.paymentStatus !== "FAILED");
+    }
     if (categoryFilter !== "ALL") {
       list = list.filter((o) => orderCategories(o).includes(categoryFilter));
     }
@@ -224,7 +231,7 @@ export default function AdminOrdersPage() {
       );
     }
     return list;
-  }, [orders, categoryFilter, search]);
+  }, [orders, paymentFilter, categoryFilter, search]);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -427,7 +434,7 @@ function OrderCard({ order }: { order: Order }) {
         <span className="font-semibold text-nav-amethyst-deep">{formatInr(order.subtotal)}</span>
         <Link
           href={`/admin/orders/${order.id}`}
-          className="flex min-h-9 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-4 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
+          className="flex min-h-11 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-4 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
         >
           View
         </Link>
