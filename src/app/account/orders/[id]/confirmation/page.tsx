@@ -4,48 +4,55 @@
 // Cashfree's return URL lands here after checkout. Landing on this
 // page proves NOTHING about payment outcome by itself — Cashfree
 // redirects the browser back whether the payment succeeded, failed, or
-// was abandoned, and a user can hit this URL directly. The only source
-// of truth is `POST /api/payments/verify`, which re-checks the REAL
-// Cashfree order status server-side and reconciles the internal order
-// (see src/app/api/payments/verify/route.ts) — this page never renders
-// a success state from anything other than that call's response.
+// was abandoned, and a user can hit this URL directly.
 //
-// Refresh/reload test: verify is idempotent server-side, so simply
-// re-running it on every mount already satisfies "refresh this page
-// and it still behaves correctly" — the only client-side care needed
-// is a mount-guard ref so React's dev double-invoke / a fast
-// re-render doesn't fire the network call twice for one real mount.
+// ARCHITECTURE (root-cause fix for the old "stuck verifying forever /
+// needs a Retry click" problem — see git history for the prior
+// polling-loop version this replaces):
 //
-// PENDING/CREATED: auto-retries verify every ~3.5s, capped at 5
-// attempts total, then requires a manual "Check again" click — never
-// polls forever unattended.
-import { use, useCallback, useEffect, useRef, useState } from "react";
+// The old version treated the confirmation page's own repeated POSTs
+// to /api/payments/verify as the only source of truth, so it was only
+// ever as fast as (a) the browser being willing to keep asking and
+// (b) Cashfree's REST API answering quickly. The actual bug was that
+// Cashfree's webhook (the FAST, server-push confirmation path) never
+// fired at all, because order creation never told Cashfree where to
+// send it (see src/lib/cashfree/server.ts's notifyUrl — now fixed) —
+// so every confirmation was forced onto the slow, client-polled path.
+//
+// This version makes the internal Firestore `orders/{orderId}` document
+// itself the single source of truth, via a live `onSnapshot` listener
+// (same pattern AuthContext.tsx already uses for the profile doc,
+// allowed by firestore.rules' existing owner/admin-only read rule) —
+// NOT a client-side polling loop. Two independent signals can write to
+// that document (the webhook, and this page's own one-shot verify
+// call, both going through the same idempotent applyPaymentStatus —
+// see orders/store.ts), and whichever one lands first is what the
+// listener shows, typically within a second or two. The confirmation
+// page reacts to that write the instant it happens — no interval, no
+// user action, no "Retry" button. If the webhook genuinely never
+// arrives (a real edge case despite the fix), exactly ONE additional
+// server-side re-check fires automatically after a short delay — never
+// more than that, and never surfaced to the user as something to click.
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Clock, RefreshCw, XCircle } from "lucide-react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { CheckCircle2, Sparkles, XCircle } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { authedFetch } from "@/lib/auth/authed-fetch";
+import { firestoreDb } from "@/lib/firebase-client";
 import { formatInr } from "@/lib/consultation/pricing";
 import type { Order, PaymentStatus } from "@/lib/orders/types";
 
-// Front-loaded delays: most payments (cards, most UPI apps) have
-// already settled at Cashfree's end by the time the browser lands back
-// on this page, so the first couple of retries fire fast to catch that
-// common case quickly instead of making everyone wait a flat 3.5s
-// before even a second check — later attempts space out since a
-// payment still pending after several seconds is less likely to
-// resolve any faster from checking again immediately.
-const RETRY_DELAYS_MS = [1200, 1800, 2500, 3500, 5000];
-const MAX_AUTO_RETRIES = RETRY_DELAYS_MS.length;
-// Caps a single verify call so a slow/hung request never leaves the
-// "Verifying…" spinner stuck with no way out — see the matching
-// server-side AbortSignal.timeout in cashfree/server.ts and this
-// route's `maxDuration` for the two other bounds on the same call.
-const VERIFY_TIMEOUT_MS = 10000;
+// A single automatic safety-net re-check, fired once if the order is
+// still non-terminal this long after mount — covers the rare case
+// where the webhook truly never arrives (network issue on Cashfree's
+// side, a misconfigured dashboard default, etc). Not a loop, not
+// user-facing, and the Firestore listener above is what actually shows
+// the result the moment either this call or the webhook writes it.
+const SAFETY_RECHECK_DELAY_MS = 8000;
 
-type VerifyState =
-  | { phase: "verifying" }
-  | { phase: "error"; message: string }
-  | { phase: "done"; paymentStatus: PaymentStatus };
+const TERMINAL_FAILURE_STATUSES: PaymentStatus[] = ["FAILED", "CANCELLED", "EXPIRED"];
+const REFUND_STATUSES: PaymentStatus[] = ["REFUNDED", "PARTIALLY_REFUNDED"];
 
 export default function OrderConfirmationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -57,162 +64,154 @@ export default function OrderConfirmationPage({ params }: { params: Promise<{ id
 }
 
 function ConfirmationContent({ orderId }: { orderId: string }) {
-  const [verify, setVerify] = useState<VerifyState>({ phase: "verifying" });
-  const [order, setOrder] = useState<Order | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  const inFlightRef = useRef(false);
+  // undefined = listener hasn't emitted its first snapshot yet; null =
+  // it emitted and the document genuinely does not exist (or isn't
+  // readable) — those are different states, not the same "no order".
+  const [liveOrder, setLiveOrder] = useState<Order | null | undefined>(undefined);
+  const [docMissing, setDocMissing] = useState(false);
 
-  const runVerify = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setVerify({ phase: "verifying" });
-    try {
-      const res = await authedFetch("/api/payments/verify", {
-        method: "POST",
-        body: JSON.stringify({ orderId }),
-        signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS),
-      });
-      const data = (await res.json()) as { paymentStatus?: PaymentStatus; error?: string };
-      if (!res.ok || !data.paymentStatus) {
-        setVerify({
-          phase: "error",
-          message: data.error ?? "We couldn't verify your payment right now.",
-        });
-        return;
-      }
-      setVerify({ phase: "done", paymentStatus: data.paymentStatus });
-    } catch (err) {
-      setVerify({
-        phase: "error",
-        message:
-          err instanceof Error && err.name === "TimeoutError"
-            ? "Verifying is taking longer than expected. Please check again."
-            : "We couldn't verify your payment right now. Please check again.",
-      });
-    } finally {
-      inFlightRef.current = false;
-    }
-  }, [orderId]);
-
-  // Fetch the order's own detail (for amount/items on the success
-  // screen) once, independent of the verify polling loop.
+  // Live Firestore listener — the actual fix. Fires immediately with
+  // whatever the document currently holds, then again on every write,
+  // whether that write came from the webhook or from this page's own
+  // verify call below. This is push-based, not polling: there is no
+  // interval here at all.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await authedFetch(`/api/orders/${orderId}`);
-        if (!res.ok) return;
-        const data = (await res.json()) as { order: Order };
-        if (!cancelled) setOrder(data.order);
-      } catch {
-        // Non-fatal — the confirmation screen still works without it.
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    const unsubscribe = onSnapshot(
+      doc(firestoreDb, "orders", orderId),
+      (snap) => {
+        if (!snap.exists()) {
+          setLiveOrder(null);
+          setDocMissing(true);
+          return;
+        }
+        setLiveOrder(snap.data() as Order);
+      },
+      () => {
+        // Read denied (not this user's order) or a transient listener
+        // error — treated the same as "document not visible to me".
+        setLiveOrder(null);
+        setDocMissing(true);
+      },
+    );
+    return unsubscribe;
   }, [orderId]);
 
-  // Initial verify on mount — guarded against a double-fire.
+  // One-shot server verify on mount — this is what actually asks
+  // Cashfree and writes the result (via the same applyPaymentStatus
+  // the webhook uses) when the webhook hasn't already done so. Its own
+  // response isn't what drives the UI (the listener above is) — this
+  // just kicks the reconciliation off as early as possible.
   const didInitialVerify = useRef(false);
+  const safetyRecheckFired = useRef(false);
   useEffect(() => {
     if (didInitialVerify.current) return;
     didInitialVerify.current = true;
-    setAttempt(1);
-    runVerify();
-  }, [runVerify]);
+    void runVerifyOnce(orderId);
+  }, [orderId]);
 
-  // Auto-retry loop while status is still PENDING/CREATED, capped at
-  // MAX_AUTO_RETRIES total attempts.
+  // The one allowed safety net: if still non-terminal after a short
+  // delay, fire runVerifyOnce exactly one more time. Guarded so it can
+  // only ever happen once per page load, regardless of how many times
+  // this effect re-runs as liveOrder changes.
   useEffect(() => {
-    if (verify.phase !== "done") return;
-    if (verify.paymentStatus !== "PENDING" && verify.paymentStatus !== "CREATED") return;
-    if (attempt >= MAX_AUTO_RETRIES) return;
+    const status = liveOrder?.paymentStatus;
+    const stillPending = liveOrder !== undefined && liveOrder !== null && (status === "PENDING" || status === "CREATED");
+    if (!stillPending || safetyRecheckFired.current) return;
 
-    const delay = RETRY_DELAYS_MS[attempt - 1] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
     const timer = window.setTimeout(() => {
-      setAttempt((a) => a + 1);
-      runVerify();
-    }, delay);
+      if (safetyRecheckFired.current) return;
+      safetyRecheckFired.current = true;
+      void runVerifyOnce(orderId);
+    }, SAFETY_RECHECK_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [verify, attempt, runVerify]);
+  }, [liveOrder, orderId]);
 
-  function handleManualRetry() {
-    setAttempt((a) => a + 1);
-    runVerify();
-  }
+  const status = liveOrder?.paymentStatus;
 
   return (
     <main className="bg-gradient-to-b from-nav-ivory via-nav-pearl to-nav-lavender-soft">
       <div className="mx-auto max-w-2xl px-4 pt-24 pb-16 sm:px-6 md:px-8 md:pt-28 md:pb-24">
-        {verify.phase === "verifying" && <VerifyingState />}
-        {verify.phase === "error" && <VerifyErrorState message={verify.message} onRetry={handleManualRetry} />}
-        {verify.phase === "done" && verify.paymentStatus === "PAID" && (
-          <PaidState order={order} orderId={orderId} />
+        {liveOrder === undefined && <ConfirmingState />}
+        {liveOrder === null && docMissing && <NotFoundState />}
+        {liveOrder && status === "PAID" && <PaidState order={liveOrder} orderId={orderId} />}
+        {liveOrder && (status === "PENDING" || status === "CREATED") && <ConfirmingState />}
+        {liveOrder && status && TERMINAL_FAILURE_STATUSES.includes(status) && (
+          <FailedState status={status as "FAILED" | "CANCELLED" | "EXPIRED"} />
         )}
-        {verify.phase === "done" && (verify.paymentStatus === "PENDING" || verify.paymentStatus === "CREATED") && (
-          <PendingState
-            attempt={attempt}
-            exhausted={attempt >= MAX_AUTO_RETRIES}
-            onCheckAgain={handleManualRetry}
-          />
+        {liveOrder && status && REFUND_STATUSES.includes(status) && (
+          <RefundedState orderId={orderId} status={status as "REFUNDED" | "PARTIALLY_REFUNDED"} />
         )}
-        {verify.phase === "done" &&
-          (verify.paymentStatus === "FAILED" ||
-            verify.paymentStatus === "CANCELLED" ||
-            verify.paymentStatus === "EXPIRED") && <FailedState status={verify.paymentStatus} />}
-        {verify.phase === "done" &&
-          (verify.paymentStatus === "REFUNDED" || verify.paymentStatus === "PARTIALLY_REFUNDED") && (
-            <RefundedState orderId={orderId} status={verify.paymentStatus} />
-          )}
       </div>
     </main>
   );
 }
 
-function VerifyingState() {
+/** Fire-and-forget: asks the server to check Cashfree and reconcile
+ * the order if needed. Never throws to its caller and never drives UI
+ * state directly — a transient failure here is invisible to the user
+ * because the Firestore listener (and, if truly needed, the webhook
+ * arriving on its own) is what actually resolves the page. */
+async function runVerifyOnce(orderId: string): Promise<void> {
+  try {
+    await authedFetch("/api/payments/verify", {
+      method: "POST",
+      body: JSON.stringify({ orderId }),
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch {
+    // Swallowed on purpose — see doc comment above.
+  }
+}
+
+function ConfirmingState() {
   return (
     <div
       role="status"
       aria-live="polite"
       className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-nav-lavender-line bg-nav-pearl px-6 py-16 text-center sm:rounded-[1.4rem]"
     >
-      <span className="h-10 w-10 rounded-full border-2 border-nav-lavender-line border-t-nav-amethyst motion-safe:animate-spin motion-reduce:animate-none" />
-      <p className="font-serif text-lg text-nav-violet">Verifying your payment…</p>
-      <p className="max-w-sm text-sm text-nav-plum/70">
-        Please hold on while we confirm your payment status with Cashfree.
+      <span className="relative flex h-12 w-12 items-center justify-center">
+        <span className="absolute h-12 w-12 rounded-full border-2 border-nav-lavender-line border-t-nav-amethyst motion-safe:animate-spin motion-reduce:animate-none" />
+        <Sparkles aria-hidden="true" className="h-5 w-5 text-nav-amethyst-deep" />
+      </span>
+      <h1 className="font-serif text-lg text-nav-violet">Confirming your payment</h1>
+      <p className="max-w-sm text-sm leading-relaxed text-nav-plum/70">
+        Your payment was received. We&apos;re securely confirming your order — this page will
+        update automatically the moment it&apos;s done. There&apos;s nothing else you need to do.
       </p>
     </div>
   );
 }
 
-function VerifyErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+function NotFoundState() {
   return (
     <div
       role="alert"
       className="flex flex-col items-center gap-4 rounded-2xl border border-nav-lavender-line bg-nav-pearl px-6 py-14 text-center sm:rounded-[1.4rem]"
     >
-      <p className="max-w-sm text-sm leading-relaxed text-nav-plum/80">{message}</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="flex min-h-11 items-center gap-2 rounded-full bg-nav-amethyst px-6 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-nav-amethyst-deep"
+      <XCircle aria-hidden="true" strokeWidth={1.5} className="h-11 w-11 text-rose-500" />
+      <h1 className="font-serif text-xl text-nav-violet">We couldn&apos;t find this order</h1>
+      <p className="max-w-sm text-sm leading-relaxed text-nav-plum/80">
+        This order link doesn&apos;t match one of your orders, or it may not exist. If you just
+        completed a payment, check your order history — it should be there.
+      </p>
+      <Link
+        href="/account/orders"
+        className="mt-1 flex min-h-11 items-center justify-center rounded-full bg-nav-amethyst px-6 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-nav-amethyst-deep"
       >
-        <RefreshCw aria-hidden="true" className="h-4 w-4" />
-        Check again
-      </button>
+        View Your Orders
+      </Link>
     </div>
   );
 }
 
-function PaidState({ order, orderId }: { order: Order | null; orderId: string }) {
+function PaidState({ order, orderId }: { order: Order; orderId: string }) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-white to-nav-lavender-mist px-6 py-14 text-center shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)] sm:rounded-[1.4rem]">
       <CheckCircle2 aria-hidden="true" strokeWidth={1.5} className="h-12 w-12 text-emerald-600" />
       <h1 className="font-serif text-2xl text-nav-violet">Payment Successful</h1>
       <p className="text-sm text-nav-plum/70">
-        Order #{orderId.slice(-8).toUpperCase()}
-        {order ? ` · ${formatInr(order.subtotal)}` : ""}
+        Order #{orderId.slice(-8).toUpperCase()} · {formatInr(order.total ?? order.subtotal)}
       </p>
       <p className="max-w-sm text-sm leading-relaxed text-nav-plum/80">
         Thank you — your order is confirmed. You&apos;ll find full details, including next steps for
@@ -228,38 +227,6 @@ function PaidState({ order, orderId }: { order: Order | null; orderId: string })
   );
 }
 
-function PendingState({
-  attempt,
-  exhausted,
-  onCheckAgain,
-}: {
-  attempt: number;
-  exhausted: boolean;
-  onCheckAgain: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-nav-lavender-line bg-nav-pearl px-6 py-14 text-center sm:rounded-[1.4rem]">
-      <Clock aria-hidden="true" strokeWidth={1.5} className="h-11 w-11 text-amber-600" />
-      <h1 className="font-serif text-xl text-nav-violet">Your payment is still being confirmed</h1>
-      <p className="max-w-sm text-sm leading-relaxed text-nav-plum/80">
-        This can take a moment for some payment methods. Your order hasn&apos;t been lost, and nothing
-        else needs to be done on your end right now.
-      </p>
-      {!exhausted && (
-        <p className="text-xs text-nav-plum/50">Checking automatically… (attempt {attempt} of {MAX_AUTO_RETRIES})</p>
-      )}
-      <button
-        type="button"
-        onClick={onCheckAgain}
-        className="mt-1 flex min-h-11 items-center gap-2 rounded-full bg-nav-amethyst px-6 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-nav-amethyst-deep"
-      >
-        <RefreshCw aria-hidden="true" className="h-4 w-4" />
-        Check again
-      </button>
-    </div>
-  );
-}
-
 function FailedState({ status }: { status: "FAILED" | "CANCELLED" | "EXPIRED" }) {
   const heading =
     status === "FAILED" ? "Payment Failed" : status === "CANCELLED" ? "Payment Cancelled" : "Payment Session Expired";
@@ -268,14 +235,15 @@ function FailedState({ status }: { status: "FAILED" | "CANCELLED" | "EXPIRED" })
       <XCircle aria-hidden="true" strokeWidth={1.5} className="h-12 w-12 text-rose-500" />
       <h1 className="font-serif text-xl text-nav-violet">{heading}</h1>
       <p className="max-w-sm text-sm leading-relaxed text-nav-plum/80">
-        Your payment didn&apos;t go through. Your cart is untouched, so you can safely try again.
+        Your payment didn&apos;t go through. Your cart is untouched, so you can safely try again —
+        this starts a new payment, not a re-check of this one.
       </p>
       <div className="mt-1 flex flex-wrap items-center justify-center gap-3">
         <Link
           href="/checkout"
           className="flex min-h-11 items-center justify-center rounded-full bg-nav-amethyst px-6 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-nav-amethyst-deep"
         >
-          Retry Payment
+          Try Payment Again
         </Link>
         <Link
           href="/checkout"

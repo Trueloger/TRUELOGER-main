@@ -119,34 +119,40 @@ export type CashfreeOrderStatus = {
  * — this is the source of truth the return-URL page and the
  * reconciliation path both call, never trusting a URL query param. */
 export async function getCashfreeOrderStatus(orderId: string): Promise<CashfreeOrderStatus> {
-  // A hard timeout on every outbound Cashfree call — without one, a
-  // slow/hung upstream response leaves the whole verify request (and
-  // therefore the browser's own fetch, and therefore the confirmation
-  // page's spinner) waiting indefinitely with nothing to show or retry.
-  const orderRes = await fetch(`${BASE_URL}/orders/${encodeURIComponent(orderId)}`, {
-    headers: authHeaders(),
-    signal: AbortSignal.timeout(8000),
-  });
+  // Both Cashfree calls are independent (order-level status doesn't
+  // need the payments list, and vice versa) — firing them concurrently
+  // instead of one-after-another was previously the single largest
+  // avoidable chunk of latency in the verify path (roughly doubling
+  // this function's network time for no reason). A hard timeout on
+  // each: without one, a slow/hung upstream response leaves the whole
+  // verify request (and therefore the browser's own fetch) waiting
+  // indefinitely with nothing to show.
+  const [orderRes, paymentsRes] = await Promise.all([
+    fetch(`${BASE_URL}/orders/${encodeURIComponent(orderId)}`, {
+      headers: authHeaders(),
+      signal: AbortSignal.timeout(8000),
+    }),
+    fetch(`${BASE_URL}/orders/${encodeURIComponent(orderId)}/payments`, {
+      headers: authHeaders(),
+      signal: AbortSignal.timeout(8000),
+    }).catch(() => null),
+  ]);
+
   const order = await orderRes.json().catch(() => null);
   if (!orderRes.ok || !order) {
     throw new Error(`Unable to fetch Cashfree order status (${orderRes.status}).`);
   }
 
   let latestPaymentStatus: string | null = null;
-  try {
-    const paymentsRes = await fetch(`${BASE_URL}/orders/${encodeURIComponent(orderId)}/payments`, {
-      headers: authHeaders(),
-      signal: AbortSignal.timeout(8000),
-    });
+  if (paymentsRes) {
     const payments = await paymentsRes.json().catch(() => null);
     if (paymentsRes.ok && Array.isArray(payments) && payments.length > 0) {
       // Most recent attempt first per Cashfree's documented ordering.
       latestPaymentStatus = payments[0]?.payment_status ?? null;
     }
-  } catch {
-    // Payments lookup failing doesn't invalidate the order-level status
-    // above — leave latestPaymentStatus null and let the caller fall
-    // back to orderStatus alone.
+    // A non-ok/unparseable payments response doesn't invalidate the
+    // order-level status above — latestPaymentStatus just stays null
+    // and the caller falls back to orderStatus alone.
   }
 
   return {
