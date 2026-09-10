@@ -1,48 +1,40 @@
 "use client";
 
 // src/app/admin/orders/page.tsx
-// Admin order list: payment-status filter pills, client-side category
-// tabs, a client-side id/email search box, cursor-based "Load more",
-// and a live "new orders" banner.
+// Admin order list — CONFIRMED orders only (Paid / Refunded). Every
+// pre-confirmation state (a checkout session just created, a payment
+// still in progress, a failed/cancelled/expired attempt) is noise for
+// this screen by design: none of it is a real order to fulfill, and
+// none of it should ever have been shown here in the first place. An
+// admin who genuinely needs to investigate a failed payment attempt
+// does that from Cashfree's own dashboard, not this list.
 //
-// PAGINATION / LIVE-UPDATE APPROACH CHOSEN:
-// We keep GET /api/admin/orders (paginated via `cursor`) as the source
-// of truth for the actual list and "Load more", and layer a SEPARATE,
-// lightweight Firestore `onSnapshot` listener on the `orders`
-// collection (orderBy("createdAt","desc"), limit(1)) purely to detect
-// that something newer than what's currently loaded has arrived. When
-// the listener's newest `createdAt` is greater than the newest one
-// already in view, we show a small "New orders — Refresh" banner
-// instead of silently rewriting the list out from under an admin who
-// might be mid-read (or forcing a merge of two independently-paginated
-// sources, which gets complicated fast). Clicking the banner just
-// re-runs the first-page fetch for the current filter. This satisfies
-// "no manual page refresh needed to notice a new order arrived" via a
-// real Firestore listener, without replacing the REST pagination this
-// page already needs for "Load more". Firestore Security Rules allow
-// this: an admin's own ID token carries the admin claim, so
+// PAGINATION / LIVE-UPDATE APPROACH:
+// GET /api/admin/orders (paginated via `cursor`) stays the source of
+// truth for the actual list and "Load more". A separate, lightweight
+// Firestore `onSnapshot` listener on the `orders` collection
+// (orderBy("updatedAt","desc"), limit(1) — a single-field index,
+// nothing extra to deploy) watches for ANY order write newer than what
+// this page has already seen — a brand-new order or an existing one
+// just flipping to Paid/Refunded — and silently re-runs the first-page
+// fetch when one arrives. No button: the admin never has to notice or
+// act on a "new orders" banner themselves. Firestore Security Rules
+// allow this: an admin's own ID token carries the admin claim, so
 // `resource.data.userId == request.auth.uid || isAdmin()` passes for
 // every order, not just the admin's own.
 //
-// PAYMENT-STATUS FILTER CHOICE: "Pending Payment" is implemented as a
-// single combined tab covering BOTH `CREATED` and `PENDING` (rather
-// than two separate tabs), since from an operational standpoint an
-// admin doesn't need to distinguish "checkout not yet opened" from
-// "payment in progress" — both just mean "not yet paid, nothing to
-// fulfill". Since the API only accepts one `paymentStatus` value per
-// request, this tab fires two parallel requests and merges+re-sorts
-// the results; "Load more" tracks each status's own cursor
-// independently and re-merges after fetching more of whichever isn't
-// exhausted yet.
+// PAYMENT-STATUS FILTER: "Refunded" is a single combined tab covering
+// both `REFUNDED` and `PARTIALLY_REFUNDED` — operationally the admin
+// just needs "orders with a refund on them", not the two split further.
+// Since the API only accepts one `paymentStatus` value per request,
+// that tab fires two parallel requests and merges+re-sorts the
+// results; "Load more" tracks each status's own cursor independently.
 //
 // CATEGORY FILTERING: done CLIENT-SIDE on whatever page of orders is
 // already loaded, via `orderCategories(order).includes(selected)` —
 // the admin API has no category param, so this is a page-local filter,
 // not a server-side one, which is an acceptable scope tradeoff at this
-// catalogue's current scale (see AGENTS.md task brief). All three
-// `ORDER_ITEM_CATEGORIES` are shown as tabs (Gemstones / Consultations
-// / Products) even though no "product" order may exist yet, since all
-// three are real category types this system supports.
+// catalogue's current scale.
 //
 // SEARCH: also client-side, over the currently loaded page(s) only —
 // labeled honestly as filtering what's loaded, not a full-collection
@@ -54,16 +46,12 @@ import { firestoreDb } from "@/lib/firebase-client";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { formatInr } from "@/lib/consultation/pricing";
 import { ORDER_ITEM_CATEGORIES, orderCategories, type Order, type OrderItemCategory, type PaymentStatus } from "@/lib/orders/types";
+import { Search, PackageOpen, ArrowUpRight } from "lucide-react";
 
-type PaymentFilter = "ALL" | "PENDING_PAYMENT" | "PAID" | "FAILED" | "CANCELLED" | "EXPIRED" | "REFUNDED";
+type PaymentFilter = "PAID" | "REFUNDED";
 
 const PAYMENT_FILTERS: { key: PaymentFilter; label: string }[] = [
-  { key: "ALL", label: "All" },
-  { key: "PENDING_PAYMENT", label: "Pending Payment" },
   { key: "PAID", label: "Paid" },
-  { key: "FAILED", label: "Failed" },
-  { key: "CANCELLED", label: "Cancelled" },
-  { key: "EXPIRED", label: "Expired" },
   { key: "REFUNDED", label: "Refunded" },
 ];
 
@@ -76,17 +64,8 @@ const CATEGORY_LABELS: Record<OrderItemCategory, string> = {
   consultation: "Consultations",
 };
 
-type SingleStatusQuery = PaymentStatus | undefined; // undefined = "All"
-
-function statusesForFilter(filter: PaymentFilter): SingleStatusQuery[] {
-  switch (filter) {
-    case "ALL":
-      return [undefined];
-    case "PENDING_PAYMENT":
-      return ["CREATED", "PENDING"];
-    default:
-      return [filter as PaymentStatus];
-  }
+function statusesForFilter(filter: PaymentFilter): PaymentStatus[] {
+  return filter === "PAID" ? ["PAID"] : ["REFUNDED", "PARTIALLY_REFUNDED"];
 }
 
 type LoadState =
@@ -95,34 +74,31 @@ type LoadState =
   | { status: "ready" };
 
 // Cursor bookkeeping per underlying status query that makes up the
-// currently-selected filter (1 entry for a single-status filter, 2 for
-// the combined "Pending Payment" filter).
+// currently-selected filter (1 entry for "Paid", 2 for "Refunded").
 type StatusStream = {
-  key: string; // "ALL" | a PaymentStatus
+  key: PaymentStatus;
   cursor: string | null; // next cursor to send, null once exhausted
   exhausted: boolean;
 };
 
 export default function AdminOrdersPage() {
-  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("ALL");
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("PAID");
   const [categoryFilter, setCategoryFilter] = useState<OrderItemCategory | "ALL">("ALL");
   const [search, setSearch] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [streams, setStreams] = useState<StatusStream[]>([]);
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [loadingMore, setLoadingMore] = useState(false);
-  const [newOrdersAvailable, setNewOrdersAvailable] = useState(false);
-  const latestKnownCreatedAt = useRef<number>(0);
+  const [justUpdated, setJustUpdated] = useState(false);
+  const latestKnownUpdatedAt = useRef<number>(0);
 
   const loadFirstPage = useCallback(async (filter: PaymentFilter) => {
     setState({ status: "loading" });
-    setNewOrdersAvailable(false);
     try {
       const queries = statusesForFilter(filter);
       const results = await Promise.all(
         queries.map(async (paymentStatus) => {
-          const qs = paymentStatus ? `?paymentStatus=${paymentStatus}` : "";
-          const res = await authedFetch(`/api/admin/orders${qs}`);
+          const res = await authedFetch(`/api/admin/orders?paymentStatus=${paymentStatus}`);
           if (!res.ok) throw new Error("failed");
           return (await res.json()) as { orders: Order[]; nextCursor: string | null };
         }),
@@ -134,12 +110,12 @@ export default function AdminOrdersPage() {
       setOrders(merged);
       setStreams(
         results.map((r, i) => ({
-          key: queries[i] ?? "ALL",
+          key: queries[i],
           cursor: r.nextCursor,
           exhausted: r.nextCursor === null,
         })),
       );
-      latestKnownCreatedAt.current = merged[0]?.createdAt ?? 0;
+      latestKnownUpdatedAt.current = Math.max(0, ...merged.map((o) => o.updatedAt));
       setState({ status: "ready" });
     } catch {
       setState({ status: "error", message: "We couldn't load orders right now." });
@@ -159,9 +135,8 @@ export default function AdminOrdersPage() {
       const active = streams.filter((s) => !s.exhausted);
       const results = await Promise.all(
         active.map(async (stream) => {
-          const qs = stream.key === "ALL" ? "" : `?paymentStatus=${stream.key}`;
-          const cursorQs = stream.cursor ? `${qs ? "&" : "?"}cursor=${stream.cursor}` : "";
-          const res = await authedFetch(`/api/admin/orders${qs}${cursorQs}`);
+          const cursorQs = stream.cursor ? `&cursor=${stream.cursor}` : "";
+          const res = await authedFetch(`/api/admin/orders?paymentStatus=${stream.key}${cursorQs}`);
           if (!res.ok) throw new Error("failed");
           const data = (await res.json()) as { orders: Order[]; nextCursor: string | null };
           return { key: stream.key, ...data };
@@ -188,39 +163,36 @@ export default function AdminOrdersPage() {
     }
   }
 
-  // Lightweight live listener: only checks whether anything newer than
-  // what's currently in view has shown up, then surfaces a banner —
-  // see the top-of-file comment for why this doesn't replace the REST
-  // pagination above.
+  // Live auto-refresh — no button, no banner to click. Any order write
+  // newer than what's currently in view (a fresh order, or an existing
+  // one just confirmed/refunded) silently re-runs the first-page fetch
+  // for whichever filter is active. A brief "Updated" pulse near the
+  // heading is the only feedback — enough to notice without demanding
+  // a click.
   useEffect(() => {
-    const q = query(collection(firestoreDb, "orders"), orderBy("createdAt", "desc"), limit(1));
+    const q = query(collection(firestoreDb, "orders"), orderBy("updatedAt", "desc"), limit(1));
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
         const latest = snap.docs[0]?.data() as Order | undefined;
-        if (latest && latest.createdAt > latestKnownCreatedAt.current) {
-          setNewOrdersAvailable(true);
+        if (latest && latest.updatedAt > latestKnownUpdatedAt.current) {
+          loadFirstPage(paymentFilter);
+          setJustUpdated(true);
+          window.setTimeout(() => setJustUpdated(false), 2500);
         }
       },
       () => {
-        // Ignore listener errors (e.g. transient network) — the
-        // "Load more"/refresh path still works without this signal.
+        // Ignore listener errors (e.g. transient network) — "Load
+        // more" and switching filters still work without this signal.
       },
     );
     return unsubscribe;
-  }, []);
+  }, [paymentFilter, loadFirstPage]);
 
   const hasMore = streams.some((s) => !s.exhausted);
 
   const visibleOrders = useMemo(() => {
     let list = orders;
-    // Failed payment attempts are noise in the default view — they
-    // never became a real order to fulfill. Still reachable via the
-    // explicit "Failed" filter pill above for anyone who genuinely
-    // needs to audit failed attempts; just not shown in "All".
-    if (paymentFilter === "ALL") {
-      list = list.filter((o) => o.paymentStatus !== "FAILED");
-    }
     if (categoryFilter !== "ALL") {
       list = list.filter((o) => orderCategories(o).includes(categoryFilter));
     }
@@ -231,35 +203,38 @@ export default function AdminOrdersPage() {
       );
     }
     return list;
-  }, [orders, paymentFilter, categoryFilter, search]);
+  }, [orders, categoryFilter, search]);
 
   return (
     <div className="mx-auto max-w-6xl">
-      <header className="mb-5">
-        <h1 className="font-serif text-2xl text-nav-violet sm:text-3xl">Orders</h1>
-        <p className="mt-1.5 text-sm text-nav-plum/70">Browse, filter, and update order fulfillment.</p>
+      <header className="mb-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1.5">
+        <div>
+          <h1 className="font-serif text-2xl text-nav-violet sm:text-3xl">Orders</h1>
+          <p className="mt-1.5 text-sm text-nav-plum/70">Confirmed orders — paid, and paid-then-refunded.</p>
+        </div>
+        <span
+          className={`flex items-center gap-1.5 text-xs font-medium transition-opacity duration-500 ${
+            justUpdated ? "text-nav-amethyst-deep opacity-100" : "text-nav-plum/40 opacity-100"
+          }`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${justUpdated ? "bg-nav-amethyst motion-safe:animate-ping" : "bg-emerald-500"}`}
+            aria-hidden="true"
+          />
+          {justUpdated ? "Updated just now" : "Live"}
+        </span>
       </header>
 
-      {newOrdersAvailable && (
-        <button
-          type="button"
-          onClick={() => loadFirstPage(paymentFilter)}
-          className="mb-4 flex w-full items-center justify-center gap-2 rounded-full bg-nav-amethyst px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-nav-amethyst-deep"
-        >
-          New orders have arrived — Refresh
-        </button>
-      )}
-
-      {/* Payment-status filter pills */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      {/* Payment-status filter — just the two states that matter here */}
+      <div className="flex gap-2">
         {PAYMENT_FILTERS.map((f) => (
           <button
             key={f.key}
             type="button"
             onClick={() => setPaymentFilter(f.key)}
-            className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-medium transition-colors duration-150 ${
+            className={`rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-all duration-150 ${
               paymentFilter === f.key
-                ? "bg-nav-amethyst text-white"
+                ? "bg-nav-amethyst text-white shadow-[0_4px_12px_-4px_rgba(90,55,140,0.5)]"
                 : "bg-white text-nav-plum/80 ring-1 ring-nav-lavender-line hover:bg-nav-lavender-mist"
             }`}
           >
@@ -269,7 +244,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Category tabs */}
-      <div className="mt-3 flex gap-2 overflow-x-auto">
+      <div className="-mx-4 mt-4 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
         <button
           type="button"
           onClick={() => setCategoryFilter("ALL")}
@@ -298,17 +273,15 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Search — filters only what's already loaded */}
-      <div className="mt-3">
+      <div className="relative mt-4 sm:max-w-sm">
+        <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-nav-plum/40" />
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search loaded orders by id or email…"
-          className="w-full min-h-11 rounded-xl border border-nav-lavender-line bg-white px-3.5 py-2 text-sm text-nav-violet outline-none focus:border-nav-amethyst focus:ring-2 focus:ring-nav-amethyst/30 sm:max-w-sm"
+          className="w-full min-h-11 rounded-xl border border-nav-lavender-line bg-white py-2 pl-10 pr-3.5 text-sm text-nav-violet outline-none transition-colors focus:border-nav-amethyst focus:ring-2 focus:ring-nav-amethyst/30"
         />
-        {search.trim() && (
-          <p className="mt-1 text-xs text-nav-plum/60">Searching only the orders currently loaded below.</p>
-        )}
       </div>
 
       <div className="mt-5">
@@ -330,9 +303,10 @@ export default function AdminOrdersPage() {
         )}
 
         {state.status === "ready" && visibleOrders.length === 0 && (
-          <p className="rounded-2xl border border-nav-lavender-line bg-nav-pearl px-6 py-14 text-center text-sm text-nav-plum/70">
-            No orders match this filter.
-          </p>
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-nav-lavender-line bg-nav-pearl/50 px-6 py-16 text-center">
+            <PackageOpen aria-hidden="true" className="h-8 w-8 text-nav-plum/30" />
+            <p className="text-sm text-nav-plum/70">No orders match this filter yet.</p>
+          </div>
         )}
 
         {state.status === "ready" && visibleOrders.length > 0 && (
@@ -347,47 +321,53 @@ export default function AdminOrdersPage() {
             </ul>
 
             {/* Desktop: table */}
-            <div className="hidden overflow-x-auto rounded-2xl border border-nav-lavender-line bg-white lg:block">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-nav-lavender-line bg-nav-lavender-mist text-xs uppercase tracking-wide text-nav-plum/70">
-                  <tr>
-                    <th className="px-4 py-3">Order</th>
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Categories</th>
-                    <th className="px-4 py-3">Items</th>
-                    <th className="px-4 py-3">Total</th>
-                    <th className="px-4 py-3">Payment</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleOrders.map((order) => (
-                    <tr key={order.id} className="border-b border-nav-lavender-line/60 last:border-0">
-                      <td className="px-4 py-3 font-medium text-nav-violet">#{order.id.slice(-8).toUpperCase()}</td>
-                      <td className="px-4 py-3 text-nav-plum/80">{order.customerEmail}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          {orderCategories(order).map((c) => (
-                            <span key={c} className="rounded-full bg-nav-lavender-mist px-2 py-0.5 text-[0.68rem] text-nav-plum/70">
-                              {CATEGORY_LABELS[c]}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-nav-plum/70">{order.items.length}</td>
-                      <td className="px-4 py-3 font-semibold text-nav-amethyst-deep">{formatInr(order.subtotal)}</td>
-                      <td className="px-4 py-3">
-                        <PaymentBadge status={order.paymentStatus} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Link href={`/admin/orders/${order.id}`} className="font-medium text-nav-amethyst-deep hover:underline">
-                          View
-                        </Link>
-                      </td>
+            <div className="hidden overflow-hidden rounded-2xl border border-nav-lavender-line bg-white shadow-[0_1px_2px_rgba(70,40,120,0.04)] lg:block">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-nav-lavender-line bg-nav-lavender-mist/70 text-[0.7rem] font-semibold uppercase tracking-wide text-nav-plum/70">
+                    <tr>
+                      <th className="px-5 py-3.5">Order</th>
+                      <th className="px-5 py-3.5">Customer</th>
+                      <th className="px-5 py-3.5">Categories</th>
+                      <th className="px-5 py-3.5">Items</th>
+                      <th className="px-5 py-3.5">Total</th>
+                      <th className="px-5 py-3.5">Status</th>
+                      <th className="px-5 py-3.5" />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {visibleOrders.map((order) => (
+                      <tr key={order.id} className="border-b border-nav-lavender-line/60 transition-colors last:border-0 hover:bg-nav-pearl/40">
+                        <td className="px-5 py-3.5 font-medium text-nav-violet">#{order.id.slice(-8).toUpperCase()}</td>
+                        <td className="px-5 py-3.5 text-nav-plum/80">{order.customerEmail}</td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex flex-wrap gap-1">
+                            {orderCategories(order).map((c) => (
+                              <span key={c} className="rounded-full bg-nav-lavender-mist px-2 py-0.5 text-[0.68rem] text-nav-plum/70">
+                                {CATEGORY_LABELS[c]}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-nav-plum/70">{order.items.length}</td>
+                        <td className="px-5 py-3.5 font-semibold text-nav-amethyst-deep">{formatInr(order.total ?? order.subtotal)}</td>
+                        <td className="px-5 py-3.5">
+                          <PaymentBadge status={order.paymentStatus} />
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <Link
+                            href={`/admin/orders/${order.id}`}
+                            className="inline-flex items-center gap-1 font-medium text-nav-amethyst-deep transition-colors hover:text-nav-violet hover:underline"
+                          >
+                            View
+                            <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         )}
@@ -412,7 +392,10 @@ export default function AdminOrdersPage() {
 function OrderCard({ order }: { order: Order }) {
   const categories = orderCategories(order);
   return (
-    <div className="rounded-2xl border border-nav-lavender-line bg-white p-4">
+    <Link
+      href={`/admin/orders/${order.id}`}
+      className="block rounded-2xl border border-nav-lavender-line bg-white p-4 shadow-[0_1px_2px_rgba(70,40,120,0.04)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_rgba(90,55,140,0.25)]"
+    >
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-medium text-nav-violet">#{order.id.slice(-8).toUpperCase()}</p>
@@ -431,15 +414,13 @@ function OrderCard({ order }: { order: Order }) {
         </span>
       </div>
       <div className="mt-3 flex items-center justify-between border-t border-nav-lavender-line pt-3">
-        <span className="font-semibold text-nav-amethyst-deep">{formatInr(order.subtotal)}</span>
-        <Link
-          href={`/admin/orders/${order.id}`}
-          className="flex min-h-11 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-4 py-1.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
-        >
+        <span className="font-serif text-lg font-semibold text-nav-amethyst-deep">{formatInr(order.total ?? order.subtotal)}</span>
+        <span className="flex min-h-9 items-center gap-1 rounded-full border border-nav-lavender-line px-4 py-1.5 text-sm font-medium text-nav-violet">
           View
-        </Link>
+          <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
+        </span>
       </div>
-    </div>
+    </Link>
   );
 }
 
