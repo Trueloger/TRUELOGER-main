@@ -47,8 +47,11 @@ export const DEFAULT_TAX_SETTINGS: TaxSettings = {
   updatedAt: 0,
 };
 
+// defaultFee is 0 for now (delivery charging not live yet) — set back
+// to a real fee (e.g. 99) via the admin Settings screen once delivery
+// pricing is ready to go live.
 export const DEFAULT_DELIVERY_SETTINGS: DeliverySettings = {
-  defaultFee: 99,
+  defaultFee: 0,
   freeDeliveryThreshold: 2000,
   updatedAt: 0,
 };
