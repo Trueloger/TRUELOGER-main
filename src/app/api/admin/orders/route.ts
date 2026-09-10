@@ -95,12 +95,19 @@ export async function PATCH(request: Request) {
 
     const eventId = `admin-refund:${orderId}:${Date.now()}`;
     const updated = await applyPaymentStatus(orderId, "REFUNDED", eventId);
+    // Verify the transition actually applied rather than trusting a
+    // non-throwing return — applyPaymentStatus's terminal-conflict
+    // guard silently no-op'd this exact transition until it was fixed
+    // (see its own comment), so this is a real check, not paranoia.
+    if (updated?.paymentStatus !== "REFUNDED") {
+      return NextResponse.json(
+        { error: "The order's status did not update as expected. Please try again or check it directly." },
+        { status: 500 },
+      );
+    }
     await writeAuditLog({ action: "mark_refunded" });
 
-    return NextResponse.json({
-      ok: true,
-      paymentStatus: updated?.paymentStatus ?? "REFUNDED",
-    });
+    return NextResponse.json({ ok: true, paymentStatus: updated.paymentStatus });
   }
 
   if (typeof fulfillmentStatus !== "string" || !ADMIN_ALLOWED_FULFILLMENT.includes(fulfillmentStatus as FulfillmentStatus)) {

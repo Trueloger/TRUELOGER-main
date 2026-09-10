@@ -102,7 +102,20 @@ export async function applyPaymentStatus(
 
     const wasAlreadyPaid = order.paymentStatus === "PAID";
     const alreadyTerminal = TERMINAL_PAYMENT_STATUSES.includes(order.paymentStatus);
-    if (alreadyTerminal && order.paymentStatus !== nextStatus) {
+    // The ONE legitimate terminal-to-terminal transition: a paid order
+    // being refunded (full or partial) — everything else (PAID-> FAILED,
+    // FAILED->PAID, REFUNDED->anything, etc.) stays a rejected
+    // reconciliation conflict. Without this carve-out the guard below
+    // silently no-ops every refund: PAID is itself in
+    // TERMINAL_PAYMENT_STATUSES, so "already terminal, different status
+    // incoming" was true for every PAID->REFUNDED call too, and the
+    // admin "Mark as Refunded" action (src/app/api/admin/orders/route.ts)
+    // would return 200 without ever actually changing the status — a
+    // real bug caught by testing this live against a real order rather
+    // than trusting the route's own 200 response.
+    const isRefundOfPaidOrder =
+      order.paymentStatus === "PAID" && (nextStatus === "REFUNDED" || nextStatus === "PARTIALLY_REFUNDED");
+    if (alreadyTerminal && order.paymentStatus !== nextStatus && !isRefundOfPaidOrder) {
       // Once a terminal outcome is recorded, a DIFFERENT terminal
       // outcome arriving later is a reconciliation conflict, not a
       // normal transition — ignore it here rather than silently
