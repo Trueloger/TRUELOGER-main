@@ -12,6 +12,7 @@ import { createPendingOrder, attachCashfreeSession } from "@/lib/orders/store";
 import { createCashfreeOrder } from "@/lib/cashfree/server";
 import { getAdminApp } from "@/lib/firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import { isProfileComplete, type UserProfile } from "@/lib/profile/types";
 
 export const maxDuration = 30;
 
@@ -38,6 +39,22 @@ export async function POST(request: Request) {
   }
   const { lines, couponCode } = (body as { lines?: unknown; couponCode?: unknown }) ?? {};
 
+  // Server-side enforcement, not just a UI gate: no purchase proceeds
+  // without a complete profile (birth details every consultation/
+  // remedy on this site depends on) — checked here, ahead of any
+  // pricing/Cashfree work, so this can never be bypassed by calling
+  // the API directly.
+  const profileSnapForGate = await getFirestore(getAdminApp())
+    .collection("users")
+    .doc(verified.uid)
+    .get();
+  if (!isProfileComplete(profileSnapForGate.exists ? (profileSnapForGate.data() as UserProfile) : null)) {
+    return NextResponse.json(
+      { error: "Please complete your profile (name, date of birth, and birth place) before checking out." },
+      { status: 403 },
+    );
+  }
+
   const resolved = await resolveCartLines(lines, {
     couponCode: typeof couponCode === "string" ? couponCode : undefined,
     uid: verified.uid,
@@ -46,18 +63,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: resolved.error }, { status: 400 });
   }
 
-  // Best-effort profile lookup for a friendlier Cashfree checkout
-  // (name/phone) — never required, never trusted for pricing.
-  let customerName: string | undefined;
-  let customerPhone: string | undefined;
-  try {
-    const profileSnap = await getFirestore(getAdminApp()).collection("users").doc(verified.uid).get();
-    const profile = profileSnap.data();
-    customerName = profile?.fullName;
-    customerPhone = profile?.phone;
-  } catch {
-    // Profile lookup is a courtesy, not a requirement for checkout.
-  }
+  // Name/phone for the Cashfree checkout UI — reusing the profile doc
+  // already fetched above for the completeness gate.
+  const profileForGate = profileSnapForGate.exists ? (profileSnapForGate.data() as UserProfile) : undefined;
+  const customerName = profileForGate?.fullName;
+  const customerPhone = profileForGate?.phone;
 
   const orderId = newOrderId(verified.uid);
 

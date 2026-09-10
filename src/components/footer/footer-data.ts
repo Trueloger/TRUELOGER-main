@@ -25,6 +25,7 @@ export type FooterLink = {
 export const FOOTER_COMPANY: FooterLink[] = [
   { label: "About Us", href: "/about" },
   { label: "Support", href: "/support" },
+  { label: "Terms & Conditions", href: "/terms-and-conditions" },
 ];
 
 // PLACEHOLDER contact details — user asked to wire these up now with

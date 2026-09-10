@@ -158,14 +158,17 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Bottom bar — dynamic copyright year, real brand name. No legal
-          links (privacy/terms/refund/disclaimer) since none of those
-          pages exist yet; omitting the row entirely is correct here
-          rather than linking to a 404 or a "#" placeholder. */}
+      {/* Bottom bar — dynamic copyright year, real brand name, and the
+          one real legal link (Terms & Conditions, also in FOOTER_COMPANY
+          above) — no separate Privacy/Refund pages yet, so this stays
+          just the one link rather than a full legal-links row. */}
       <div className="border-t border-nav-lavender-line px-4 py-6 sm:px-6 md:px-8">
         <div className="mx-auto flex max-w-[1320px] flex-col items-center gap-3 text-center">
           <p className="text-[0.85rem] text-nav-plum/70">
-            &copy; {year} TRUELOGER. All rights reserved.
+            &copy; {year} TRUELOGER. All rights reserved.{" "}
+            <Link href="/terms-and-conditions" className="underline underline-offset-2 hover:text-nav-amethyst-deep">
+              Terms &amp; Conditions
+            </Link>
           </p>
           <LotusIcon
             aria-hidden="true"

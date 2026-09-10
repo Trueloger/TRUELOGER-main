@@ -1,20 +1,47 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { formatInr } from "@/lib/consultation/pricing";
 import { CouponSelector } from "./CouponSelector";
 import { PriceBreakdown } from "./PriceBreakdown";
+import { PurchaseGateModal, type PurchaseGateReason } from "@/components/auth/PurchaseGateModal";
 import type { CartPricingResult } from "@/lib/pricing/calculate";
 
 export function CartDrawer() {
   const { items, subtotal, removeLine, isOpen, closeCart } = useCart();
+  const { isAuthenticated, isProfileComplete, loading: authLoading } = useAuth();
+  const router = useRouter();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const [couponCode, setCouponCode] = useState("");
   const [pricing, setPricing] = useState<CartPricingResult | null>(null);
+  const [gateReason, setGateReason] = useState<PurchaseGateReason | null>(null);
+
+  function handleCheckoutClick() {
+    // Auth state is still loading — let the click through, /checkout's
+    // own gate covers this edge case rather than blocking on a spinner
+    // here.
+    if (authLoading) {
+      closeCart();
+      router.push("/checkout");
+      return;
+    }
+    if (!isAuthenticated) {
+      setGateReason("signed-out");
+      return;
+    }
+    if (!isProfileComplete) {
+      setGateReason("profile-incomplete");
+      return;
+    }
+    closeCart();
+    router.push("/checkout");
+  }
   // Two-phase mount: render off-screen first, then flip to the resting
   // transform on the next frame so the transform transition actually
   // animates instead of snapping in already-settled.
@@ -123,16 +150,25 @@ export function CartDrawer() {
                 {formatInr(pricing?.total ?? subtotal)}
               </span>
             </div>
-            <Link
-              href="/checkout"
-              onClick={closeCart}
+            <button
+              type="button"
+              onClick={handleCheckoutClick}
               className="flex w-full items-center justify-center rounded-full bg-nav-amethyst px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst focus-visible:ring-offset-2 focus-visible:ring-offset-nav-pearl"
             >
               Checkout
-            </Link>
+            </button>
           </div>
         )}
       </div>
+
+      {gateReason && (
+        <PurchaseGateModal
+          reason={gateReason}
+          open={true}
+          onClose={() => setGateReason(null)}
+          redirectTo="/checkout"
+        />
+      )}
     </div>,
     document.body,
   );

@@ -9,10 +9,9 @@
 // price) -> POST /api/payments/create-order (server re-prices
 // authoritatively and creates the internal order + Cashfree order) ->
 // open Cashfree's hosted checkout with the returned paymentSessionId.
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Script from "next/script";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { formatInr } from "@/lib/consultation/pricing";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +19,7 @@ import { authedFetch } from "@/lib/auth/authed-fetch";
 import { CouponSelector } from "@/components/cart/CouponSelector";
 import { PriceBreakdown } from "@/components/cart/PriceBreakdown";
 import { cartItemToLineHint } from "@/components/cart/cartLines";
+import { PurchaseGateModal, type PurchaseGateReason } from "@/components/auth/PurchaseGateModal";
 import type { CartPricingResult } from "@/lib/pricing/calculate";
 
 declare global {
@@ -32,20 +32,28 @@ declare global {
 
 export default function CheckoutPage() {
   const { items, subtotal } = useCart();
-  const { currentUser, loading } = useAuth();
-  const router = useRouter();
+  const { currentUser, isProfileComplete, loading } = useAuth();
   const [sdkReady, setSdkReady] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [pricing, setPricing] = useState<CartPricingResult | null>(null);
+  const [gateDismissed, setGateDismissed] = useState(false);
   const paying = useRef(false); // guards against a double-click firing two payment attempts
 
-  useEffect(() => {
-    if (!loading && !currentUser) {
-      router.replace(`/login?redirect=${encodeURIComponent("/checkout")}`);
-    }
-  }, [loading, currentUser, router]);
+  // Landing on /checkout directly by URL (not via the cart drawer's own
+  // gate — see CartDrawer.tsx) bypassing sign-in/profile-completion:
+  // show the same modal in-page instead of a silent hard redirect, so
+  // the reason is always explained, never just a surprise bounce to
+  // /login. The gate reason is derived, not stored separately, so it
+  // always reflects the live auth/profile state.
+  const gateReason: PurchaseGateReason | null = loading
+    ? null
+    : !currentUser
+      ? "signed-out"
+      : !isProfileComplete
+        ? "profile-incomplete"
+        : null;
 
   async function handlePay() {
     if (paying.current) return; // ignore a second click while the first request is in flight
@@ -85,10 +93,39 @@ export default function CheckoutPage() {
     }
   }
 
-  if (loading || !currentUser) {
+  if (loading) {
     return (
       <main className="flex min-h-[70vh] items-center justify-center bg-nav-ivory">
         <p className="text-sm text-nav-plum/70">Loading…</p>
+      </main>
+    );
+  }
+
+  if (gateReason) {
+    return (
+      <main className="flex min-h-[70vh] flex-col items-center justify-center gap-4 bg-nav-ivory px-6 text-center">
+        <h1 className="font-serif text-2xl font-semibold text-nav-amethyst-deep">
+          {gateReason === "signed-out" ? "Sign in to check out" : "Complete your profile to check out"}
+        </h1>
+        <p className="max-w-sm text-sm text-nav-plum/80">
+          Your cart is saved — it will still be here once you are signed in
+          {gateReason === "profile-incomplete" ? " with a complete profile" : ""}.
+        </p>
+        {gateDismissed && (
+          <button
+            type="button"
+            onClick={() => setGateDismissed(false)}
+            className="rounded-full border border-nav-lavender-line bg-nav-pearl px-5 py-2.5 text-sm font-medium text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist"
+          >
+            {gateReason === "signed-out" ? "Sign In / Sign Up" : "Complete Profile"}
+          </button>
+        )}
+        <PurchaseGateModal
+          reason={gateReason}
+          open={!gateDismissed}
+          onClose={() => setGateDismissed(true)}
+          redirectTo="/checkout"
+        />
       </main>
     );
   }
