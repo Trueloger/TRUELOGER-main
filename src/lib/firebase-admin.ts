@@ -50,11 +50,38 @@ export function getAdminApp(): App {
   // naturally. The Admin SDK rejects `undefined` field values by
   // default ("Cannot use 'undefined' as a Firestore value"), which
   // otherwise turns every optional field into a landmine at write
-  // time. Settings must be applied exactly once, before the first
-  // Firestore operation on this app — safe here since this only runs
-  // on the branch that just created the app, before anyone else has
-  // had a chance to call getFirestore(app) yet.
-  getFirestore(app).settings({ ignoreUndefinedProperties: true });
+  // time.
+  //
+  // `preferRest: true` — the real fix for a serious production bug:
+  // db.runTransaction() (used only by applyPaymentStatus, i.e. only
+  // the /api/payments/verify and /api/payments/cashfree/webhook
+  // routes) was hanging for the FULL 15s function timeout on every
+  // single invocation in production, confirmed via Vercel logs
+  // ("Task timed out after 15 seconds") while every other route using
+  // plain .get()/.set() calls (create-order, gemstones/validate, etc.)
+  // worked normally. The Admin SDK defaults to a gRPC transport for
+  // Firestore, and gRPC's long-lived streams are a known source of
+  // exactly this symptom on serverless platforms that aggressively
+  // freeze/thaw function instances between invocations (the stream
+  // can be left in a broken half-open state that neither errors nor
+  // completes). Forcing plain HTTP/REST for all Firestore calls
+  // sidesteps that transport entirely — this is Google's own
+  // documented workaround for "Firestore Admin SDK hangs on
+  // serverless" reports. This was the actual root cause of payments
+  // getting stuck on "Confirming your payment" indefinitely: the
+  // webhook DID fire, and the return-URL verify call DID run, but
+  // both hung inside the same transaction and never returned, so
+  // neither ever finished writing PAID to the order document (and the
+  // client saw no error either, since the browser's own 10s abort
+  // fired before the server's 15s one, then the confirmation page
+  // just kept waiting on the Firestore listener for a write that was
+  // never going to arrive).
+  //
+  // Settings must be applied exactly once, before the first Firestore
+  // operation on this app — safe here since this only runs on the
+  // branch that just created the app, before anyone else has had a
+  // chance to call getFirestore(app) yet.
+  getFirestore(app).settings({ ignoreUndefinedProperties: true, preferRest: true });
 
   return app;
 }
