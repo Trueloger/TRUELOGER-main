@@ -57,19 +57,13 @@ function AdminShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    // pt-24: the site's own Navbar (src/components/nav/Navbar.tsx) is
-    // `fixed` at the very top of every page, ~84px tall including its
-    // own padding — without this offset, admin content (and this
-    // shell's own mobile header/desktop sidebar) render right at y=0
-    // and sit hidden behind it. Same clearance value public pages use
-    // for their own top padding, applied here to the whole shell
-    // rather than per-page so every /admin/* route gets it for free.
-    <div className="min-h-screen bg-gradient-to-b from-nav-ivory via-nav-pearl to-nav-lavender-soft pt-24">
-      {/* Desktop side-nav — `top-24` (not inset-y-0) for the same
-          navbar-clearance reason as the shell's own pt-24 above; this
-          is `fixed`, so it doesn't inherit that padding from its
-          parent and needs the offset applied directly. */}
-      <aside className="fixed top-24 bottom-0 left-0 hidden w-60 flex-col border-r border-nav-lavender-line bg-nav-pearl/80 backdrop-blur-sm lg:flex">
+    // The site's own public Navbar no longer renders on /admin/* at
+    // all (see src/components/layout/SiteChrome.tsx) — this is a
+    // fully separate app shell, so it starts at the real top of the
+    // viewport with no clearance offset needed.
+    <div className="min-h-screen bg-gradient-to-b from-nav-ivory via-nav-pearl to-nav-lavender-soft">
+      {/* Desktop side-nav */}
+      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-nav-lavender-line bg-nav-pearl/80 backdrop-blur-sm lg:flex">
         <div className="flex items-center gap-2 border-b border-nav-lavender-line px-5 py-5">
           <span className="font-serif text-lg text-nav-violet">TRUELOGER</span>
           <span className="rounded-full bg-nav-amethyst/10 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-nav-amethyst-deep ring-1 ring-nav-amethyst/20">
@@ -108,10 +102,7 @@ function AdminShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile top bar */}
-      {/* top-24 (not top-0) — same navbar-clearance reason as above,
-          so this stays docked just below the real Navbar instead of
-          sliding back under it once the page is scrolled. */}
-      <header className="sticky top-24 z-30 flex items-center justify-between border-b border-nav-lavender-line bg-nav-pearl/95 px-4 py-3 backdrop-blur-sm lg:hidden">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-nav-lavender-line bg-nav-pearl/95 px-4 py-3 backdrop-blur-sm lg:hidden">
         <div className="flex items-center gap-2">
           <span className="font-serif text-base text-nav-violet">TRUELOGER</span>
           <span className="rounded-full bg-nav-amethyst/10 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-nav-amethyst-deep ring-1 ring-nav-amethyst/20">

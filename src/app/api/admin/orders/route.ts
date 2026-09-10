@@ -8,7 +8,7 @@
 // admin").
 import { NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/verify-request";
-import { listOrdersForAdmin, updateFulfillmentStatus, getOrder } from "@/lib/orders/store";
+import { listOrdersForAdmin, updateFulfillmentStatus, getOrder, applyPaymentStatus } from "@/lib/orders/store";
 import type { FulfillmentStatus, PaymentStatus } from "@/lib/orders/types";
 
 const VALID_PAYMENT_STATUSES: PaymentStatus[] = [
@@ -55,11 +55,54 @@ export async function PATCH(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
-  const { orderId, fulfillmentStatus } = (body as { orderId?: unknown; fulfillmentStatus?: unknown }) ?? {};
+  const { orderId, fulfillmentStatus, action } =
+    (body as { orderId?: unknown; fulfillmentStatus?: unknown; action?: unknown }) ?? {};
 
   if (typeof orderId !== "string" || !orderId) {
     return NextResponse.json({ error: "orderId is required." }, { status: 400 });
   }
+
+  const { getAdminApp } = await import("@/lib/firebase-admin");
+  const { getFirestore } = await import("firebase-admin/firestore");
+  const adminUid = admin.uid; // captured here — TS can't carry the `admin` null-check narrowing into the closure below
+  async function writeAuditLog(entry: Record<string, unknown>) {
+    // Minimal admin audit trail (per the "important admin changes must
+    // be traceable" requirement) — a lightweight, append-only log
+    // rather than a full audit UI, given scope.
+    await getFirestore(getAdminApp())
+      .collection("adminAuditLog")
+      .add({ adminUid, orderId, timestamp: Date.now(), ...entry });
+  }
+
+  // Marking an order Refunded — a manual admin action, since an actual
+  // refund happens on Cashfree's own side (dashboard/Refund API) with
+  // no webhook this codebase currently handles for it; this is how the
+  // internal order record catches up to that reality. Deliberately
+  // narrow: only a full PAID -> REFUNDED transition, only ever
+  // initiated by an admin (never settable by a customer), reusing the
+  // exact same idempotent applyPaymentStatus() the webhook/verify
+  // routes use so this can't double-process or race with either of
+  // them.
+  if (action === "mark_refunded") {
+    const order = await getOrder(orderId);
+    if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    if (order.paymentStatus !== "PAID") {
+      return NextResponse.json(
+        { error: "Only a paid order can be marked as refunded." },
+        { status: 409 },
+      );
+    }
+
+    const eventId = `admin-refund:${orderId}:${Date.now()}`;
+    const updated = await applyPaymentStatus(orderId, "REFUNDED", eventId);
+    await writeAuditLog({ action: "mark_refunded" });
+
+    return NextResponse.json({
+      ok: true,
+      paymentStatus: updated?.paymentStatus ?? "REFUNDED",
+    });
+  }
+
   if (typeof fulfillmentStatus !== "string" || !ADMIN_ALLOWED_FULFILLMENT.includes(fulfillmentStatus as FulfillmentStatus)) {
     return NextResponse.json({ error: "Invalid fulfillment status." }, { status: 400 });
   }
@@ -74,21 +117,7 @@ export async function PATCH(request: Request) {
   }
 
   await updateFulfillmentStatus(orderId, fulfillmentStatus as FulfillmentStatus);
-
-  // Minimal admin audit trail (per the "important admin changes must
-  // be traceable" requirement) — a lightweight, append-only log rather
-  // than a full audit UI, given scope.
-  const { getAdminApp } = await import("@/lib/firebase-admin");
-  const { getFirestore } = await import("firebase-admin/firestore");
-  await getFirestore(getAdminApp())
-    .collection("adminAuditLog")
-    .add({
-      adminUid: admin.uid,
-      action: "update_fulfillment_status",
-      orderId,
-      newStatus: fulfillmentStatus,
-      timestamp: Date.now(),
-    });
+  await writeAuditLog({ action: "update_fulfillment_status", newStatus: fulfillmentStatus });
 
   return NextResponse.json({ ok: true });
 }

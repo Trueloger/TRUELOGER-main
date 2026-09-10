@@ -47,6 +47,8 @@ export default function AdminOrderDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState<FulfillmentStatus | null>(null);
+  const [refunding, setRefunding] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState({ status: "loading" });
@@ -87,6 +89,33 @@ export default function AdminOrderDetailPage() {
       setUpdateError("Network error — please try again.");
     } finally {
       setUpdating(false);
+    }
+  }
+
+  async function handleMarkRefunded() {
+    if (state.status !== "ready") return;
+    const confirmed = window.confirm(
+      "Mark this order as refunded? Only do this after the actual refund has been issued through Cashfree — this just updates TRUELOGER's own record and cannot be undone here.",
+    );
+    if (!confirmed) return;
+
+    setRefunding(true);
+    setRefundError(null);
+    try {
+      const res = await authedFetch("/api/admin/orders", {
+        method: "PATCH",
+        body: JSON.stringify({ orderId, action: "mark_refunded" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setRefundError((data && data.error) || "Couldn't mark this order as refunded.");
+        return;
+      }
+      setState({ status: "ready", order: { ...state.order, paymentStatus: "REFUNDED" } });
+    } catch {
+      setRefundError("Network error — please try again.");
+    } finally {
+      setRefunding(false);
     }
   }
 
@@ -198,6 +227,27 @@ export default function AdminOrderDetailPage() {
         <p>Updated: {new Date(order.updatedAt).toLocaleString("en-IN")}</p>
         {order.cashfreeOrderId && (
           <p className="mt-2 text-xs text-nav-plum/50">Cashfree order id: {order.cashfreeOrderId}</p>
+        )}
+
+        {order.paymentStatus === "PAID" && (
+          <div className="mt-4 border-t border-nav-lavender-line pt-4">
+            <button
+              type="button"
+              onClick={handleMarkRefunded}
+              disabled={refunding}
+              className="flex min-h-11 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-700 transition-colors duration-150 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {refunding ? "Marking as refunded…" : "Mark as Refunded"}
+            </button>
+            <p className="mt-1.5 text-xs text-nav-plum/50">
+              Issue the actual refund through Cashfree first — this only updates TRUELOGER&apos;s own record.
+            </p>
+            {refundError && (
+              <p role="alert" className="mt-2 text-sm text-rose-700">
+                {refundError}
+              </p>
+            )}
+          </div>
         )}
       </section>
 

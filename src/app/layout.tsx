@@ -3,11 +3,8 @@ import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { Navbar } from "@/components/nav/Navbar";
-import { Footer } from "@/components/footer/Footer";
 import { ImageProtection } from "@/components/ImageProtection";
-import { CartDrawer } from "@/components/cart/CartDrawer";
-import { CookieConsentBanner } from "@/components/cookie/CookieConsentBanner";
+import { SiteChrome } from "@/components/layout/SiteChrome";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,11 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ImageProtection />
         <AuthProvider>
           <CartProvider>
-            <Navbar />
-            {children}
-            <Footer />
-            <CartDrawer />
-            <CookieConsentBanner />
+            <SiteChrome>{children}</SiteChrome>
           </CartProvider>
         </AuthProvider>
       </body>
