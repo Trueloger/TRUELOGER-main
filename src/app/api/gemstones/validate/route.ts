@@ -1,16 +1,22 @@
 // src/app/api/gemstones/validate/route.ts
 // Server-side authoritative pricing for a gemstone add-to-cart request
 // — mirrors src/app/api/consult/validate/route.ts exactly. The client
-// sends only productId + ratti; this route looks up the real product,
-// validates the Ratti against THAT product's own rattiOptions/pricing
-// (never a global range), and computes mrp/salePrice/discount itself
-// from the server-owned pricing matrix. A client-supplied price, MRP,
-// or discount is never accepted or trusted. Every gemstone add-to-cart
-// path (the direct card Ratti sheet AND the product-page Ratti
-// selector) calls this before calling `addItem()`.
+// sends only productId + ratti; this route looks up the real product
+// and validates the Ratti against THAT product's own variants — never
+// a global range — and computes mrp/salePrice/discount itself. A
+// client-supplied price, MRP, or discount is never accepted or trusted.
+//
+// Backed by the unified Firestore product store (src/lib/products/
+// store.ts) as of the catalogue expansion — the RESPONSE SHAPE is
+// deliberately unchanged from before that migration, so the existing
+// gemstone UI (GemstoneCard/RattiSheet/GemstoneRattiSelector) needed
+// zero changes to keep working against this route. A gemstone
+// product's variant ids ARE its Ratti numbers as strings (see
+// scripts/dev/seed-products.ts), which is what makes that
+// compatibility possible without any shape translation here.
 import { NextResponse } from "next/server";
-import { getGemstoneById } from "@/lib/gemstones/gemstone-data";
-import { getGemstonePrice, validateRatti } from "@/lib/gemstones/pricing";
+import { getProductById } from "@/lib/products/store";
+import { findVariant, variantDiscountPercent } from "@/lib/products/types";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -29,25 +35,29 @@ export async function POST(request: Request) {
   if (typeof productId !== "string" || !productId) {
     return NextResponse.json({ error: "productId is required." }, { status: 400 });
   }
+  if (typeof ratti !== "number" || !Number.isFinite(ratti)) {
+    return NextResponse.json({ error: "Select a valid Ratti weight." }, { status: 400 });
+  }
 
-  const product = getGemstoneById(productId);
-  if (!product) {
+  const product = await getProductById(productId);
+  if (!product || product.status !== "published" || product.category !== "gemstone") {
     return NextResponse.json({ error: "Unknown gemstone product." }, { status: 404 });
   }
 
-  const rattiCheck = validateRatti(product.rattiOptions, product.pricing, ratti);
-  if (!rattiCheck.valid) {
-    return NextResponse.json({ error: rattiCheck.reason }, { status: 400 });
+  const variant = findVariant(product, String(ratti));
+  if (!variant) {
+    return NextResponse.json({ error: "This Ratti weight is not offered for this gemstone." }, { status: 400 });
   }
-
-  const price = getGemstonePrice(product.pricing, rattiCheck.ratti);
+  if (variant.inStock === false) {
+    return NextResponse.json({ error: "This Ratti weight is currently out of stock." }, { status: 400 });
+  }
 
   return NextResponse.json({
     productId: product.id,
     productName: product.name,
-    ratti: rattiCheck.ratti,
-    mrp: price.mrp,
-    salePrice: price.salePrice,
-    discountPercent: price.discountPercent,
+    ratti,
+    mrp: variant.mrp,
+    salePrice: variant.salePrice,
+    discountPercent: variantDiscountPercent(variant),
   });
 }

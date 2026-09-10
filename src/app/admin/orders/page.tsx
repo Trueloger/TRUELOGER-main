@@ -69,8 +69,11 @@ const PAYMENT_FILTERS: { key: PaymentFilter; label: string }[] = [
 
 const CATEGORY_LABELS: Record<OrderItemCategory, string> = {
   gemstone: "Gemstones",
+  bracelet: "Bracelets",
+  rudraksha: "Rudraksha",
+  spiritual: "Spiritual Products",
+  yantra: "Yantras",
   consultation: "Consultations",
-  product: "Products",
 };
 
 type SingleStatusQuery = PaymentStatus | undefined; // undefined = "All"

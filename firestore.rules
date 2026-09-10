@@ -59,6 +59,39 @@ service cloud.firestore {
       allow write: if false; // server (Admin SDK) only
     }
 
+    // Products — every storefront read (listing + detail) goes through
+    // /api/products and /api/products/[slug], which use the Admin SDK
+    // and already filter to status=="published" server-side; a
+    // signed-in customer may ALSO read a published product directly
+    // via the client SDK if some future UI piece wants a live listener,
+    // but never a draft/archived one, and never write at all (every
+    // write goes through /api/admin/products with the Admin SDK).
+    match /products/{productId} {
+      allow read: if resource.data.status == "published" || isAdmin();
+      allow write: if false;
+    }
+
+    // Coupons — no client read/write at all. Every legitimate touch
+    // (admin CRUD, the customer-facing "eligible coupons" list, cart
+    // preview, checkout) goes through a server API using the Admin
+    // SDK, which bypasses these rules — there's no reason a browser
+    // needs direct Firestore access to full coupon documents (which
+    // would otherwise leak restriction/limit internals a customer
+    // shouldn't see) when every real use case already has a route.
+    match /coupons/{code} {
+      allow read, write: if false;
+      match /redemptions/{uid} {
+        allow read, write: if false;
+      }
+    }
+
+    // Tax/delivery settings — admin-configured, server-computed into
+    // every price a customer sees; no reason for direct client access
+    // either direction.
+    match /settings/{settingId} {
+      allow read, write: if false;
+    }
+
     // Default deny for anything not explicitly matched above.
     match /{document=**} {
       allow read, write: if false;

@@ -1,12 +1,13 @@
 import { LotusIcon } from "@/components/quick-services/icons";
-import { PUBLIC_GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
+import { listPublishedProducts } from "@/lib/products/store";
+import { toGemstoneProduct } from "@/lib/products/gemstone-adapter";
 import { GemstoneCard } from "@/components/gemstones/GemstoneCard";
 import { GemstoneCarousel } from "@/components/gemstones/GemstoneCarousel";
 
 /**
- * Sacred Gemstones — a homepage showcase of the real gemstone catalogue
- * (PUBLIC_GEMSTONE_PRODUCTS — every real product, excluding the internal
- * ₹1 test-payment item; see src/lib/gemstones/gemstone-data.ts), not a
+ * Sacred Gemstones — a homepage showcase of the real gemstone catalogue,
+ * fetched live from the Firestore product store (every published
+ * gemstone, excluding the internal ₹1 test-payment item), not a
  * curated subset. Each GemstoneCard's own "View Details" link is
  * what leads through to the full catalogue at /gemstones — nothing else
  * to wire here. Heading and ornament follow the same structure as
@@ -21,7 +22,11 @@ import { GemstoneCarousel } from "@/components/gemstones/GemstoneCarousel";
  * lg (matching /gemstones' own desktop grid) so all eight products lay
  * out as two even rows of four.
  */
-export function ProductsSection() {
+export async function ProductsSection() {
+  const products = (await listPublishedProducts("gemstone"))
+    .filter((p) => p.slug !== "test-payment")
+    .map(toGemstoneProduct);
+
   return (
     <section
       aria-labelledby="products-heading"
@@ -51,10 +56,10 @@ export function ProductsSection() {
         </div>
 
         <div className="mt-10 md:mt-14">
-          <GemstoneCarousel />
+          <GemstoneCarousel products={products} />
 
           <ul className="hidden md:grid sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {PUBLIC_GEMSTONE_PRODUCTS.map((product) => (
+            {products.map((product) => (
               <li key={product.id}>
                 <GemstoneCard product={product} />
               </li>

@@ -40,20 +40,35 @@ export type FulfillmentStatus =
   | "COMPLETED"
   | "CANCELLED";
 
-export type OrderItemCategory = "gemstone" | "consultation" | "product";
+import type { ProductCategory } from "@/lib/products/types";
+
+/** The 5 physical-product categories (from products/types.ts) plus
+ * "consultation" — this is the FULL taxonomy the admin Orders category
+ * tabs are built from (see ORDER_ITEM_CATEGORIES below), not a
+ * hardcoded subset. */
+export type OrderItemCategory = ProductCategory | "consultation";
 
 /** A line-item SNAPSHOT taken at checkout time — deliberately NOT a
- * live reference to the product/service data, so a later price change
- * to a gemstone or consultation never alters a historical order (see
- * "order snapshot" requirement). Mirrors the shape of
- * CartContext.tsx's `GemstoneCartMeta`/`ConsultationCartMeta` plus the
- * pricing fields those don't carry. */
+ * live reference to product/service data, so a later admin price
+ * change never alters a historical order. ONE shape covers every
+ * physical-product category (gemstone/bracelet/rudraksha/spiritual/
+ * yantra) via `variantId`/`variantLabel` — a gemstone's variantId is a
+ * stringified Ratti ("5"), a Rudraksha's a Mukhi count ("6"); `ratti`
+ * is additionally populated (as a number) ONLY for the gemstone
+ * category, kept for backward compatibility with the existing
+ * gemstone-specific UI (Orders page, admin order detail, cart rows)
+ * that already reads `item.ratti` directly rather than parsing
+ * variantId. Consultations keep their own separate shape (duration
+ * instead of a variant, no MRP/discount concept). */
 export type OrderLineItem =
   | {
-      category: "gemstone";
+      category: ProductCategory;
       productId: string;
       productName: string;
-      ratti: RattiValue;
+      variantId: string;
+      variantLabel: string;
+      /** Gemstone-only — see the shape-level doc comment above. */
+      ratti?: RattiValue;
       quantity: number;
       unitMrp: number;
       unitSalePrice: number;
@@ -68,14 +83,6 @@ export type OrderLineItem =
       quantity: number;
       unitPrice: number;
       lineTotal: number;
-    }
-  | {
-      category: "product";
-      productId: string;
-      productName: string;
-      quantity: number;
-      unitPrice: number;
-      lineTotal: number;
     };
 
 export type Order = {
@@ -86,10 +93,30 @@ export type Order = {
   customerPhone?: string;
 
   items: OrderLineItem[];
-  /** Sum of every line's lineTotal — the SAME number sent to Cashfree
-   * as order_amount. Recomputed server-side at checkout time from
-   * authoritative pricing, never trusted from the client. */
+
+  // --- Full price breakdown (all server-computed, see
+  // src/lib/pricing/calculate.ts — the ONE place every one of these
+  // numbers is derived; never recomputed differently anywhere else) ---
+  /** Sum of every line's lineTotal (i.e. already sale-price-based, NOT
+   * MRP-based — "productDiscount" below is purely the informational
+   * MRP-vs-sale-price gap, already baked into this number). */
   subtotal: number;
+  /** Sum of (unitMrp - unitSalePrice) * quantity across every line —
+   * shown in the breakdown as "Product Discount", informational only
+   * (subtotal already reflects sale prices, so this is NOT subtracted
+   * again). */
+  productDiscount: number;
+  couponCode?: string;
+  couponDiscount: number;
+  /** subtotal - couponDiscount — what tax is actually computed on. */
+  taxableAmount: number;
+  tax: number;
+  taxBreakdown: { name: string; ratePercent: number; amount: number }[];
+  deliveryFee: number;
+  /** taxableAmount + tax + deliveryFee — the SAME number sent to
+   * Cashfree as order_amount. This, not `subtotal`, is the
+   * authoritative payment amount once coupons/tax/delivery exist. */
+  total: number;
   currency: "INR";
 
   paymentStatus: PaymentStatus;
@@ -110,7 +137,14 @@ export type Order = {
  * to build the admin Orders category filter dynamically rather than
  * hardcoding categories that might not correspond to real products
  * (per the "don't create fake categories with no products" rule). */
-export const ORDER_ITEM_CATEGORIES: OrderItemCategory[] = ["gemstone", "consultation", "product"];
+export const ORDER_ITEM_CATEGORIES: OrderItemCategory[] = [
+  "gemstone",
+  "bracelet",
+  "rudraksha",
+  "spiritual",
+  "yantra",
+  "consultation",
+];
 
 /** True once every line in the order is one specific category — used
  * by the admin category filter/tabs. */

@@ -189,7 +189,7 @@ function OrderDetailCard({ order }: { order: Order }) {
 }
 
 function LineItemRow({ item }: { item: OrderLineItem }) {
-  if (item.category === "gemstone") {
+  if (item.category === "gemstone" && item.ratti) {
     return (
       <div className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
         <div>
@@ -224,9 +224,16 @@ function LineItemRow({ item }: { item: OrderLineItem }) {
     <div className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
       <div>
         <p className="text-sm font-medium text-nav-violet">{item.productName}</p>
-        <p className="mt-0.5 text-xs text-nav-plum/60">Qty {item.quantity}</p>
+        <p className="mt-0.5 text-xs text-nav-plum/60">
+          {item.variantLabel} · Qty {item.quantity}
+        </p>
       </div>
-      <p className="text-sm font-semibold text-nav-amethyst-deep">{formatInr(item.lineTotal)}</p>
+      <div className="text-right">
+        {item.discountPercent > 0 && (
+          <p className="text-xs text-nav-plum/50 line-through">{formatInr(item.unitMrp)}</p>
+        )}
+        <p className="text-sm font-semibold text-nav-amethyst-deep">{formatInr(item.lineTotal)}</p>
+      </div>
     </div>
   );
 }

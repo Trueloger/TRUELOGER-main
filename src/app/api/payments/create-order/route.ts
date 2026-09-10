@@ -36,9 +36,12 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
-  const { lines } = (body as { lines?: unknown }) ?? {};
+  const { lines, couponCode } = (body as { lines?: unknown; couponCode?: unknown }) ?? {};
 
-  const resolved = resolveCartLines(lines);
+  const resolved = await resolveCartLines(lines, {
+    couponCode: typeof couponCode === "string" ? couponCode : undefined,
+    uid: verified.uid,
+  });
   if (!resolved.ok) {
     return NextResponse.json({ error: resolved.error }, { status: 400 });
   }
@@ -65,7 +68,7 @@ export async function POST(request: Request) {
     customerName,
     customerPhone,
     items: resolved.items,
-    subtotal: resolved.subtotal,
+    pricing: resolved.pricing,
   });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -73,7 +76,7 @@ export async function POST(request: Request) {
   try {
     const cf = await createCashfreeOrder({
       orderId,
-      amount: resolved.subtotal,
+      amount: resolved.pricing.total,
       customerId: verified.uid,
       customerEmail: verified.email,
       customerPhone,
@@ -85,7 +88,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       orderId,
       paymentSessionId: cf.paymentSessionId,
-      amount: resolved.subtotal,
+      amount: resolved.pricing.total,
+      pricing: resolved.pricing,
       mode: process.env.NEXT_PUBLIC_CASHFREE_MODE === "production" ? "production" : "sandbox",
     });
   } catch (err) {

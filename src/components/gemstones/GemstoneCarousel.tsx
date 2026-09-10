@@ -4,15 +4,15 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type TouchEvent as ReactTouchEvent,
   type TransitionEvent as ReactTransitionEvent,
 } from "react";
-import { PUBLIC_GEMSTONE_PRODUCTS } from "@/lib/gemstones/gemstone-data";
+import type { GemstoneProduct } from "@/lib/gemstones/types";
 import { GemstoneCard } from "@/components/gemstones/GemstoneCard";
 
-const N = PUBLIC_GEMSTONE_PRODUCTS.length;
 const TRANSITION_MS = 600;
 const SWIPE_THRESHOLD_PX = 40;
 // Below this many px of movement we haven't committed to a direction yet —
@@ -24,11 +24,6 @@ const DIRECTION_LOCK_PX = 10;
 // main > next" layout), same physical-track technique as HeroCarousel.
 const RATIO = 0.69;
 const GAP = 6;
-
-// One clone of the last card prepended, one clone of the first appended —
-// standard jump-free infinite loop on a physically translating track.
-// trackIndex runs 0..N+1; 0 and N+1 are the clones.
-const EXTENDED = [PUBLIC_GEMSTONE_PRODUCTS[N - 1], ...PUBLIC_GEMSTONE_PRODUCTS, PUBLIC_GEMSTONE_PRODUCTS[0]];
 
 /**
  * Mobile-only (< md) peek carousel for the Sacred Gemstones cards —
@@ -47,7 +42,16 @@ const EXTENDED = [PUBLIC_GEMSTONE_PRODUCTS[N - 1], ...PUBLIC_GEMSTONE_PRODUCTS, 
  * internal h-full/mt-auto pattern (mirroring ServiceCard) means every
  * slide renders a near-identical natural height anyway.
  */
-export function GemstoneCarousel() {
+export function GemstoneCarousel({ products }: { products: GemstoneProduct[] }) {
+  const N = products.length;
+  // One clone of the last card prepended, one clone of the first
+  // appended — standard jump-free infinite loop on a physically
+  // translating track. trackIndex runs 0..N+1; 0 and N+1 are the clones.
+  const EXTENDED = useMemo(
+    () => (N > 0 ? [products[N - 1], ...products, products[0]] : []),
+    [products, N],
+  );
+
   const [trackIndex, setTrackIndex] = useState(1); // 1 == real card 0
   const [withTransition, setWithTransition] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
@@ -155,10 +159,12 @@ export function GemstoneCarousel() {
     touch.current.horizontal = null;
   }
 
-  const activeRealIndex = ((trackIndex - 1) % N + N) % N;
+  const activeRealIndex = N > 0 ? (((trackIndex - 1) % N) + N) % N : 0;
   const baseOffset = containerWidth / 2 - (trackIndex * step + slideWidthPx / 2);
   const trackTransform = `translate3d(${baseOffset + dragOffsetPx}px, 0, 0)`;
   const transitionActive = withTransition && !isDragging;
+
+  if (N === 0) return null;
 
   return (
     <div
@@ -210,7 +216,7 @@ export function GemstoneCarousel() {
       {/* Dot indicators — primary orientation cue since arrows would
           crowd the peeking neighbor cards at this width. */}
       <div className="mt-5 flex items-center justify-center gap-2">
-        {PUBLIC_GEMSTONE_PRODUCTS.map((product, i) => (
+        {products.map((product, i) => (
           <button
             key={product.id}
             type="button"
@@ -227,7 +233,7 @@ export function GemstoneCarousel() {
       </div>
 
       <p className="sr-only" aria-live="polite">
-        {`Showing ${PUBLIC_GEMSTONE_PRODUCTS[activeRealIndex].name}, ${activeRealIndex + 1} of ${N}`}
+        {`Showing ${products[activeRealIndex]?.name ?? ""}, ${activeRealIndex + 1} of ${N}`}
       </p>
     </div>
   );

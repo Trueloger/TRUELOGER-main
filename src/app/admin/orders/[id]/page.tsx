@@ -146,18 +146,49 @@ export default function AdminOrderDetailPage() {
                   {item.category === "consultation" ? item.serviceName : item.productName}
                 </p>
                 <p className="text-xs text-nav-plum/60">
-                  {item.category === "gemstone" && `${item.ratti} Ratti · Qty ${item.quantity}`}
-                  {item.category === "consultation" && `${item.duration} min · Qty ${item.quantity}`}
-                  {item.category === "product" && `Qty ${item.quantity}`}
+                  {item.category === "consultation"
+                    ? `${item.duration} min · Qty ${item.quantity}`
+                    : `${item.ratti ? `${item.ratti} Ratti` : item.variantLabel} · Qty ${item.quantity}`}
                 </p>
               </div>
               <span className="font-semibold text-nav-amethyst-deep">{formatInr(item.lineTotal)}</span>
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex items-center justify-between border-t border-nav-lavender-line pt-3">
-          <span className="text-sm font-medium text-nav-plum/70">Subtotal</span>
-          <span className="text-lg font-semibold text-nav-amethyst-deep">{formatInr(order.subtotal)}</span>
+        <div className="mt-4 flex flex-col gap-1.5 border-t border-nav-lavender-line pt-3 text-sm">
+          <div className="flex items-center justify-between text-nav-plum/70">
+            <span>Subtotal</span>
+            <span>{formatInr(order.subtotal)}</span>
+          </div>
+          {order.productDiscount > 0 && (
+            <div className="flex items-center justify-between text-nav-plum/70">
+              <span>Product Discount</span>
+              <span>−{formatInr(order.productDiscount)}</span>
+            </div>
+          )}
+          {order.couponDiscount > 0 && (
+            <div className="flex items-center justify-between text-nav-plum/70">
+              <span>Coupon{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+              <span>−{formatInr(order.couponDiscount)}</span>
+            </div>
+          )}
+          {order.tax > 0 && (
+            <div className="flex items-center justify-between text-nav-plum/70">
+              <span>Tax</span>
+              <span>{formatInr(order.tax)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between text-nav-plum/70">
+            <span>Delivery</span>
+            <span>{order.deliveryFee > 0 ? formatInr(order.deliveryFee) : "Free"}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between border-t border-nav-lavender-line pt-2">
+            <span className="font-medium text-nav-plum/70">Total</span>
+            {/* order.total is undefined for any order placed before the
+                pricing-breakdown upgrade — fall back to subtotal so an
+                old order still shows a real number instead of "₹undefined". */}
+            <span className="text-lg font-semibold text-nav-amethyst-deep">{formatInr(order.total ?? order.subtotal)}</span>
+          </div>
         </div>
       </section>
 

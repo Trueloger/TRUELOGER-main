@@ -51,6 +51,12 @@ export type GemstoneCategory =
   | "blue-sapphire"
   | "hessonite"
   | "cats-eye"
+  /** Every gemstone added beyond the original eight (Moonstone, Opal,
+   * Amethyst, etc.) — this field only ever drove a handful of internal
+   * grouping/label spots in the original 8-gemstone UI, so a shared
+   * bucket for "everything else" is sufficient rather than a bespoke
+   * literal per new stone. */
+  | "other"
   /** Not a real gemstone — a ₹1 line item that exists solely to test
    * the Cashfree checkout flow end-to-end cheaply. See its entry in
    * gemstone-data.ts for the full disclosure/labeling requirements. */

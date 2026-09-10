@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getGemstoneById, getAllGemstoneSlugs } from "@/lib/gemstones/gemstone-data";
+import { getPublishedProductBySlug, listPublishedProducts } from "@/lib/products/store";
+import { toGemstoneProduct } from "@/lib/products/gemstone-adapter";
 import { GemstoneGallery } from "@/components/gemstones/GemstoneGallery";
 import { GemstoneRattiSelector } from "@/components/gemstones/GemstoneRattiSelector";
 import { FaqAccordion } from "@/components/consult/FaqAccordion";
@@ -11,14 +12,21 @@ const GEMSTONE_DISCLAIMER =
   "Gemstones are traditionally associated with astrological and spiritual practices. Suitability can vary based on an individual's birth chart. Consider consulting a qualified astrologer before selecting a gemstone or wearing weight.";
 
 /** One shared template for every gemstone product subpage
- * (/gemstones/[slug]) — statically generated for all 8 products from
- * the shared catalogue in gemstone-data.ts. Server component: the data
- * lookup and every static section render here, mirroring
+ * (/gemstones/[slug]) — statically generated at build time for every
+ * currently-published gemstone from the Firestore product store, with
+ * `dynamicParams` left at its Next.js default (true) so a gemstone the
+ * admin publishes AFTER a deploy still resolves on demand instead of
+ * 404ing. Re-checked at most every 5 minutes (see `revalidate`) so an
+ * admin edit/archive shows up without a redeploy. Server component: the
+ * data lookup and every static section render here, mirroring
  * src/app/consult/[slug]/page.tsx's server/client split — only the
  * gallery and the Ratti selector/pricing/Add to Cart block need client
  * state, delegated to their own small client components. */
+export const revalidate = 300;
+
 export async function generateStaticParams() {
-  return getAllGemstoneSlugs().map((slug) => ({ slug }));
+  const products = await listPublishedProducts("gemstone");
+  return products.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({
@@ -27,8 +35,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const product = getGemstoneById(slug);
-  if (!product) return {};
+  const product = await getPublishedProductBySlug(slug);
+  if (!product || product.category !== "gemstone") return {};
   return {
     title: product.seo.title,
     description: product.seo.description,
@@ -41,8 +49,9 @@ export default async function GemstonePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = getGemstoneById(slug);
-  if (!product) notFound();
+  const raw = await getPublishedProductBySlug(slug);
+  if (!raw || raw.category !== "gemstone") notFound();
+  const product = toGemstoneProduct(raw);
 
   const wearingInfo: { label: string; value: string }[] = [
     { label: "Ruling Planet", value: product.rulingPlanet },

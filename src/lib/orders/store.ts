@@ -7,6 +7,8 @@
 import { getAdminApp } from "@/lib/firebase-admin";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import type { Order, OrderLineItem, PaymentStatus, FulfillmentStatus } from "./types";
+import type { CartPricingResult } from "@/lib/pricing/calculate";
+import { recordRedemption } from "@/lib/coupons/store";
 
 const COLLECTION = "orders";
 
@@ -21,7 +23,7 @@ export async function createPendingOrder(input: {
   customerName?: string;
   customerPhone?: string;
   items: OrderLineItem[];
-  subtotal: number;
+  pricing: CartPricingResult;
 }): Promise<Order> {
   const now = Date.now();
   const order: Order = {
@@ -31,7 +33,15 @@ export async function createPendingOrder(input: {
     customerName: input.customerName,
     customerPhone: input.customerPhone,
     items: input.items,
-    subtotal: input.subtotal,
+    subtotal: input.pricing.subtotal,
+    productDiscount: input.pricing.productDiscount,
+    couponCode: input.pricing.couponCode,
+    couponDiscount: input.pricing.couponDiscount,
+    taxableAmount: input.pricing.taxableAmount,
+    tax: input.pricing.tax,
+    taxBreakdown: input.pricing.taxBreakdown,
+    deliveryFee: input.pricing.deliveryFee,
+    total: input.pricing.total,
     currency: "INR",
     paymentStatus: "CREATED",
     fulfillmentStatus: "AWAITING_PAYMENT",
@@ -79,16 +89,18 @@ export async function applyPaymentStatus(
   eventId: string,
 ): Promise<Order | null> {
   const ref = db().collection(COLLECTION).doc(orderId);
-  return db().runTransaction(async (tx) => {
+
+  const { order: result, justPaid } = await db().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists) return null;
+    if (!snap.exists) return { order: null, justPaid: false };
     const order = snap.data() as Order;
 
     if (order.lastCashfreeEventId === eventId) {
       // Exact same webhook delivery already processed — no-op.
-      return order;
+      return { order, justPaid: false };
     }
 
+    const wasAlreadyPaid = order.paymentStatus === "PAID";
     const alreadyTerminal = TERMINAL_PAYMENT_STATUSES.includes(order.paymentStatus);
     if (alreadyTerminal && order.paymentStatus !== nextStatus) {
       // Once a terminal outcome is recorded, a DIFFERENT terminal
@@ -99,7 +111,7 @@ export async function applyPaymentStatus(
       // the attempted event id (without changing status) at least
       // leaves a trace for that investigation.
       await ref.update({ lastCashfreeEventId: eventId, updatedAt: Date.now() });
-      return order;
+      return { order, justPaid: false };
     }
 
     const fulfillmentStatus: FulfillmentStatus =
@@ -116,8 +128,26 @@ export async function applyPaymentStatus(
       updatedAt: Date.now(),
     };
     await ref.update(updated);
-    return { ...order, ...updated } as Order;
+    // justPaid is true ONLY on the transition INTO PAID that this
+    // exact call performs — never true again for the same order on any
+    // later call (whether a duplicate event, a same-status repeat, or
+    // a different terminal status arriving after), which is what makes
+    // the coupon-redemption hook below safe to call unconditionally
+    // whenever this flag is set.
+    return { order: { ...order, ...updated } as Order, justPaid: nextStatus === "PAID" && !wasAlreadyPaid };
   });
+
+  if (result && justPaid && result.couponCode) {
+    // Coupon usage is only ever consumed once an order actually
+    // reaches PAID (the "abandoned checkout must not permanently
+    // consume a redemption" requirement) — run OUTSIDE the order's own
+    // transaction above (a second, independent transaction inside
+    // recordRedemption) since it touches a different document subtree.
+    // `justPaid` above guarantees this runs at most once per order.
+    await recordRedemption(result.couponCode, result.userId).catch(() => {});
+  }
+
+  return result;
 }
 
 export async function updateFulfillmentStatus(
