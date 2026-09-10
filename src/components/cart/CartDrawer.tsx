@@ -6,10 +6,15 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { formatInr } from "@/lib/consultation/pricing";
+import { CouponSelector } from "./CouponSelector";
+import { PriceBreakdown } from "./PriceBreakdown";
+import type { CartPricingResult } from "@/lib/pricing/calculate";
 
 export function CartDrawer() {
   const { items, subtotal, removeLine, isOpen, closeCart } = useCart();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [pricing, setPricing] = useState<CartPricingResult | null>(null);
   // Two-phase mount: render off-screen first, then flip to the resting
   // transform on the next frame so the transform transition actually
   // animates instead of snapping in already-settled.
@@ -95,11 +100,17 @@ export function CartDrawer() {
               </Link>
             </div>
           ) : (
-            <ul className="flex flex-col gap-3">
-              {items.map((item) => (
-                <CartLineRow key={item.id} item={item} onRemove={() => removeLine(item.id)} />
-              ))}
-            </ul>
+            <>
+              <ul className="flex flex-col gap-3">
+                {items.map((item) => (
+                  <CartLineRow key={item.id} item={item} onRemove={() => removeLine(item.id)} />
+                ))}
+              </ul>
+              <div className="mt-5 flex flex-col gap-4 border-t border-nav-lavender-line pt-4">
+                <CouponSelector items={items} subtotal={subtotal} value={couponCode} onChange={setCouponCode} />
+                <PriceBreakdown items={items} couponCode={couponCode || undefined} onPricingResolved={setPricing} />
+              </div>
+            </>
           )}
         </div>
 
@@ -107,9 +118,9 @@ export function CartDrawer() {
         {items.length > 0 && (
           <div className="shrink-0 border-t border-nav-lavender-line bg-nav-pearl px-5 py-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-medium text-nav-plum">Subtotal</span>
+              <span className="text-sm font-medium text-nav-plum">Total</span>
               <span className="font-serif text-lg font-semibold text-nav-amethyst-deep">
-                ₹{subtotal.toLocaleString("en-IN")}
+                {formatInr(pricing?.total ?? subtotal)}
               </span>
             </div>
             <Link

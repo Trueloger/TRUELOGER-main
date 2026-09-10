@@ -23,13 +23,15 @@ export async function getCoupon(rawCode: string): Promise<Coupon | null> {
  * restriction and per-user/global usage limits are checked separately
  * (see checkCouponEligibility + redemption counts) since those need
  * the actual cart contents / calling user, not just the date window. */
+/** Filters the date window in-memory rather than via a second `where`
+ * clause — a `==` filter plus a `>=` range filter on a different field
+ * needs a Firestore composite index, which this small (dozens, not
+ * thousands) coupon collection doesn't warrant depending on. */
 export async function listActiveCoupons(now: number = Date.now()): Promise<Coupon[]> {
-  const snap = await db()
-    .collection(COLLECTION)
-    .where("active", "==", true)
-    .where("endDate", ">=", now)
-    .get();
-  return snap.docs.map((d) => d.data() as Coupon).filter((c) => c.startDate <= now);
+  const snap = await db().collection(COLLECTION).where("active", "==", true).get();
+  return snap.docs
+    .map((d) => d.data() as Coupon)
+    .filter((c) => c.startDate <= now && c.endDate >= now);
 }
 
 export async function listAllCouponsForAdmin(): Promise<Coupon[]> {

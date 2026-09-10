@@ -16,13 +16,16 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Menu, PackageSearch, Users, X, LogOut } from "lucide-react";
+import { LayoutDashboard, Menu, PackageSearch, Users, X, LogOut, Gem, Tag, Settings } from "lucide-react";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { useAuth } from "@/context/AuthContext";
 
 const NAV_LINKS = [
   { href: "/admin", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/admin/orders", label: "Orders", Icon: PackageSearch },
+  { href: "/admin/products", label: "Products", Icon: Gem },
+  { href: "/admin/coupons", label: "Coupons", Icon: Tag },
+  { href: "/admin/settings", label: "Settings", Icon: Settings },
   { href: "/admin/users", label: "Users", Icon: Users },
 ] as const;
 

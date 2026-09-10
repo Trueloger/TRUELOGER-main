@@ -17,6 +17,10 @@ import { useCart, type CartItem } from "@/context/CartContext";
 import { formatInr } from "@/lib/consultation/pricing";
 import { useAuth } from "@/context/AuthContext";
 import { authedFetch } from "@/lib/auth/authed-fetch";
+import { CouponSelector } from "@/components/cart/CouponSelector";
+import { PriceBreakdown } from "@/components/cart/PriceBreakdown";
+import { cartItemToLineHint } from "@/components/cart/cartLines";
+import type { CartPricingResult } from "@/lib/pricing/calculate";
 
 declare global {
   interface Window {
@@ -26,16 +30,6 @@ declare global {
   }
 }
 
-function cartItemToLineHint(item: CartItem) {
-  if (item.type === "gemstone" && item.meta && "productId" in item.meta) {
-    return { category: "gemstone", productId: item.meta.productId, ratti: item.meta.ratti, quantity: item.quantity };
-  }
-  if (item.type === "consultation" && item.meta && "serviceId" in item.meta) {
-    return { category: "consultation", serviceId: item.meta.serviceId, duration: item.meta.duration, quantity: item.quantity };
-  }
-  return null;
-}
-
 export default function CheckoutPage() {
   const { items, subtotal } = useCart();
   const { currentUser, loading } = useAuth();
@@ -43,6 +37,8 @@ export default function CheckoutPage() {
   const [sdkReady, setSdkReady] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [pricing, setPricing] = useState<CartPricingResult | null>(null);
   const paying = useRef(false); // guards against a double-click firing two payment attempts
 
   useEffect(() => {
@@ -66,7 +62,7 @@ export default function CheckoutPage() {
 
       const res = await authedFetch("/api/payments/create-order", {
         method: "POST",
-        body: JSON.stringify({ lines }),
+        body: JSON.stringify({ lines, couponCode: couponCode || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.paymentSessionId) {
@@ -134,12 +130,10 @@ export default function CheckoutPage() {
         ))}
       </ul>
 
-      <div className="mt-6 rounded-xl border border-nav-lavender-line bg-nav-pearl px-5 py-4">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-nav-plum">Subtotal</span>
-          <span className="font-serif text-xl font-semibold text-nav-amethyst-deep">
-            {formatInr(subtotal)}
-          </span>
+      <div className="mt-6 flex flex-col gap-4 rounded-xl border border-nav-lavender-line bg-nav-pearl px-5 py-4">
+        <CouponSelector items={items} subtotal={subtotal} value={couponCode} onChange={setCouponCode} />
+        <div className="border-t border-nav-lavender-line pt-4">
+          <PriceBreakdown items={items} couponCode={couponCode || undefined} onPricingResolved={setPricing} />
         </div>
       </div>
 
@@ -152,7 +146,7 @@ export default function CheckoutPage() {
       <button
         type="button"
         onClick={handlePay}
-        disabled={submitting}
+        disabled={submitting || !pricing}
         className="mt-6 flex w-full items-center justify-center rounded-full bg-nav-amethyst px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst focus-visible:ring-offset-2 focus-visible:ring-offset-nav-pearl"
       >
         {submitting ? "Starting payment…" : "Pay Securely"}

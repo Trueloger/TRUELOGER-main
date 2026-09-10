@@ -16,6 +16,21 @@ export type GemstoneCartMeta = {
   ratti: number;
 };
 
+/** Cart-line metadata for the 4 non-gemstone product categories
+ * (bracelet/rudraksha/spiritual/yantra) added by the catalogue
+ * expansion — gemstones keep using GemstoneCartMeta (ratti-specific,
+ * already wired through every existing gemstone UI component) rather
+ * than being folded into this shape, so nothing already shipped needs
+ * to change. `category` mirrors src/lib/products/types.ts's
+ * ProductCategory minus "gemstone". */
+export type ProductCartMeta = {
+  category: "bracelet" | "rudraksha" | "spiritual" | "yantra";
+  productId: string;
+  productName: string;
+  variantId: string;
+  variantLabel: string;
+};
+
 export type CartItem = {
   /** Unique cart line identity. A physical product uses its own product
    * id directly (unchanged legacy behavior); a consultation uses
@@ -47,7 +62,7 @@ export type CartItem = {
    * than flattened onto CartItem) so a future second variant dimension
    * (expert, language, mode, gemstone treatment) can be added to either
    * shape without another top-level CartItem field. */
-  meta?: ConsultationCartMeta | GemstoneCartMeta;
+  meta?: ConsultationCartMeta | GemstoneCartMeta | ProductCartMeta;
 };
 
 type AddCartItemInput = {
