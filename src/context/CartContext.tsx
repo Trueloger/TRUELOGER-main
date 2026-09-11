@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-export type CartItemType = "product" | "consultation" | "gemstone" | "report";
+export type CartItemType = "product" | "consultation" | "gemstone" | "report" | "service";
 
 export type ConsultationCartMeta = {
   serviceId: string;
@@ -39,6 +39,16 @@ export type ReportCartMeta = {
   reportName: string;
 };
 
+/** Cart-line metadata for Healing / Puja / Course purchases — the
+ * shared "simple service" model (src/lib/services/types.ts). One line
+ * per booking/enrollment, always quantity 1, same shape for all three
+ * categories since they're commercially identical. */
+export type ServiceCartMeta = {
+  category: "healing" | "puja" | "course";
+  productId: string;
+  productName: string;
+};
+
 export type CartItem = {
   /** Unique cart line identity. A physical product uses its own product
    * id directly (unchanged legacy behavior); a consultation uses
@@ -70,7 +80,7 @@ export type CartItem = {
    * than flattened onto CartItem) so a future second variant dimension
    * (expert, language, mode, gemstone treatment) can be added to either
    * shape without another top-level CartItem field. */
-  meta?: ConsultationCartMeta | GemstoneCartMeta | ProductCartMeta | ReportCartMeta;
+  meta?: ConsultationCartMeta | GemstoneCartMeta | ProductCartMeta | ReportCartMeta | ServiceCartMeta;
 };
 
 type AddCartItemInput = {

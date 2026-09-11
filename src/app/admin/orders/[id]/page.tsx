@@ -13,8 +13,25 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { formatInr } from "@/lib/consultation/pricing";
-import { orderCategories, type FulfillmentStatus, type Order } from "@/lib/orders/types";
+import { orderCategories, type FulfillmentStatus, type Order, type OrderLineItem } from "@/lib/orders/types";
 import { PaymentBadge } from "../page";
+
+/** Plain-if (not a ternary chain) so TS narrows the OrderLineItem
+ * discriminated union cleanly at each step — a ternary chain checking
+ * `item.category === "healing" || item.category === "puja" || ...`
+ * doesn't narrow `item` in the same way across branches. */
+function lineItemDetail(item: OrderLineItem): string {
+  if (item.category === "consultation") return `${item.duration} min · Qty ${item.quantity}`;
+  if (item.category === "report") return `Personalized report · Qty ${item.quantity}`;
+  if (item.category === "healing") return `Healing session · Qty ${item.quantity}`;
+  if (item.category === "puja") return `Puja booking · Qty ${item.quantity}`;
+  if (item.category === "course") return `Course enrollment · Qty ${item.quantity}`;
+  // Remaining member is the physical-product variant — checked via
+  // structural "in" rather than further category-literal elimination,
+  // which TS doesn't narrow away cleanly here.
+  if ("variantLabel" in item) return `${item.ratti ? `${item.ratti} Ratti` : item.variantLabel} · Qty ${item.quantity}`;
+  return `Qty ${item.quantity}`;
+}
 
 type LoadState =
   | { status: "loading" }
@@ -174,13 +191,7 @@ export default function AdminOrderDetailPage() {
                 <p className="font-medium text-nav-violet">
                   {item.category === "consultation" ? item.serviceName : item.productName}
                 </p>
-                <p className="text-xs text-nav-plum/60">
-                  {item.category === "consultation"
-                    ? `${item.duration} min · Qty ${item.quantity}`
-                    : item.category === "report"
-                      ? `Personalized report · Qty ${item.quantity}`
-                      : `${item.ratti ? `${item.ratti} Ratti` : item.variantLabel} · Qty ${item.quantity}`}
-                </p>
+                <p className="text-xs text-nav-plum/60">{lineItemDetail(item)}</p>
               </div>
               <span className="font-semibold text-nav-amethyst-deep">{formatInr(item.lineTotal)}</span>
             </li>

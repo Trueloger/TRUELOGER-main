@@ -93,7 +93,7 @@ export const QUICK_SERVICES: QuickService[] = [
   },
   {
     id: "free-services",
-    title: "Free Services",
+    title: "Tools",
     description: "Explore all our free astrology tools",
     href: "/free-services",
     Icon: FreeServicesGridIcon,

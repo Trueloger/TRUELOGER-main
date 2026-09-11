@@ -27,6 +27,8 @@ import { getTaxSettings, getDeliverySettings } from "@/lib/settings/store";
 import { calculateCartPricing, type CartPricingResult } from "@/lib/pricing/calculate";
 import { getReportProduct } from "@/lib/reports/store";
 import { buildReportProfileSnapshot } from "@/lib/reports/profile-snapshot";
+import { getServiceProduct } from "@/lib/services/store";
+import type { ServiceCategory } from "@/lib/services/types";
 import type { OrderLineItem } from "./types";
 
 const PRODUCT_CATEGORIES: ProductCategory[] = ["gemstone", "bracelet", "rudraksha", "spiritual", "yantra"];
@@ -34,7 +36,10 @@ const PRODUCT_CATEGORIES: ProductCategory[] = ["gemstone", "bracelet", "rudraksh
 export type CartLineHint =
   | { category: ProductCategory; productId: string; variantId?: string; ratti?: number; quantity?: number }
   | { category: "consultation"; serviceId: string; duration: number; quantity?: number }
-  | { category: "report"; productId: string; quantity?: number };
+  | { category: "report"; productId: string; quantity?: number }
+  | { category: "healing" | "puja" | "course"; productId: string; quantity?: number };
+
+const SIMPLE_SERVICE_CATEGORIES: ServiceCategory[] = ["healing", "puja", "course"];
 
 export type ResolveCartResult =
   | {
@@ -81,6 +86,23 @@ async function resolveOneLine(raw: unknown, uid: string | undefined): Promise<Or
       unitSalePrice: product.salePrice,
       discountPercent: product.discountPercent,
       lineTotal: product.salePrice,
+    };
+  }
+
+  if (typeof hint.category === "string" && SIMPLE_SERVICE_CATEGORIES.includes(hint.category as ServiceCategory)) {
+    if (typeof hint.productId !== "string") return { error: "Invalid item." };
+    const product = await getServiceProduct(hint.category as ServiceCategory, hint.productId);
+    if (!product || !product.active) return { error: "This service is no longer available." };
+    return {
+      category: hint.category as "healing" | "puja" | "course",
+      productId: product.slug,
+      productName: product.name,
+      quantity: 1, // one booking/enrollment per line, matching the report line-item convention
+      unitMrp: product.mrp,
+      unitSalePrice: product.salePrice,
+      discountPercent: product.discountPercent,
+      lineTotal: product.salePrice,
+      deliveryTime: product.deliveryTime,
     };
   }
 

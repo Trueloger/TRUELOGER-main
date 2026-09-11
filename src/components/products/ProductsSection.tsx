@@ -22,9 +22,30 @@ import { GemstoneCarousel } from "@/components/gemstones/GemstoneCarousel";
  * lg (matching /gemstones' own desktop grid) so all eight products lay
  * out as two even rows of four.
  */
+// The 8 canonical gemstones shown on the homepage showcase — the
+// catalogue itself (src/lib/gemstones/gemstone-data.ts +
+// scripts/dev/seed-products.ts) has grown to include several
+// substitute/alternative stones (Moonstone, Rose Quartz, etc.) that
+// stay fully browsable on /gemstones and its product pages, but are
+// deliberately excluded here so the homepage keeps exactly these 8
+// primary Navaratna stones, per the "homepage should show exactly
+// eight cards" requirement — this does NOT delete anything from the
+// catalogue, it only filters what's shown on this one section.
+const HOMEPAGE_GEMSTONE_SLUGS = [
+  "ruby",
+  "pearl",
+  "red-coral",
+  "emerald",
+  "yellow-sapphire",
+  "blue-sapphire",
+  "hessonite",
+  "cats-eye",
+];
+
 export async function ProductsSection() {
   const products = (await listPublishedProducts("gemstone"))
-    .filter((p) => p.slug !== "test-payment")
+    .filter((p) => HOMEPAGE_GEMSTONE_SLUGS.includes(p.slug))
+    .sort((a, b) => HOMEPAGE_GEMSTONE_SLUGS.indexOf(a.slug) - HOMEPAGE_GEMSTONE_SLUGS.indexOf(b.slug))
     .map(toGemstoneProduct);
 
   return (

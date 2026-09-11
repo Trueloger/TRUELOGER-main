@@ -63,6 +63,9 @@ const CATEGORY_LABELS: Record<OrderItemCategory, string> = {
   yantra: "Yantras",
   consultation: "Consultations",
   report: "Personalized Reports",
+  healing: "Healing",
+  puja: "Puja",
+  course: "Courses",
 };
 
 function statusesForFilter(filter: PaymentFilter): PaymentStatus[] {

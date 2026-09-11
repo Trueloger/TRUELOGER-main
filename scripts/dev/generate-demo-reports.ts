@@ -58,27 +58,42 @@ async function generateOne(type: ReportType) {
   for (const spec of sectionBlueprint.sections) {
     process.stdout.write(`  - ${spec.title}... `);
     const t0 = Date.now();
-    try {
-      const content = await generatePaidReportSection({
-        reportTypeName: productBlueprint.name,
-        sectionTitle: spec.title,
-        instructions: spec.instructions,
-        relevantData: pickSnapshotData(snapshot, spec.dataKeys),
-        personName: SAMPLE_PROFILE.fullName,
-        targetWords: spec.targetWords,
-        includeRemedies: spec.includeRemedies,
-      });
-      sections.push({
-        id: spec.id,
-        title: spec.title,
-        content,
-        estimatedPages: estimateSectionPages(content),
-        generatedAt: Date.now(),
-      });
-      console.log(`ok (${Date.now() - t0}ms)`);
-    } catch (err) {
-      console.log(`FAILED: ${err instanceof Error ? err.message : err}`);
-      throw err;
+    // Section-level retry (dev script only) — mirrors generate.ts's
+    // real pipeline policy of retrying just the failed section, never
+    // the whole report. Bounded at 3 attempts, not infinite.
+    const MAX_ATTEMPTS = 3;
+    let lastErr: unknown;
+    let ok = false;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS && !ok; attempt++) {
+      try {
+        const content = await generatePaidReportSection({
+          reportTypeName: productBlueprint.name,
+          sectionTitle: spec.title,
+          instructions: spec.instructions,
+          relevantData: pickSnapshotData(snapshot, spec.dataKeys),
+          personName: SAMPLE_PROFILE.fullName,
+          targetWords: spec.targetWords,
+          includeRemedies: spec.includeRemedies,
+        });
+        sections.push({
+          id: spec.id,
+          title: spec.title,
+          content,
+          estimatedPages: estimateSectionPages(content),
+          generatedAt: Date.now(),
+        });
+        console.log(`ok (${Date.now() - t0}ms)${attempt > 1 ? ` [attempt ${attempt}]` : ""}`);
+        ok = true;
+      } catch (err) {
+        lastErr = err;
+        if (attempt < MAX_ATTEMPTS) {
+          process.stdout.write(`retry ${attempt} (${err instanceof Error ? err.message : err})... `);
+        }
+      }
+    }
+    if (!ok) {
+      console.log(`FAILED after ${MAX_ATTEMPTS} attempts: ${lastErr instanceof Error ? lastErr.message : lastErr}`);
+      throw lastErr;
     }
   }
 

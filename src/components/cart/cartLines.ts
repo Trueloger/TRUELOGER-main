@@ -10,7 +10,8 @@ export type CartLineHint =
   | { category: string; productId: string; ratti: number; quantity: number }
   | { category: string; serviceId: string; duration: number; quantity: number }
   | { category: string; productId: string; variantId: string; quantity: number }
-  | { category: "report"; productId: string; quantity: number };
+  | { category: "report"; productId: string; quantity: number }
+  | { category: "healing" | "puja" | "course"; productId: string; quantity: number };
 
 /** Converts one cart line into the `{category, productId|serviceId,
  * variantId|ratti|duration, quantity}` hint shape POSTed as `lines` to
@@ -35,6 +36,10 @@ export function cartItemToLineHint(item: CartItem): CartLineHint | null {
   }
   if (item.type === "report" && item.meta && "reportSlug" in item.meta) {
     return { category: "report", productId: item.meta.reportSlug, quantity: item.quantity };
+  }
+  if (item.type === "service" && item.meta && "category" in item.meta && "productId" in item.meta) {
+    const meta = item.meta as { category: "healing" | "puja" | "course"; productId: string };
+    return { category: meta.category, productId: meta.productId, quantity: item.quantity };
   }
   return null;
 }
@@ -66,6 +71,9 @@ export function cartItemsToCategoriesAndProductIds(items: CartItem[]): {
     } else if (item.type === "report" && item.meta && "reportSlug" in item.meta) {
       categories.add("report");
       productIds.add(item.meta.reportSlug);
+    } else if (item.type === "service" && item.meta && "category" in item.meta) {
+      categories.add(item.meta.category);
+      productIds.add(item.meta.productId);
     }
   }
   return { categories: Array.from(categories), productIds: Array.from(productIds) };

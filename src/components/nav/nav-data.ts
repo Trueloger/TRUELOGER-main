@@ -7,6 +7,8 @@ import {
   Flame,
   BookOpen,
   ShoppingBag,
+  Sparkles,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -82,7 +84,12 @@ export const NAV_ITEMS: NavItem[] = [
     ]),
   },
   {
-    label: "Free Services",
+    // Label is "Tools" per the site-wide "Free Services" -> "Tools"
+    // terminology change — the underlying route (/free-services) is
+    // deliberately unchanged (this is a user-facing label rename, not
+    // a route rename, per the spec's own "do not rename actual routes
+    // unless necessary" instruction).
+    label: "Tools",
     href: "/free-services",
     icon: Gift,
     children: [
@@ -122,16 +129,49 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    label: "Healing",
+    href: "/healing",
+    icon: Sparkles,
+    // Real names/hrefs from src/lib/services/data/healing.ts (which
+    // mirrors the homepage's own HEALING_SERVICES copy exactly).
+    children: [
+      { label: "Chakra Healing", href: "/healing/chakra-healing" },
+      { label: "Aura Cleansing", href: "/healing/aura-cleansing" },
+      { label: "Relationship Healing", href: "/healing/relationship-healing" },
+      { label: "Money Healing", href: "/healing/money-healing" },
+    ],
+  },
+  {
+    // The actual 6 Puja services offered on the homepage (see
+    // src/components/puja/puja-data.ts / src/lib/services/data/puja.ts)
+    // — replacing the earlier placeholder category-label children that
+    // pointed nowhere real.
     label: "Puja",
     href: "/puja",
     icon: Flame,
-    children: childrenFrom("/puja", [
-      "Popular Pujas",
-      "Dosha Remedies",
-      "Planetary Pujas",
-      "Festival Pujas",
-      "Special Pujas",
-    ]),
+    children: [
+      { label: "Ganesh Puja", href: "/puja/ganesh-puja" },
+      { label: "Lakshmi Puja", href: "/puja/lakshmi-puja" },
+      { label: "Navgraha Puja", href: "/puja/navgraha-puja" },
+      { label: "Rudrabhishek Puja", href: "/puja/rudrabhishek-puja" },
+      { label: "Grah Shanti Puja", href: "/puja/grah-shanti-puja" },
+      { label: "Maha Mrityunjaya Puja", href: "/puja/maha-mrityunjaya-puja" },
+    ],
+  },
+  {
+    label: "Courses",
+    href: "/courses",
+    icon: GraduationCap,
+    children: [
+      { label: "Vedic Astrology Fundamentals", href: "/courses/vedic-astrology-fundamentals" },
+      { label: "Advanced Vedic Astrology", href: "/courses/advanced-vedic-astrology" },
+      { label: "Numerology Foundations", href: "/courses/numerology-foundations" },
+      { label: "Tarot Reading Mastery", href: "/courses/tarot-reading-mastery" },
+      { label: "Vastu Shastra Essentials", href: "/courses/vastu-shastra-essentials" },
+      { label: "Palmistry: Reading the Hand", href: "/courses/palmistry-reading-the-hand" },
+      { label: "Spiritual Healing & Energy Healing", href: "/courses/energy-healing-practitioner" },
+      { label: "Astrology for Career & Finance", href: "/courses/astrology-for-career-finance" },
+    ],
   },
   {
     label: "Library",

@@ -46,7 +46,7 @@ import type { ProductCategory } from "@/lib/products/types";
  * "consultation" — this is the FULL taxonomy the admin Orders category
  * tabs are built from (see ORDER_ITEM_CATEGORIES below), not a
  * hardcoded subset. */
-export type OrderItemCategory = ProductCategory | "consultation" | "report";
+export type OrderItemCategory = ProductCategory | "consultation" | "report" | "healing" | "puja" | "course";
 
 /** A line-item SNAPSHOT taken at checkout time — deliberately NOT a
  * live reference to product/service data, so a later admin price
@@ -101,6 +101,22 @@ export type OrderLineItem =
       unitSalePrice: number;
       discountPercent: number;
       lineTotal: number;
+    }
+  | {
+      /** Healing / Puja / Courses — the shared "simple service" model
+       * (src/lib/services/types.ts). One shape covers all three since
+       * they're commercially identical (fixed price, no variant, no
+       * profile snapshot) — see AGENTS/spec "one extensible service
+       * model, not three duplicated ones." */
+      category: "healing" | "puja" | "course";
+      productId: string; // service slug
+      productName: string;
+      quantity: number;
+      unitMrp: number;
+      unitSalePrice: number;
+      discountPercent: number;
+      lineTotal: number;
+      deliveryTime: string;
     };
 
 export type Order = {
@@ -163,6 +179,9 @@ export const ORDER_ITEM_CATEGORIES: OrderItemCategory[] = [
   "yantra",
   "consultation",
   "report",
+  "healing",
+  "puja",
+  "course",
 ];
 
 /** True once every line in the order is one specific category — used

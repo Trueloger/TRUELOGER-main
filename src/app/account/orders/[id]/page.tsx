@@ -236,6 +236,34 @@ function LineItemRow({ item }: { item: OrderLineItem }) {
       </div>
     );
   }
+  if (item.category === "healing" || item.category === "puja" || item.category === "course") {
+    const label = item.category === "healing" ? "Healing session" : item.category === "puja" ? "Puja booking" : "Course enrollment";
+    return (
+      <div className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
+        <div>
+          <p className="text-sm font-medium text-nav-violet">{item.productName}</p>
+          <p className="mt-0.5 text-xs text-nav-plum/60">{label} · Qty {item.quantity}</p>
+        </div>
+        <div className="text-right">
+          {item.discountPercent > 0 && (
+            <p className="text-xs text-nav-plum/50 line-through">{formatInr(item.unitMrp)}</p>
+          )}
+          <p className="text-sm font-semibold text-nav-amethyst-deep">{formatInr(item.lineTotal)}</p>
+        </div>
+      </div>
+    );
+  }
+  // Remaining member is the physical-product variant — "in" is used
+  // here rather than further category-literal elimination, which TS
+  // doesn't narrow away cleanly across this many union members.
+  if (!("variantLabel" in item)) {
+    return (
+      <div className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
+        <p className="text-sm font-medium text-nav-violet">Item · Qty {item.quantity}</p>
+        <p className="text-sm font-semibold text-nav-amethyst-deep">{formatInr(item.lineTotal)}</p>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
       <div>

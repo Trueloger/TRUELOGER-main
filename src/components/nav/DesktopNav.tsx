@@ -93,6 +93,12 @@ export function DesktopNav() {
       </ul>
 
       <div className="ml-2 flex items-center gap-2">
+        <Link
+          href="/register-as-astrologer"
+          className="hidden items-center gap-2 rounded-full border border-nav-gold/60 bg-nav-gold/10 px-3.5 py-2 text-sm font-medium text-nav-amethyst-deep transition-colors duration-200 hover:bg-nav-gold/20 xl:flex"
+        >
+          Register as an Astrologer
+        </Link>
         <MallControl
           open={openKey === MALL_ITEM.label}
           onOpen={() => openItem(MALL_ITEM.label)}

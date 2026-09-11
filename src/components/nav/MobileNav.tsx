@@ -143,6 +143,16 @@ export function MobileMenuPanel({ open, onClose }: { open: boolean; onClose: () 
             ))}
           </ul>
 
+          <div className="px-3 pt-1">
+            <Link
+              href="/register-as-astrologer"
+              onClick={onClose}
+              className="flex min-h-[48px] w-full items-center justify-center rounded-full border border-nav-gold/60 bg-nav-gold/10 px-4 text-[0.95rem] font-medium text-nav-amethyst-deep transition-colors duration-200 hover:bg-nav-gold/20"
+            >
+              Register as an Astrologer
+            </Link>
+          </div>
+
           <div className="mx-3 my-3 h-px bg-nav-lavender-line" />
 
           <ul className="flex flex-col gap-0.5 pb-2">
