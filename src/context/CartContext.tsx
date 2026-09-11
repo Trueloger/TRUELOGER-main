@@ -8,6 +8,14 @@ export type ConsultationCartMeta = {
   serviceId: string;
   serviceName: string;
   duration: number;
+  /** Preferred appointment date/time, chosen BEFORE the item is added
+   * to the cart (per the "ask date/time before cart" requirement) —
+   * "YYYY-MM-DD" / "HH:mm" in BUSINESS_TIMEZONE
+   * (src/lib/consultation/availability.ts), server-revalidated at
+   * checkout, never trusted as final here. */
+  preferredDate: string;
+  preferredTime: string;
+  timezone: string;
 };
 
 export type GemstoneCartMeta = {

@@ -83,6 +83,13 @@ export type OrderLineItem =
       quantity: number;
       unitPrice: number;
       lineTotal: number;
+      /** Preferred appointment date/time, validated server-side at
+       * order-creation time (src/lib/consultation/availability.ts) —
+       * see AGENTS "ask date/time before cart". Optional for backward
+       * compatibility with orders placed before this field existed. */
+      preferredDate?: string;
+      preferredTime?: string;
+      timezone?: string;
     }
   | {
       category: "report";

@@ -21,7 +21,10 @@ import { PaymentBadge } from "../page";
  * `item.category === "healing" || item.category === "puja" || ...`
  * doesn't narrow `item` in the same way across branches. */
 function lineItemDetail(item: OrderLineItem): string {
-  if (item.category === "consultation") return `${item.duration} min · Qty ${item.quantity}`;
+  if (item.category === "consultation") {
+    const when = item.preferredDate && item.preferredTime ? ` · ${item.preferredDate} ${item.preferredTime}` : "";
+    return `${item.duration} min · Qty ${item.quantity}${when}`;
+  }
   if (item.category === "report") return `Personalized report · Qty ${item.quantity}`;
   if (item.category === "healing") return `Healing session · Qty ${item.quantity}`;
   if (item.category === "puja") return `Puja booking · Qty ${item.quantity}`;

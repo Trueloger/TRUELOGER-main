@@ -19,6 +19,7 @@
 // category-specific "ratti-only" path in the resolver itself, only in
 // this one input-normalization step.
 import { getConsultationPrice, validateDuration } from "@/lib/consultation/pricing";
+import { validateDateTime, BUSINESS_TIMEZONE } from "@/lib/consultation/availability";
 import { getServiceById } from "@/lib/consultation/services-data";
 import { getProductById } from "@/lib/products/store";
 import { findVariant, variantDiscountPercent, type ProductCategory } from "@/lib/products/types";
@@ -35,7 +36,14 @@ const PRODUCT_CATEGORIES: ProductCategory[] = ["gemstone", "bracelet", "rudraksh
 
 export type CartLineHint =
   | { category: ProductCategory; productId: string; variantId?: string; ratti?: number; quantity?: number }
-  | { category: "consultation"; serviceId: string; duration: number; quantity?: number }
+  | {
+      category: "consultation";
+      serviceId: string;
+      duration: number;
+      quantity?: number;
+      preferredDate?: string;
+      preferredTime?: string;
+    }
   | { category: "report"; productId: string; quantity?: number }
   | { category: "healing" | "puja" | "course"; productId: string; quantity?: number };
 
@@ -113,6 +121,10 @@ async function resolveOneLine(raw: unknown, uid: string | undefined): Promise<Or
     const check = validateDuration(hint.duration);
     if (!check.valid) return { error: check.reason };
     const unitPrice = getConsultationPrice(service.pricing, check.duration);
+
+    const dtCheck = validateDateTime(hint.preferredDate, hint.preferredTime);
+    if (!dtCheck.valid) return { error: dtCheck.reason };
+
     return {
       category: "consultation",
       serviceId: service.id,
@@ -121,6 +133,9 @@ async function resolveOneLine(raw: unknown, uid: string | undefined): Promise<Or
       quantity,
       unitPrice,
       lineTotal: unitPrice * quantity,
+      preferredDate: dtCheck.date,
+      preferredTime: dtCheck.time,
+      timezone: BUSINESS_TIMEZONE,
     };
   }
 

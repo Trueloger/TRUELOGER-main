@@ -17,6 +17,8 @@ import {
 } from "@/lib/consultation/types";
 import { getConsultationPrice, validateDuration, formatInr } from "@/lib/consultation/pricing";
 import { useCart } from "@/context/CartContext";
+import { ConsultationDateTimePicker } from "./ConsultationDateTimePicker";
+import { BUSINESS_TIMEZONE } from "@/lib/consultation/availability";
 
 type DurationSheetProps = {
   service: ConsultationService;
@@ -29,8 +31,11 @@ const CUSTOM_KEY = "custom" as const;
 
 export function DurationSheet({ service, open, onClose, onConfirm }: DurationSheetProps) {
   const { addItem } = useCart();
+  const [step, setStep] = useState<"duration" | "datetime">("duration");
   const [selection, setSelection] = useState<number | typeof CUSTOM_KEY>(30);
   const [customValue, setCustomValue] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredTime, setPreferredTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,8 +52,11 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
+      setStep("duration");
       setSelection(30);
       setCustomValue("");
+      setPreferredDate("");
+      setPreferredTime("");
       setError(null);
       setSubmitting(false);
     }
@@ -93,10 +101,17 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
   const livePrice =
     activeDuration !== null ? getConsultationPrice(service.pricing, activeDuration) : null;
 
-  const canConfirm = activeDuration !== null && !submitting;
+  const canGoToDateTime = activeDuration !== null && !submitting;
+  const canConfirmBooking = canGoToDateTime && preferredDate !== "" && preferredTime !== "";
+
+  function handleNext() {
+    if (!canGoToDateTime) return;
+    setError(null);
+    setStep("datetime");
+  }
 
   async function handleConfirm() {
-    if (activeDuration === null) return;
+    if (activeDuration === null || !preferredDate || !preferredTime) return;
     setSubmitting(true);
     setError(null);
 
@@ -127,6 +142,9 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
           serviceId: service.id,
           serviceName: service.name,
           duration: data.duration ?? activeDuration,
+          preferredDate,
+          preferredTime,
+          timezone: BUSINESS_TIMEZONE,
         },
       });
 
@@ -176,7 +194,7 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
         {/* header */}
         <div className="flex shrink-0 items-center justify-between border-b border-nav-lavender-line px-5 py-4">
           <h2 id="duration-sheet-heading" className="font-serif text-lg text-nav-violet">
-            Choose Consultation Duration
+            {step === "duration" ? "Choose Consultation Duration" : "Choose Date & Time"}
           </h2>
           <button
             ref={closeBtnRef}
@@ -191,6 +209,22 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
 
         {/* body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {step === "datetime" ? (
+            <>
+              <p className="text-sm text-nav-plum/75">
+                {service.name} — {activeDuration} min. Pick your preferred appointment date and time.
+              </p>
+              <div className="mt-4">
+                <ConsultationDateTimePicker
+                  date={preferredDate}
+                  time={preferredTime}
+                  onDateChange={setPreferredDate}
+                  onTimeChange={setPreferredTime}
+                />
+              </div>
+            </>
+          ) : (
+            <>
           <p className="text-sm text-nav-plum/75">
             {service.name} — pick a session length. Prices update instantly.
           </p>
@@ -259,6 +293,8 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
               </div>
             )}
           </div>
+            </>
+          )}
 
           {error && (
             <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -271,19 +307,30 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
         <div className="flex shrink-0 items-center gap-3 border-t border-nav-lavender-line px-5 py-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={step === "datetime" ? () => setStep("duration") : onClose}
             className="flex min-h-[48px] flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white text-nav-plum transition-colors duration-200 hover:bg-nav-lavender-mist"
           >
-            Cancel
+            {step === "datetime" ? "Back" : "Cancel"}
           </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!canConfirm}
-            className="flex min-h-[48px] flex-1 items-center justify-center rounded-full bg-nav-amethyst px-4 font-medium text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {submitting ? "Adding…" : "Add to Cart"}
-          </button>
+          {step === "duration" ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={!canGoToDateTime}
+              className="flex min-h-[48px] flex-1 items-center justify-center rounded-full bg-nav-amethyst px-4 font-medium text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={!canConfirmBooking}
+              className="flex min-h-[48px] flex-1 items-center justify-center rounded-full bg-nav-amethyst px-4 font-medium text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting ? "Adding…" : "Add to Cart"}
+            </button>
+          )}
         </div>
       </div>
     </div>,

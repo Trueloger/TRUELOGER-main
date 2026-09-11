@@ -177,7 +177,9 @@ export function CartDrawer() {
 function CartLineRow({ item, onRemove }: { item: CartItem; onRemove: () => void }) {
   const isConsultation = item.type === "consultation";
   const isGemstone = item.type === "gemstone";
-  const consultMeta = isConsultation ? (item.meta as { serviceName: string; duration: number } | undefined) : undefined;
+  const consultMeta = isConsultation
+    ? (item.meta as { serviceName: string; duration: number; preferredDate?: string; preferredTime?: string } | undefined)
+    : undefined;
   const gemstoneMeta = isGemstone ? (item.meta as { productName: string; ratti: number } | undefined) : undefined;
 
   return (
@@ -193,7 +195,14 @@ function CartLineRow({ item, onRemove }: { item: CartItem; onRemove: () => void 
         )}
       </div>
 
-      {consultMeta && <span className="text-xs text-nav-plum">{consultMeta.duration} min</span>}
+      {consultMeta && (
+        <span className="text-xs text-nav-plum">
+          {consultMeta.duration} min
+          {consultMeta.preferredDate && consultMeta.preferredTime && (
+            <> · {formatConsultDateTime(consultMeta.preferredDate, consultMeta.preferredTime)}</>
+          )}
+        </span>
+      )}
       {gemstoneMeta && <span className="text-xs text-nav-plum">{gemstoneMeta.ratti} Ratti</span>}
 
       <div className="mt-1 flex items-center justify-between">
@@ -212,4 +221,17 @@ function CartLineRow({ item, onRemove }: { item: CartItem; onRemove: () => void 
       </div>
     </li>
   );
+}
+
+/** "18 September 2026, 4:30 PM" — matches the cart-line example in the
+ * spec, derived from the same "YYYY-MM-DD"/"HH:mm" strings stored on
+ * the cart meta (see ConsultationCartMeta) rather than re-parsing a
+ * combined string. */
+function formatConsultDateTime(date: string, time: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const d = new Date(year, (month ?? 1) - 1, day, hour, minute);
+  const datePart = d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  const timePart = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${datePart}, ${timePart}`;
 }

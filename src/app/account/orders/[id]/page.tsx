@@ -214,6 +214,9 @@ function LineItemRow({ item }: { item: OrderLineItem }) {
           <p className="text-sm font-medium text-nav-violet">{item.serviceName}</p>
           <p className="mt-0.5 text-xs text-nav-plum/60">
             {item.duration} min consultation · Qty {item.quantity}
+            {item.preferredDate && item.preferredTime && (
+              <> · {new Date(`${item.preferredDate}T${item.preferredTime}`).toLocaleString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}</>
+            )}
           </p>
         </div>
         <p className="text-sm font-semibold text-nav-amethyst-deep">{formatInr(item.lineTotal)}</p>

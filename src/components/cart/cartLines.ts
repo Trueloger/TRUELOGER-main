@@ -8,7 +8,7 @@ import type { CartItem } from "@/context/CartContext";
 
 export type CartLineHint =
   | { category: string; productId: string; ratti: number; quantity: number }
-  | { category: string; serviceId: string; duration: number; quantity: number }
+  | { category: string; serviceId: string; duration: number; quantity: number; preferredDate?: string; preferredTime?: string }
   | { category: string; productId: string; variantId: string; quantity: number }
   | { category: "report"; productId: string; quantity: number }
   | { category: "healing" | "puja" | "course"; productId: string; quantity: number };
@@ -24,7 +24,14 @@ export function cartItemToLineHint(item: CartItem): CartLineHint | null {
     return { category: "gemstone", productId: item.meta.productId, ratti: item.meta.ratti, quantity: item.quantity };
   }
   if (item.type === "consultation" && item.meta && "serviceId" in item.meta) {
-    return { category: "consultation", serviceId: item.meta.serviceId, duration: item.meta.duration, quantity: item.quantity };
+    return {
+      category: "consultation",
+      serviceId: item.meta.serviceId,
+      duration: item.meta.duration,
+      quantity: item.quantity,
+      preferredDate: item.meta.preferredDate,
+      preferredTime: item.meta.preferredTime,
+    };
   }
   if (item.type === "product" && item.meta && "variantId" in item.meta) {
     return {

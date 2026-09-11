@@ -16,6 +16,8 @@ import { DURATION_PRESETS, type ConsultationService } from "@/lib/consultation/t
 import { getConsultationPrice, formatInr, validateDuration } from "@/lib/consultation/pricing";
 import { useCart } from "@/context/CartContext";
 import { consultationVariantId } from "@/lib/consultation/types";
+import { ConsultationDateTimePicker } from "./ConsultationDateTimePicker";
+import { BUSINESS_TIMEZONE } from "@/lib/consultation/availability";
 
 const DEFAULT_DURATION = 30;
 
@@ -26,6 +28,8 @@ export function ServiceDurationPicker({ service }: { service: ConsultationServic
   const [customValue, setCustomValue] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "added" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredTime, setPreferredTime] = useState("");
   const customInputId = useId();
 
   const customValidation = isCustom ? validateDuration(Number(customValue)) : null;
@@ -52,7 +56,7 @@ export function ServiceDurationPicker({ service }: { service: ConsultationServic
   }
 
   async function handleAddToCart() {
-    if (activeDuration === null) return;
+    if (activeDuration === null || !preferredDate || !preferredTime) return;
     setStatus("loading");
     setErrorMessage(null);
     try {
@@ -79,6 +83,9 @@ export function ServiceDurationPicker({ service }: { service: ConsultationServic
           serviceId: data.serviceId,
           serviceName: data.serviceName,
           duration: data.duration,
+          preferredDate,
+          preferredTime,
+          timezone: BUSINESS_TIMEZONE,
         },
       });
       setStatus("added");
@@ -149,6 +156,15 @@ export function ServiceDurationPicker({ service }: { service: ConsultationServic
         </div>
       )}
 
+      <div className="mt-5 border-t border-nav-lavender-line pt-5">
+        <ConsultationDateTimePicker
+          date={preferredDate}
+          time={preferredTime}
+          onDateChange={setPreferredDate}
+          onTimeChange={setPreferredTime}
+        />
+      </div>
+
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-nav-lavender-line pt-5">
         <div>
           <p className="text-xs uppercase tracking-wide text-nav-plum/60">Price</p>
@@ -159,7 +175,7 @@ export function ServiceDurationPicker({ service }: { service: ConsultationServic
         <button
           type="button"
           onClick={handleAddToCart}
-          disabled={activeDuration === null || status === "loading"}
+          disabled={activeDuration === null || !preferredDate || !preferredTime || status === "loading"}
           className="flex min-h-[44px] min-w-[160px] items-center justify-center rounded-full bg-nav-amethyst px-6 text-sm font-medium text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst focus-visible:ring-offset-2 focus-visible:ring-offset-nav-pearl active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {status === "loading" ? "Adding…" : status === "added" ? "Added ✓" : "Add to Cart"}

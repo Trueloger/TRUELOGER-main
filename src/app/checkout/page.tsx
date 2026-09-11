@@ -199,7 +199,9 @@ export default function CheckoutPage() {
 function CheckoutLineRow({ item }: { item: CartItem }) {
   const isConsultation = item.type === "consultation";
   const isGemstone = item.type === "gemstone";
-  const consultMeta = isConsultation ? (item.meta as { serviceName: string; duration: number } | undefined) : undefined;
+  const consultMeta = isConsultation
+    ? (item.meta as { serviceName: string; duration: number; preferredDate?: string; preferredTime?: string } | undefined)
+    : undefined;
   const gemstoneMeta = isGemstone ? (item.meta as { productName: string; ratti: number } | undefined) : undefined;
 
   return (
@@ -208,7 +210,14 @@ function CheckoutLineRow({ item }: { item: CartItem }) {
         <span className="text-sm font-medium text-nav-violet">
           {consultMeta?.serviceName ?? gemstoneMeta?.productName ?? item.name}
         </span>
-        {consultMeta && <span className="text-xs text-nav-plum">{consultMeta.duration} min</span>}
+        {consultMeta && (
+          <span className="text-xs text-nav-plum">
+            {consultMeta.duration} min
+            {consultMeta.preferredDate && consultMeta.preferredTime && (
+              <> · {formatConsultDateTime(consultMeta.preferredDate, consultMeta.preferredTime)}</>
+            )}
+          </span>
+        )}
         {gemstoneMeta && <span className="text-xs text-nav-plum">{gemstoneMeta.ratti} Ratti</span>}
         <span className="text-xs text-nav-plum">Qty: {item.quantity}</span>
       </div>
@@ -219,4 +228,16 @@ function CheckoutLineRow({ item }: { item: CartItem }) {
       )}
     </li>
   );
+}
+
+/** Mirrors src/components/cart/CartDrawer.tsx's identical helper —
+ * "18 September 2026, 4:30 PM" from the stored "YYYY-MM-DD"/"HH:mm"
+ * cart-meta strings. */
+function formatConsultDateTime(date: string, time: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const d = new Date(year, (month ?? 1) - 1, day, hour, minute);
+  const datePart = d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  const timePart = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
+  return `${datePart}, ${timePart}`;
 }
