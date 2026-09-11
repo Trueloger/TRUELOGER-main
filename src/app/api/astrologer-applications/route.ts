@@ -112,6 +112,13 @@ export async function POST(request: Request) {
       resumeFileName: file.name.slice(0, 200),
     });
 
+    const { sendAstrologerApplicationReceivedEmail } = await import("@/lib/email/events");
+    await sendAstrologerApplicationReceivedEmail({
+      applicationId: application.id,
+      toEmail: application.email,
+      fullName: application.fullName,
+    }).catch(() => {});
+
     return NextResponse.json({ ok: true, id: application.id });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Submission failed.";

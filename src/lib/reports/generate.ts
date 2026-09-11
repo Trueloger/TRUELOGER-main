@@ -181,6 +181,28 @@ async function finishRendering(report: Report): Promise<void> {
       pdfStorageRef: storageRef,
       completedAt: Date.now(),
     });
+
+    // Best-effort notification — a failed email must never affect the
+    // report's own READY status, which is already committed above.
+    try {
+      const { getFirestore } = await import("firebase-admin/firestore");
+      const { getAdminApp } = await import("@/lib/firebase-admin");
+      const userSnap = await getFirestore(getAdminApp()).collection("users").doc(report.userId).get();
+      const email = userSnap.exists ? (userSnap.data() as { email?: string; fullName?: string }).email : undefined;
+      if (email) {
+        const { sendReportReadyEmail } = await import("@/lib/email/events");
+        const { getReportBlueprint: getProductBlueprint } = await import("@/lib/reports/products");
+        const product = getProductBlueprint(report.productSlug);
+        await sendReportReadyEmail({
+          reportId: report.id,
+          toEmail: email,
+          customerName: report.profileSnapshot.fullName,
+          reportName: product?.name ?? "Personalized Report",
+        });
+      }
+    } catch {
+      // Non-fatal — see comment above.
+    }
   } catch (err) {
     await markReportFailed(report.id, "RENDER_FAILED", errorMessage(err));
   }

@@ -32,5 +32,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const updated = await updateApplicationStatus(id, status as ApplicationStatus);
   if (!updated) return NextResponse.json({ error: "Not found." }, { status: 404 });
+
+  const { sendAstrologerApplicationStatusEmail } = await import("@/lib/email/events");
+  await sendAstrologerApplicationStatusEmail({
+    applicationId: updated.id,
+    toEmail: updated.email,
+    fullName: updated.fullName,
+    status: updated.status,
+  }).catch(() => {});
+
   return NextResponse.json({ application: updated });
 }

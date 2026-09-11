@@ -240,7 +240,40 @@ export async function applyPaymentStatus(
           durationMinutes: item.duration,
           timezone: item.timezone ?? BUSINESS_TIMEZONE,
         }).catch(() => null);
+
+        const { sendConsultationBookingEmail } = await import("@/lib/email/events");
+        await sendConsultationBookingEmail({
+          orderId: result.id,
+          serviceId: item.serviceId,
+          toEmail: result.customerEmail,
+          customerName: result.customerName ?? result.customerEmail,
+          serviceName: item.serviceName,
+          date: item.preferredDate,
+          time: item.preferredTime,
+          durationMinutes: item.duration,
+        }).catch(() => {});
       }
+    }
+
+    // General order-confirmation email — covers every non-consultation
+    // category (gemstone/bracelet/rudraksha/spiritual/yantra/healing/
+    // puja/course/report) with one shared summary; consultations get
+    // their own booking-specific email above instead, so they're
+    // excluded here to avoid sending two emails for a mixed cart.
+    const nonConsultationItems = result.items.filter((i) => i.category !== "consultation");
+    if (nonConsultationItems.length > 0) {
+      const { sendOrderConfirmationEmail } = await import("@/lib/email/events");
+      // Every non-consultation OrderLineItem variant has productName —
+      // consultation (the only variant without it) is already excluded
+      // above.
+      const summaries = nonConsultationItems.map((i) => `${(i as { productName: string }).productName} x${i.quantity}`);
+      await sendOrderConfirmationEmail({
+        orderId: result.id,
+        toEmail: result.customerEmail,
+        customerName: result.customerName ?? result.customerEmail,
+        itemSummaries: summaries,
+        total: result.total,
+      }).catch(() => {});
     }
   }
 
