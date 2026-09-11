@@ -210,6 +210,38 @@ export async function applyPaymentStatus(
         if (created) triggerReportProcessing(created.id);
       }
     }
+
+    const consultationItems = result.items.filter(
+      (i): i is Extract<typeof i, { category: "consultation" }> => i.category === "consultation",
+    );
+    if (consultationItems.length > 0) {
+      // Lazy import, same reasoning as the reports hook above — most
+      // callers of orders/store.ts never touch meetings.
+      const { createMeeting } = await import("@/lib/meetings/store");
+      const { BUSINESS_TIMEZONE } = await import("@/lib/consultation/availability");
+      for (const item of consultationItems) {
+        if (!item.preferredDate || !item.preferredTime) continue; // legacy pre-date/time order, nothing to schedule
+        // Every meeting is created honestly in MEETING_CREATION_PENDING
+        // — see src/lib/meetings/types.ts's doc comment on why: Google
+        // Meet/Calendar creation itself needs a one-time OAuth
+        // authorization this project doesn't have configured yet.
+        // createMeeting is itself idempotent (orderId+serviceId), so a
+        // duplicate webhook/verify call can never create two meetings
+        // for the same booking.
+        await createMeeting({
+          orderId: result.id,
+          consultationServiceId: item.serviceId,
+          serviceName: item.serviceName,
+          userId: result.userId,
+          customerName: result.customerName ?? result.customerEmail,
+          customerEmail: result.customerEmail,
+          date: item.preferredDate,
+          startTime: item.preferredTime,
+          durationMinutes: item.duration,
+          timezone: item.timezone ?? BUSINESS_TIMEZONE,
+        }).catch(() => null);
+      }
+    }
   }
 
   return result;
@@ -263,6 +295,19 @@ export async function listOrdersForAdmin(options: {
   const orders = snap.docs.map((d) => d.data() as Order);
   const nextCursor = orders.length === limit ? String(orders[orders.length - 1].createdAt) : null;
   return { orders, nextCursor };
+}
+
+/** Unseen-count support for the admin notification badge — counts PAID
+ * orders created after `sinceMs` (not every order regardless of
+ * status, since an abandoned/failed checkout isn't something the
+ * admin needs a badge for). */
+export async function countPaidOrdersSince(sinceMs: number): Promise<number> {
+  // Single equality `where` + in-memory filter (no composite index
+  // needed), same pattern used elsewhere in this codebase for the same
+  // reason (products/coupons/reports' own equivalent count/list
+  // functions).
+  const snap = await db().collection(COLLECTION).where("paymentStatus", "==", "PAID").get();
+  return snap.docs.filter((d) => (d.data() as Order).createdAt > sinceMs).length;
 }
 
 // Re-exported so callers building Firestore FieldValue-based updates

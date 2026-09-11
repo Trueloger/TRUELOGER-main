@@ -233,6 +233,14 @@ export async function markReportFailed(reportId: string, errorCode: string, erro
     .update({ status: "FAILED", errorCode, errorMessage, updatedAt: Date.now() });
 }
 
+/** Unseen-count support for the admin notification badge — reports
+ * that reached READY after `sinceMs` (a newly-completed report is what
+ * the admin actually needs to notice, not every SCHEDULED job). */
+export async function countReadyReportsSince(sinceMs: number): Promise<number> {
+  const snap = await db().collection(REPORTS_COLLECTION).where("status", "==", "READY").get();
+  return snap.docs.filter((d) => (d.data() as Report).completedAt !== undefined && (d.data() as Report).completedAt! > sinceMs).length;
+}
+
 export async function incrementAttemptCount(reportId: string): Promise<void> {
   const ref = db().collection(REPORTS_COLLECTION).doc(reportId);
   const snap = await ref.get();

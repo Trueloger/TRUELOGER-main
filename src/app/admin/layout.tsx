@@ -13,20 +13,23 @@
 // reach the login form itself. Every other /admin/* page is wrapped in
 // <AdminRoute>, which itself redirects to /admin/login when signed out
 // or signed in but not an admin.
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Menu, PackageSearch, Users, X, LogOut, Gem, Tag, Settings, FileText, Sparkles, UserRound } from "lucide-react";
+import { LayoutDashboard, Menu, PackageSearch, Users, X, LogOut, Gem, Tag, Settings, FileText, Sparkles, UserRound, CalendarClock } from "lucide-react";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { useAuth } from "@/context/AuthContext";
+import { authedFetch } from "@/lib/auth/authed-fetch";
+import type { NotificationTab } from "@/lib/admin-notifications/store";
 
 const NAV_LINKS = [
   { href: "/admin", label: "Dashboard", Icon: LayoutDashboard },
-  { href: "/admin/orders", label: "Orders", Icon: PackageSearch },
+  { href: "/admin/orders", label: "Orders", Icon: PackageSearch, notificationTab: "orders" as NotificationTab },
   { href: "/admin/products", label: "Products", Icon: Gem },
   { href: "/admin/services", label: "Services", Icon: Sparkles },
-  { href: "/admin/reports", label: "Reports", Icon: FileText },
-  { href: "/admin/astrologers", label: "Astrologers", Icon: UserRound },
+  { href: "/admin/reports", label: "Reports", Icon: FileText, notificationTab: "reports" as NotificationTab },
+  { href: "/admin/meetings", label: "Meetings", Icon: CalendarClock, notificationTab: "meetings" as NotificationTab },
+  { href: "/admin/astrologers", label: "Astrologers", Icon: UserRound, notificationTab: "astrologerApplications" as NotificationTab },
   { href: "/admin/coupons", label: "Coupons", Icon: Tag },
   { href: "/admin/settings", label: "Settings", Icon: Settings },
   { href: "/admin/users", label: "Users", Icon: Users },
@@ -53,6 +56,40 @@ function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { logout } = useAuth();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [counts, setCounts] = useState<Partial<Record<NotificationTab, number>>>({});
+
+  const loadCounts = useCallback(async () => {
+    try {
+      const res = await authedFetch("/api/admin/notifications");
+      if (!res.ok) return;
+      const data = (await res.json()) as { counts: Record<NotificationTab, number> };
+      setCounts(data.counts);
+    } catch {
+      // Badge counts are a nice-to-have — a failed fetch just leaves
+      // them at their last known value, never breaks the admin shell.
+    }
+  }, []);
+
+  // Poll every 30s so a badge updates without a full page reload —
+  // this codebase's Firestore realtime listeners are all client-SDK,
+  // and these counts come from an Admin-SDK-only aggregation route, so
+  // polling (not a listener) is the simple, correct choice here.
+  useEffect(() => {
+    queueMicrotask(() => loadCounts());
+    const interval = window.setInterval(loadCounts, 30_000);
+    return () => window.clearInterval(interval);
+  }, [loadCounts]);
+
+  // Visiting a tab marks it seen — its badge clears immediately
+  // (optimistic) and the real per-tab lastSeenAt is recorded
+  // server-side so the count starts fresh from this visit.
+  useEffect(() => {
+    const match = NAV_LINKS.find((l) => "notificationTab" in l && pathname.startsWith(l.href));
+    const tab = match && "notificationTab" in match ? match.notificationTab : undefined;
+    if (!tab) return;
+    queueMicrotask(() => setCounts((prev) => ({ ...prev, [tab]: 0 })));
+    authedFetch("/api/admin/notifications", { method: "POST", body: JSON.stringify({ tab }) }).catch(() => {});
+  }, [pathname]);
 
   async function handleLogout() {
     await logout();
@@ -74,8 +111,10 @@ function AdminShell({ children }: { children: ReactNode }) {
           </span>
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
-          {NAV_LINKS.map(({ href, label, Icon }) => {
+          {NAV_LINKS.map((link) => {
+            const { href, label, Icon } = link;
             const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+            const unseen = "notificationTab" in link ? counts[link.notificationTab] ?? 0 : 0;
             return (
               <Link
                 key={href}
@@ -87,7 +126,8 @@ function AdminShell({ children }: { children: ReactNode }) {
                 }`}
               >
                 <Icon aria-hidden="true" className="h-4.5 w-4.5" />
-                {label}
+                <span className="flex-1">{label}</span>
+                {unseen > 0 && <NotificationBadge count={unseen} active={active} />}
               </Link>
             );
           })}
@@ -125,8 +165,10 @@ function AdminShell({ children }: { children: ReactNode }) {
 
       {/* Mobile horizontal tab row — always visible, large tap targets */}
       <nav className="flex gap-1 overflow-x-auto border-b border-nav-lavender-line bg-nav-pearl px-3 py-2 lg:hidden">
-        {NAV_LINKS.map(({ href, label, Icon }) => {
+        {NAV_LINKS.map((link) => {
+          const { href, label, Icon } = link;
           const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+          const unseen = "notificationTab" in link ? counts[link.notificationTab] ?? 0 : 0;
           return (
             <Link
               key={href}
@@ -139,6 +181,7 @@ function AdminShell({ children }: { children: ReactNode }) {
             >
               <Icon aria-hidden="true" className="h-4 w-4" />
               {label}
+              {unseen > 0 && <NotificationBadge count={unseen} active={active} />}
             </Link>
           );
         })}
@@ -161,5 +204,21 @@ function AdminShell({ children }: { children: ReactNode }) {
 
       <main className="px-4 py-6 sm:px-6 md:px-8 md:py-8 lg:ml-60">{children}</main>
     </div>
+  );
+}
+
+/** Small unseen-count pill — represents NEW items since this admin
+ * last visited the tab, never the tab's total item count (AGENTS
+ * "unseen counter logic"). Capped display at "9+" to stay compact. */
+function NotificationBadge({ count, active }: { count: number; active: boolean }) {
+  return (
+    <span
+      aria-label={`${count} new`}
+      className={`ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[0.65rem] font-semibold ${
+        active ? "bg-white text-nav-amethyst" : "bg-nav-amethyst text-white"
+      }`}
+    >
+      {count > 9 ? "9+" : count}
+    </span>
   );
 }
