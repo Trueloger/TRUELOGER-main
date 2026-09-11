@@ -92,6 +92,39 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Report products — public pricing/delivery-time read for the
+    // storefront (same "server API is normally how this is read, but a
+    // live listener could reasonably want direct access" reasoning as
+    // `products` above). Write only ever goes through
+    // /api/admin/reports/products/[slug] using the Admin SDK.
+    match /reportProducts/{slug} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Demo reports — fictional/sample data only (never a real user's
+    // chart, see scripts/dev/generate-demo-reports.ts), publicly
+    // readable so the "View Demo Report" pages need no login. Write
+    // only ever via the Admin SDK (the generation script / a future
+    // admin-triggered regenerate action, AGENTS §118).
+    match /demoReports/{type} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Reports — a user's generated report is highly personal (real
+    // birth details, a full AI-written chart interpretation) and must
+    // NEVER be readable by anyone but its owner or an admin (AGENTS
+    // §35/§76/§77). Owner-or-admin read (enables the account Reports
+    // page's live status listener, per AGENTS §105, without needing to
+    // poll the API); no client write at all — every write goes through
+    // the Admin SDK (order-paid hook, the internal/cron processing
+    // routes), a superuser context these rules don't apply to.
+    match /reports/{reportId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
     // Default deny for anything not explicitly matched above.
     match /{document=**} {
       allow read, write: if false;

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-export type CartItemType = "product" | "consultation" | "gemstone";
+export type CartItemType = "product" | "consultation" | "gemstone" | "report";
 
 export type ConsultationCartMeta = {
   serviceId: string;
@@ -29,6 +29,14 @@ export type ProductCartMeta = {
   productName: string;
   variantId: string;
   variantLabel: string;
+};
+
+/** Cart-line metadata for a paid personalized report — one line per
+ * report purchase, always quantity 1 (there's no "variant" or
+ * duration to pick, unlike gemstones/consultations). */
+export type ReportCartMeta = {
+  reportSlug: string;
+  reportName: string;
 };
 
 export type CartItem = {
@@ -62,7 +70,7 @@ export type CartItem = {
    * than flattened onto CartItem) so a future second variant dimension
    * (expert, language, mode, gemstone treatment) can be added to either
    * shape without another top-level CartItem field. */
-  meta?: ConsultationCartMeta | GemstoneCartMeta | ProductCartMeta;
+  meta?: ConsultationCartMeta | GemstoneCartMeta | ProductCartMeta | ReportCartMeta;
 };
 
 type AddCartItemInput = {

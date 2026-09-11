@@ -25,13 +25,16 @@ import { findVariant, variantDiscountPercent, type ProductCategory } from "@/lib
 import { getCoupon, getRedemptionCounts } from "@/lib/coupons/store";
 import { getTaxSettings, getDeliverySettings } from "@/lib/settings/store";
 import { calculateCartPricing, type CartPricingResult } from "@/lib/pricing/calculate";
+import { getReportProduct } from "@/lib/reports/store";
+import { buildReportProfileSnapshot } from "@/lib/reports/profile-snapshot";
 import type { OrderLineItem } from "./types";
 
 const PRODUCT_CATEGORIES: ProductCategory[] = ["gemstone", "bracelet", "rudraksha", "spiritual", "yantra"];
 
 export type CartLineHint =
   | { category: ProductCategory; productId: string; variantId?: string; ratti?: number; quantity?: number }
-  | { category: "consultation"; serviceId: string; duration: number; quantity?: number };
+  | { category: "consultation"; serviceId: string; duration: number; quantity?: number }
+  | { category: "report"; productId: string; quantity?: number };
 
 export type ResolveCartResult =
   | {
@@ -48,10 +51,38 @@ function normalizeQuantity(input: unknown): number {
   return Math.min(input, MAX_QUANTITY);
 }
 
-async function resolveOneLine(raw: unknown): Promise<OrderLineItem | { error: string }> {
+async function resolveOneLine(raw: unknown, uid: string | undefined): Promise<OrderLineItem | { error: string }> {
   if (typeof raw !== "object" || raw === null) return { error: "Invalid cart item." };
   const hint = raw as Record<string, unknown>;
   const quantity = normalizeQuantity(hint.quantity);
+
+  if (hint.category === "report") {
+    if (typeof hint.productId !== "string") return { error: "Invalid report item." };
+    if (!uid) return { error: "Please sign in to purchase a personalized report." };
+
+    const product = await getReportProduct(hint.productId);
+    if (!product) return { error: "Unknown report product." };
+
+    // Profile is the source of truth (AGENTS §13), never trusted from
+    // the client — fetched and validated server-side right here, at
+    // the exact moment the order/snapshot is created, so a later
+    // profile edit can never change an already-placed order's report.
+    const snapshotResult = await buildReportProfileSnapshot(uid);
+    if (!snapshotResult.ok) return { error: snapshotResult.error };
+
+    return {
+      category: "report",
+      productId: product.slug,
+      productName: product.name,
+      reportType: product.type,
+      profileSnapshot: snapshotResult.snapshot,
+      quantity: 1, // one report per line — a report isn't a "quantity" purchase
+      unitMrp: product.mrp,
+      unitSalePrice: product.salePrice,
+      discountPercent: product.discountPercent,
+      lineTotal: product.salePrice,
+    };
+  }
 
   if (hint.category === "consultation") {
     if (typeof hint.serviceId !== "string") return { error: "Invalid consultation item." };
@@ -122,7 +153,7 @@ export async function resolveCartLines(
 
   const items: OrderLineItem[] = [];
   for (const raw of hints) {
-    const resolved = await resolveOneLine(raw);
+    const resolved = await resolveOneLine(raw, options.uid);
     if ("error" in resolved) return { ok: false, error: resolved.error };
     items.push(resolved);
   }

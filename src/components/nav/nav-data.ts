@@ -100,18 +100,26 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    // Real slugs (matching src/lib/reports/products.ts) rather than
+    // childrenFrom()'s auto-slugified labels — deliberately routed
+    // under /reports/personalized/*, NOT bare /reports/*, since a
+    // PURCHASED report's own reader lives at /reports/[reportId] (a
+    // dynamic top-level segment); a catalogue page at e.g.
+    // /reports/kundli-report would collide with that same route
+    // pattern in Next's router. See src/lib/reports/products.ts for
+    // the full product data this menu links into.
     label: "Personalized Reports",
-    href: "/reports",
+    href: "/reports/personalized",
     icon: FileText,
-    children: childrenFrom("/reports", [
-      "Kundli Report",
-      "Marriage Report",
-      "Career Report",
-      "Love & Relationship Report",
-      "Finance Report",
-      "Life Report",
-      "Dosha Report",
-    ]),
+    children: [
+      { label: "Kundli Report", href: "/reports/personalized/kundli" },
+      { label: "Marriage Report", href: "/reports/personalized/marriage" },
+      { label: "Career Report", href: "/reports/personalized/career" },
+      { label: "Love & Relationship Report", href: "/reports/personalized/love-relationship" },
+      { label: "Finance Report", href: "/reports/personalized/finance" },
+      { label: "Life Report", href: "/reports/personalized/life" },
+      { label: "Dosha Report", href: "/reports/personalized/dosha" },
+    ],
   },
   {
     label: "Puja",

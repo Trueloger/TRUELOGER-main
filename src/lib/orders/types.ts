@@ -46,7 +46,7 @@ import type { ProductCategory } from "@/lib/products/types";
  * "consultation" — this is the FULL taxonomy the admin Orders category
  * tabs are built from (see ORDER_ITEM_CATEGORIES below), not a
  * hardcoded subset. */
-export type OrderItemCategory = ProductCategory | "consultation";
+export type OrderItemCategory = ProductCategory | "consultation" | "report";
 
 /** A line-item SNAPSHOT taken at checkout time — deliberately NOT a
  * live reference to product/service data, so a later admin price
@@ -82,6 +82,24 @@ export type OrderLineItem =
       duration: number;
       quantity: number;
       unitPrice: number;
+      lineTotal: number;
+    }
+  | {
+      category: "report";
+      productId: string; // report product slug
+      productName: string;
+      reportType: import("@/lib/reports/types").ReportType;
+      /** Immutable snapshot of the profile at ORDER-CREATION time (not
+       * at payment-confirmation time) — see AGENTS §13/§14. This is
+       * what src/lib/orders/store.ts's applyPaymentStatus reads when
+       * creating the actual generation job on justPaid, so a profile
+       * edit made between placing the order and completing payment can
+       * never change what gets generated. */
+      profileSnapshot: import("@/lib/reports/types").ReportProfileSnapshot;
+      quantity: number;
+      unitMrp: number;
+      unitSalePrice: number;
+      discountPercent: number;
       lineTotal: number;
     };
 
@@ -144,6 +162,7 @@ export const ORDER_ITEM_CATEGORIES: OrderItemCategory[] = [
   "spiritual",
   "yantra",
   "consultation",
+  "report",
 ];
 
 /** True once every line in the order is one specific category — used

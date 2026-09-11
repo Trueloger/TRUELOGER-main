@@ -173,6 +173,45 @@ export async function applyPaymentStatus(
     await recordRedemption(result.couponCode, result.userId).catch(() => {});
   }
 
+  if (result && justPaid) {
+    const reportItems = result.items.filter((i): i is Extract<typeof i, { category: "report" }> => i.category === "report");
+    if (reportItems.length > 0) {
+      // Lazy import — orders/store.ts is imported from many places that
+      // never touch reports, no reason to pull the reports module graph
+      // into every one of those. `justPaid` guarantees this runs at
+      // most once per order, same as the coupon hook above, so a
+      // duplicate webhook/verify call can never create a duplicate
+      // report job for the same order.
+      const { createReport, envDeliveryDelayHours } = await import("@/lib/reports/store");
+      const { getReportBlueprint } = await import("@/lib/reports/blueprints");
+      // A fire-and-forget HTTP kick to a dedicated internal route
+      // (src/app/api/internal/process-report/route.ts) rather than
+      // calling processReport() directly here — that route has its own
+      // maxDuration budget, decoupled from the short one on the
+      // verify/webhook routes that call applyPaymentStatus, and
+      // self-chains further ticks until the report is done. This is
+      // what makes REPORT_DELIVERY_DELAY_HOURS=0 feel instant in
+      // testing without depending on cron frequency (Vercel's Hobby
+      // tier caps cron at once/day) — see that route's doc comment.
+      // The cron sweep (/api/cron/process-reports) remains the durable
+      // backstop if this kick is ever lost entirely (AGENTS §40/§41).
+      const { triggerReportProcessing } = await import("@/lib/reports/trigger");
+      for (const item of reportItems) {
+        const blueprint = getReportBlueprint(item.reportType);
+        const created = await createReport({
+          userId: result.userId,
+          orderId: result.id,
+          reportType: item.reportType,
+          productSlug: item.productId,
+          profileSnapshot: item.profileSnapshot,
+          deliveryDelayHours: envDeliveryDelayHours(),
+          pendingSectionIds: blueprint.sections.map((s) => s.id),
+        }).catch(() => null);
+        if (created) triggerReportProcessing(created.id);
+      }
+    }
+  }
+
   return result;
 }
 

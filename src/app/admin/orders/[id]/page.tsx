@@ -177,7 +177,9 @@ export default function AdminOrderDetailPage() {
                 <p className="text-xs text-nav-plum/60">
                   {item.category === "consultation"
                     ? `${item.duration} min · Qty ${item.quantity}`
-                    : `${item.ratti ? `${item.ratti} Ratti` : item.variantLabel} · Qty ${item.quantity}`}
+                    : item.category === "report"
+                      ? `Personalized report · Qty ${item.quantity}`
+                      : `${item.ratti ? `${item.ratti} Ratti` : item.variantLabel} · Qty ${item.quantity}`}
                 </p>
               </div>
               <span className="font-semibold text-nav-amethyst-deep">{formatInr(item.lineTotal)}</span>
