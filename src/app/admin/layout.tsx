@@ -16,7 +16,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Menu, PackageSearch, Users, X, LogOut, Gem, Tag, Settings, FileText, Sparkles } from "lucide-react";
+import { LayoutDashboard, Menu, PackageSearch, Users, X, LogOut, Gem, Tag, Settings, FileText, Sparkles, UserRound } from "lucide-react";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { useAuth } from "@/context/AuthContext";
 
@@ -26,6 +26,7 @@ const NAV_LINKS = [
   { href: "/admin/products", label: "Products", Icon: Gem },
   { href: "/admin/services", label: "Services", Icon: Sparkles },
   { href: "/admin/reports", label: "Reports", Icon: FileText },
+  { href: "/admin/astrologers", label: "Astrologers", Icon: UserRound },
   { href: "/admin/coupons", label: "Coupons", Icon: Tag },
   { href: "/admin/settings", label: "Settings", Icon: Settings },
   { href: "/admin/users", label: "Users", Icon: Users },
