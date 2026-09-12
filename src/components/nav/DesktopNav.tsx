@@ -86,14 +86,20 @@ export function DesktopNav() {
   }
 
   return (
-    <div ref={rootRef} className="hidden min-w-0 items-center gap-1.5 lg:flex">
-      {/* nav-scroll-hidden + overflow-x-auto is a safety net, not the
-          primary layout: at any width this row is actually designed
-          for (lg and up, given the item count below), every item fits
-          on one line with room to spare. If a future item is added
-          without re-checking that, this scrolls horizontally instead
-          of wrapping to a second, uneven line. */}
-      <ul className="nav-scroll-hidden flex items-center gap-0.5 overflow-x-auto">
+    // This full 9-item row only ever renders from xl (1280px) up —
+    // see MobileNav.tsx's matching xl:hidden breakpoint. Below that,
+    // the mobile menu (which already handles every one of these items
+    // correctly via its accordion) takes over instead of trying to
+    // cram this row into less space than it needs. No overflow-x-auto
+    // here: that was tried as a "safety net" and was the actual cause
+    // of a real bug — a scrollable ancestor also clips (not just
+    // scrolls) any absolutely-positioned dropdown panel that opens
+    // from inside it, which made the "Predictions"/"Library" hover
+    // panels disappear/break the row instead of showing. The right
+    // fix is giving this row a width it actually fits in, not clipping
+    // dropdowns to make a too-narrow row "work."
+    <div ref={rootRef} className="hidden items-center gap-1 xl:flex">
+      <ul className="flex items-center gap-0.5">
         {NAV_ITEMS.map((item) => (
           <NavEntry
             key={item.label}
@@ -110,7 +116,7 @@ export function DesktopNav() {
       <div className="ml-1 flex shrink-0 items-center gap-2">
         <Link
           href="/register-as-astrologer"
-          className={`hidden items-center gap-1.5 rounded-full border border-nav-gold/60 bg-nav-gold/10 px-4 ${CONTROL_HEIGHT} ${CONTROL_TEXT} text-nav-amethyst-deep transition-colors duration-200 hover:bg-nav-gold/20 xl:flex`}
+          className={`flex items-center gap-1.5 rounded-full border border-nav-gold/60 bg-nav-gold/10 px-4 ${CONTROL_HEIGHT} ${CONTROL_TEXT} text-nav-amethyst-deep transition-colors duration-200 hover:bg-nav-gold/20`}
         >
           <UserPlus className="h-4 w-4" aria-hidden="true" />
           Register as an Astrologer

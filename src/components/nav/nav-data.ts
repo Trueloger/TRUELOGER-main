@@ -1,13 +1,14 @@
 import {
   Home,
   UserRound,
+  MoonStar,
   Gift,
   FileText,
   Flame,
+  BookOpen,
   ShoppingBag,
   Sparkles,
   GraduationCap,
-  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -70,6 +71,17 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Marriage Astrology", href: "/consult/marriage-astrology" },
       { label: "Prashna / Horary", href: "/consult/prashna-horary" },
     ],
+  },
+  {
+    label: "Predictions",
+    href: "/predictions",
+    icon: MoonStar,
+    children: childrenFrom("/predictions", [
+      "Daily Horoscope",
+      "Weekly Horoscope",
+      "Monthly Horoscope",
+      "Personalized Predictions",
+    ]),
   },
   {
     // Label is "Tools" per the site-wide "Free Services" -> "Tools"
@@ -167,19 +179,17 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    // Predictions + Library folded into one "More" entry — both keep
-    // their own real top-level pages/routes (linked here exactly as
-    // before), this only reduces how many separate items sit in the
-    // primary desktop row so it stays a clean, evenly-sized set
-    // instead of visually overflowing/crowding at typical desktop
-    // widths (1024-1440px).
-    label: "More",
-    href: "/predictions",
-    icon: MoreHorizontal,
-    children: [
-      ...childrenFrom("/predictions", ["Daily Horoscope", "Weekly Horoscope", "Monthly Horoscope", "Personalized Predictions"]),
-      ...childrenFrom("/library", ["Astrology Guides", "Spiritual Wisdom", "Mantras", "Chalisa", "Vedic Knowledge", "Astrology Concepts"]),
-    ],
+    label: "Library",
+    href: "/library",
+    icon: BookOpen,
+    children: childrenFrom("/library", [
+      "Astrology Guides",
+      "Spiritual Wisdom",
+      "Mantras",
+      "Chalisa",
+      "Vedic Knowledge",
+      "Astrology Concepts",
+    ]),
   },
 ];
 
