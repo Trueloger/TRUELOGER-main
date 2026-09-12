@@ -31,11 +31,11 @@ function isActive(pathname: string, href: string) {
 export function MobileHeaderControls({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { itemCount, openCart } = useCart();
   return (
-    // Matches DesktopNav's xl:flex — the full 9-item desktop row only
-    // has room from 1280px up, so the mobile menu (which already
+    // Matches DesktopNav's 2xl:flex — the full desktop row only has
+    // real room from 1536px up, so the mobile menu (which already
     // handles every nav item correctly) covers everything below that,
     // not just genuinely narrow/phone widths.
-    <div className="flex items-center gap-1 xl:hidden">
+    <div className="flex items-center gap-1 2xl:hidden">
       <button
         type="button"
         onClick={openCart}
@@ -96,7 +96,7 @@ export function MobileMenuPanel({ open, onClose }: { open: boolean; onClose: () 
   }
 
   return (
-    <div className="fixed inset-0 z-[60] xl:hidden">
+    <div className="fixed inset-0 z-[60] 2xl:hidden">
       {/* overlay */}
       <button
         type="button"

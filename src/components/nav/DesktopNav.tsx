@@ -13,9 +13,11 @@ import { useAuth, getInitials } from "@/context/AuthContext";
 // the actual fix for the "looks bad, everything's a different size"
 // complaint: one shared sizing contract instead of each control having
 // grown its own slightly-different py-2/py-1.5/px-4 combination over
-// time.
-const CONTROL_HEIGHT = "h-10";
-const CONTROL_TEXT = "text-sm font-medium";
+// time. Deliberately compact (h-9, 13px text, tight icon gap) — with
+// 8 primary items plus Register/Mall/Cart/Auth, a roomier size is what
+// pushed the whole row past its container's real width.
+const CONTROL_HEIGHT = "h-9";
+const CONTROL_TEXT = "text-[0.8125rem] font-medium";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -86,19 +88,18 @@ export function DesktopNav() {
   }
 
   return (
-    // This full 9-item row only ever renders from xl (1280px) up —
-    // see MobileNav.tsx's matching xl:hidden breakpoint. Below that,
-    // the mobile menu (which already handles every one of these items
-    // correctly via its accordion) takes over instead of trying to
-    // cram this row into less space than it needs. No overflow-x-auto
-    // here: that was tried as a "safety net" and was the actual cause
-    // of a real bug — a scrollable ancestor also clips (not just
-    // scrolls) any absolutely-positioned dropdown panel that opens
-    // from inside it, which made the "Predictions"/"Library" hover
-    // panels disappear/break the row instead of showing. The right
-    // fix is giving this row a width it actually fits in, not clipping
-    // dropdowns to make a too-narrow row "work."
-    <div ref={rootRef} className="hidden items-center gap-1 xl:flex">
+    // This full 8-item row only ever renders from 2xl (1536px) up —
+    // see MobileNav.tsx's matching 2xl:hidden breakpoint. Below that,
+    // the mobile menu (which already handles every nav item correctly
+    // via its accordion) takes over instead of trying to cram this row
+    // into less space than it needs. No overflow-x-auto here: that was
+    // tried once as a "safety net" and was the actual cause of a real
+    // bug — a scrollable ancestor also clips (not just scrolls) any
+    // absolutely-positioned dropdown panel that opens from inside it.
+    // The right fix is giving this row a width it actually fits in
+    // (real 2xl-only breakpoint + compact sizing below), not clipping
+    // dropdowns or guessing at a narrower breakpoint that overflows.
+    <div ref={rootRef} className="hidden items-center gap-0.5 2xl:flex">
       <ul className="flex items-center gap-0.5">
         {NAV_ITEMS.map((item) => (
           <NavEntry
@@ -113,13 +114,13 @@ export function DesktopNav() {
         ))}
       </ul>
 
-      <div className="ml-1 flex shrink-0 items-center gap-2">
+      <div className="ml-1 flex shrink-0 items-center gap-1.5">
         <Link
           href="/register-as-astrologer"
-          className={`flex items-center gap-1.5 rounded-full border border-nav-gold/60 bg-nav-gold/10 px-4 ${CONTROL_HEIGHT} ${CONTROL_TEXT} text-nav-amethyst-deep transition-colors duration-200 hover:bg-nav-gold/20`}
+          className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border border-nav-gold/60 bg-nav-gold/10 px-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} text-nav-amethyst-deep transition-colors duration-200 hover:bg-nav-gold/20`}
         >
-          <UserPlus className="h-4 w-4" aria-hidden="true" />
-          Register as an Astrologer
+          <UserPlus className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Register
         </Link>
         <MallControl
           open={openKey === MALL_ITEM.label}
@@ -166,13 +167,13 @@ function NavEntry({
       <li className="relative shrink-0">
         <Link
           href={item.href}
-          className={`relative flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
+          className={`relative flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
             active
               ? "bg-nav-lavender-soft text-nav-violet font-semibold"
               : "text-nav-violet/75 hover:bg-nav-lavender-mist hover:text-nav-violet"
           }`}
         >
-          <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {item.label}
           {active && (
             <span className="absolute left-1/2 -bottom-0.5 h-1 w-1 -translate-x-1/2 rounded-full bg-nav-amethyst" />
@@ -193,17 +194,17 @@ function NavEntry({
         aria-controls={menuId}
         onClick={onOpen}
         onFocus={onOpen}
-        className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
+        className={`flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
           active || open
             ? "bg-nav-lavender-soft text-nav-violet font-semibold"
             : "text-nav-violet/75 hover:bg-nav-lavender-mist hover:text-nav-violet"
         }`}
       >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         {item.label}
         <ChevronDown
           aria-hidden="true"
-          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -242,14 +243,14 @@ function MallControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
         aria-controls="nav-menu-mall"
         onClick={onOpen}
         onFocus={onOpen}
-        className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
+        className={`flex items-center gap-1 whitespace-nowrap rounded-full border px-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
           open
             ? "border-nav-orchid bg-nav-lavender-soft text-nav-violet"
             : "border-nav-lavender-line bg-nav-pearl text-nav-violet hover:bg-nav-lavender-mist"
         }`}
       >
-        <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden="true" />
-        {MALL_ITEM.label}
+        <ShoppingBag className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        Mall
       </button>
 
       {open && (
@@ -282,9 +283,9 @@ function CartButton() {
       type="button"
       onClick={openCart}
       aria-label={`Cart, ${itemCount} item${itemCount === 1 ? "" : "s"}`}
-      className={`relative flex ${CONTROL_HEIGHT} w-10 shrink-0 items-center justify-center rounded-full text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist`}
+      className={`relative flex ${CONTROL_HEIGHT} w-9 shrink-0 items-center justify-center rounded-full text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist`}
     >
-      <ShoppingCart className="h-5 w-5" aria-hidden="true" />
+      <ShoppingCart className="h-4.5 w-4.5" aria-hidden="true" />
       <span
         aria-hidden="true"
         className="absolute -top-0.5 -right-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-nav-amethyst-deep px-1 text-[0.65rem] font-semibold text-white"
@@ -302,10 +303,10 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
     return (
       <Link
         href="/login"
-        className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border border-nav-lavender-line bg-nav-pearl px-3.5 ${CONTROL_HEIGHT} ${CONTROL_TEXT} text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist`}
+        className={`flex items-center gap-1 whitespace-nowrap rounded-full border border-nav-lavender-line bg-nav-pearl px-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist`}
       >
-        <LogIn className="h-4 w-4 shrink-0" aria-hidden="true" />
-        Login / Sign Up
+        <LogIn className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        Login
       </Link>
     );
   }
@@ -322,18 +323,18 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
         aria-label={`Account menu for ${displayName}`}
         onClick={onOpen}
         onFocus={onOpen}
-        className={`flex items-center gap-1.5 rounded-full border pl-1.5 pr-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
+        className={`flex items-center gap-1 rounded-full border pl-1 pr-2 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
           open
             ? "border-nav-orchid bg-nav-lavender-soft text-nav-violet"
             : "border-nav-lavender-line bg-nav-pearl text-nav-violet hover:bg-nav-lavender-mist"
         }`}
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-nav-amethyst text-xs font-semibold text-white">
+        <span className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full bg-nav-amethyst text-[0.65rem] font-semibold text-white">
           {getInitials(displayName)}
         </span>
         <ChevronDown
           aria-hidden="true"
-          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 

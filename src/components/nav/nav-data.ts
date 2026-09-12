@@ -1,14 +1,13 @@
 import {
   Home,
   UserRound,
-  MoonStar,
   Gift,
   FileText,
   Flame,
-  BookOpen,
   ShoppingBag,
   Sparkles,
   GraduationCap,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -71,17 +70,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Marriage Astrology", href: "/consult/marriage-astrology" },
       { label: "Prashna / Horary", href: "/consult/prashna-horary" },
     ],
-  },
-  {
-    label: "Predictions",
-    href: "/predictions",
-    icon: MoonStar,
-    children: childrenFrom("/predictions", [
-      "Daily Horoscope",
-      "Weekly Horoscope",
-      "Monthly Horoscope",
-      "Personalized Predictions",
-    ]),
   },
   {
     // Label is "Tools" per the site-wide "Free Services" -> "Tools"
@@ -179,21 +167,28 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "Library",
-    href: "/library",
-    icon: BookOpen,
-    children: childrenFrom("/library", [
-      "Astrology Guides",
-      "Spiritual Wisdom",
-      "Mantras",
-      "Chalisa",
-      "Vedic Knowledge",
-      "Astrology Concepts",
-    ]),
+    // Predictions + Library folded into one "More" entry purely to
+    // fit the primary desktop row into real available width — both
+    // keep their own real top-level pages/routes below, nothing is
+    // hidden or removed. (The previous attempt at this broke because
+    // of a since-fixed overflow-x-auto bug elsewhere in this file's
+    // consumer, DesktopNav.tsx — not because of grouping itself.)
+    label: "More",
+    href: "/predictions",
+    icon: MoreHorizontal,
+    children: [
+      ...childrenFrom("/predictions", ["Daily Horoscope", "Weekly Horoscope", "Monthly Horoscope", "Personalized Predictions"]),
+      ...childrenFrom("/library", ["Astrology Guides", "Spiritual Wisdom", "Mantras", "Chalisa", "Vedic Knowledge", "Astrology Concepts"]),
+    ],
   },
 ];
 
 export const MALL_ITEM: NavItem = {
+  // "Mall" on the desktop nav pill (kept short for the same width
+  // reasons as the other trims here); the mobile accordion row still
+  // shows the full "TRUELOGER Mall" via MobileNav's own ALL_ITEMS
+  // list, which reads this same label — see DesktopNav.tsx's
+  // MallControl for the desktop-only shortened display.
   label: "TRUELOGER Mall",
   href: "/mall",
   icon: ShoppingBag,
