@@ -1,14 +1,13 @@
 import {
   Home,
   UserRound,
-  MoonStar,
   Gift,
   FileText,
   Flame,
-  BookOpen,
   ShoppingBag,
   Sparkles,
   GraduationCap,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
@@ -73,17 +72,6 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "Predictions",
-    href: "/predictions",
-    icon: MoonStar,
-    children: childrenFrom("/predictions", [
-      "Daily Horoscope",
-      "Weekly Horoscope",
-      "Monthly Horoscope",
-      "Personalized Predictions",
-    ]),
-  },
-  {
     // Label is "Tools" per the site-wide "Free Services" -> "Tools"
     // terminology change — the underlying route (/free-services) is
     // deliberately unchanged (this is a user-facing label rename, not
@@ -115,7 +103,12 @@ export const NAV_ITEMS: NavItem[] = [
     // /reports/kundli-report would collide with that same route
     // pattern in Next's router. See src/lib/reports/products.ts for
     // the full product data this menu links into.
-    label: "Personalized Reports",
+    // Shorter top-level label ("Reports" not "Personalized Reports")
+    // purely to keep the desktop nav row compact — the page itself,
+    // its children, and every other mention of this product line
+    // elsewhere keep the full "Personalized Reports"/"[X] Report"
+    // naming.
+    label: "Reports",
     href: "/reports/personalized",
     icon: FileText,
     children: [
@@ -174,17 +167,19 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "Library",
-    href: "/library",
-    icon: BookOpen,
-    children: childrenFrom("/library", [
-      "Astrology Guides",
-      "Spiritual Wisdom",
-      "Mantras",
-      "Chalisa",
-      "Vedic Knowledge",
-      "Astrology Concepts",
-    ]),
+    // Predictions + Library folded into one "More" entry — both keep
+    // their own real top-level pages/routes (linked here exactly as
+    // before), this only reduces how many separate items sit in the
+    // primary desktop row so it stays a clean, evenly-sized set
+    // instead of visually overflowing/crowding at typical desktop
+    // widths (1024-1440px).
+    label: "More",
+    href: "/predictions",
+    icon: MoreHorizontal,
+    children: [
+      ...childrenFrom("/predictions", ["Daily Horoscope", "Weekly Horoscope", "Monthly Horoscope", "Personalized Predictions"]),
+      ...childrenFrom("/library", ["Astrology Guides", "Spiritual Wisdom", "Mantras", "Chalisa", "Vedic Knowledge", "Astrology Concepts"]),
+    ],
   },
 ];
 

@@ -3,10 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type FocusEvent } from "react";
-import { ChevronDown, LogIn, LogOut, ShoppingBag, ShoppingCart } from "lucide-react";
+import { ChevronDown, LogIn, LogOut, ShoppingBag, ShoppingCart, UserPlus } from "lucide-react";
 import { NAV_ITEMS, MALL_ITEM, PROFILE_MENU, type NavItem } from "./nav-data";
 import { useCart } from "@/context/CartContext";
 import { useAuth, getInitials } from "@/context/AuthContext";
+
+// Every top-level control (primary nav item, Mall, cart, auth,
+// Register CTA) shares this exact height/padding/radius/font recipe —
+// the actual fix for the "looks bad, everything's a different size"
+// complaint: one shared sizing contract instead of each control having
+// grown its own slightly-different py-2/py-1.5/px-4 combination over
+// time.
+const CONTROL_HEIGHT = "h-10";
+const CONTROL_TEXT = "text-sm font-medium";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -77,8 +86,14 @@ export function DesktopNav() {
   }
 
   return (
-    <div ref={rootRef} className="hidden lg:flex items-center gap-1.5">
-      <ul className="flex items-center gap-1">
+    <div ref={rootRef} className="hidden min-w-0 items-center gap-1.5 lg:flex">
+      {/* nav-scroll-hidden + overflow-x-auto is a safety net, not the
+          primary layout: at any width this row is actually designed
+          for (lg and up, given the item count below), every item fits
+          on one line with room to spare. If a future item is added
+          without re-checking that, this scrolls horizontally instead
+          of wrapping to a second, uneven line. */}
+      <ul className="nav-scroll-hidden flex items-center gap-0.5 overflow-x-auto">
         {NAV_ITEMS.map((item) => (
           <NavEntry
             key={item.label}
@@ -92,11 +107,12 @@ export function DesktopNav() {
         ))}
       </ul>
 
-      <div className="ml-2 flex items-center gap-2">
+      <div className="ml-1 flex shrink-0 items-center gap-2">
         <Link
           href="/register-as-astrologer"
-          className="hidden items-center gap-2 rounded-full border border-nav-gold/60 bg-nav-gold/10 px-3.5 py-2 text-sm font-medium text-nav-amethyst-deep transition-colors duration-200 hover:bg-nav-gold/20 xl:flex"
+          className={`hidden items-center gap-1.5 rounded-full border border-nav-gold/60 bg-nav-gold/10 px-4 ${CONTROL_HEIGHT} ${CONTROL_TEXT} text-nav-amethyst-deep transition-colors duration-200 hover:bg-nav-gold/20 xl:flex`}
         >
+          <UserPlus className="h-4 w-4" aria-hidden="true" />
           Register as an Astrologer
         </Link>
         <MallControl
@@ -137,21 +153,23 @@ function NavEntry({
 }) {
   const hasChildren = !!item.children?.length;
   const menuId = `nav-menu-${item.label.toLowerCase().replace(/\s+/g, "-")}`;
+  const Icon = item.icon;
 
   if (!hasChildren) {
     return (
-      <li className="relative">
+      <li className="relative shrink-0">
         <Link
           href={item.href}
-          className={`relative block rounded-full px-3.5 py-2 text-[0.925rem] font-medium transition-colors duration-200 ${
+          className={`relative flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
             active
               ? "bg-nav-lavender-soft text-nav-violet font-semibold"
               : "text-nav-violet/75 hover:bg-nav-lavender-mist hover:text-nav-violet"
           }`}
         >
+          <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
           {item.label}
           {active && (
-            <span className="absolute left-1/2 -bottom-1.5 h-1 w-1 -translate-x-1/2 rounded-full bg-nav-amethyst" />
+            <span className="absolute left-1/2 -bottom-0.5 h-1 w-1 -translate-x-1/2 rounded-full bg-nav-amethyst" />
           )}
         </Link>
       </li>
@@ -161,7 +179,7 @@ function NavEntry({
   const wide = item.children!.length > 8;
 
   return (
-    <li className="relative" onMouseEnter={onOpen} onMouseLeave={onLeave} onBlur={onBlur}>
+    <li className="relative shrink-0" onMouseEnter={onOpen} onMouseLeave={onLeave} onBlur={onBlur}>
       <button
         type="button"
         aria-haspopup="menu"
@@ -169,16 +187,17 @@ function NavEntry({
         aria-controls={menuId}
         onClick={onOpen}
         onFocus={onOpen}
-        className={`flex items-center gap-1 rounded-full px-3.5 py-2 text-[0.925rem] font-medium transition-colors duration-200 ${
+        className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
           active || open
             ? "bg-nav-lavender-soft text-nav-violet font-semibold"
             : "text-nav-violet/75 hover:bg-nav-lavender-mist hover:text-nav-violet"
         }`}
       >
+        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
         {item.label}
         <ChevronDown
           aria-hidden="true"
-          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -209,7 +228,7 @@ function NavEntry({
 
 function MallControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { open: boolean }) {
   return (
-    <div className="relative" onMouseEnter={onOpen} onMouseLeave={onLeave} onBlur={onBlur}>
+    <div className="relative shrink-0" onMouseEnter={onOpen} onMouseLeave={onLeave} onBlur={onBlur}>
       <button
         type="button"
         aria-haspopup="menu"
@@ -217,14 +236,14 @@ function MallControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
         aria-controls="nav-menu-mall"
         onClick={onOpen}
         onFocus={onOpen}
-        className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-200 ${
+        className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
           open
             ? "border-nav-orchid bg-nav-lavender-soft text-nav-violet"
             : "border-nav-lavender-line bg-nav-pearl text-nav-violet hover:bg-nav-lavender-mist"
         }`}
       >
-        <ShoppingBag className="h-4 w-4" aria-hidden="true" />
-        {MALL_ITEM.label.toUpperCase()}
+        <ShoppingBag className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {MALL_ITEM.label}
       </button>
 
       {open && (
@@ -257,7 +276,7 @@ function CartButton() {
       type="button"
       onClick={openCart}
       aria-label={`Cart, ${itemCount} item${itemCount === 1 ? "" : "s"}`}
-      className="relative flex h-10 w-10 items-center justify-center rounded-full text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist"
+      className={`relative flex ${CONTROL_HEIGHT} w-10 shrink-0 items-center justify-center rounded-full text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist`}
     >
       <ShoppingCart className="h-5 w-5" aria-hidden="true" />
       <span
@@ -277,9 +296,9 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
     return (
       <Link
         href="/login"
-        className="flex items-center gap-2 rounded-full border border-nav-lavender-line bg-nav-pearl px-4 py-2 text-sm font-medium text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist"
+        className={`flex items-center gap-1.5 whitespace-nowrap rounded-full border border-nav-lavender-line bg-nav-pearl px-3.5 ${CONTROL_HEIGHT} ${CONTROL_TEXT} text-nav-violet transition-colors duration-200 hover:bg-nav-lavender-mist`}
       >
-        <LogIn className="h-4 w-4" aria-hidden="true" />
+        <LogIn className="h-4 w-4 shrink-0" aria-hidden="true" />
         Login / Sign Up
       </Link>
     );
@@ -288,7 +307,7 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
   const displayName = profile?.fullName || currentUser.displayName || currentUser.email || "Account";
 
   return (
-    <div className="relative" onMouseEnter={onOpen} onMouseLeave={onLeave} onBlur={onBlur}>
+    <div className="relative shrink-0" onMouseEnter={onOpen} onMouseLeave={onLeave} onBlur={onBlur}>
       <button
         type="button"
         aria-haspopup="menu"
@@ -297,18 +316,18 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
         aria-label={`Account menu for ${displayName}`}
         onClick={onOpen}
         onFocus={onOpen}
-        className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 pr-3 text-sm font-medium transition-colors duration-200 ${
+        className={`flex items-center gap-1.5 rounded-full border pl-1.5 pr-3 ${CONTROL_HEIGHT} ${CONTROL_TEXT} transition-colors duration-200 ${
           open
             ? "border-nav-orchid bg-nav-lavender-soft text-nav-violet"
             : "border-nav-lavender-line bg-nav-pearl text-nav-violet hover:bg-nav-lavender-mist"
         }`}
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-nav-amethyst text-xs font-semibold text-white">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-nav-amethyst text-xs font-semibold text-white">
           {getInitials(displayName)}
         </span>
         <ChevronDown
           aria-hidden="true"
-          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
