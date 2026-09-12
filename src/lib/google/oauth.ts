@@ -7,6 +7,7 @@
 // server-side (Firestore, Admin-SDK-only access), and every future
 // Calendar/Meet event is created using that stored token — no
 // interactive step needed again unless the admin revokes access.
+import { randomBytes } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import { getAdminApp } from "@/lib/firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
@@ -41,7 +42,10 @@ export function createOAuthClient(): OAuth2Client {
  * callback route itself is hit by Google's redirect (no bearer auth
  * header available there to check admin status directly). */
 export async function createPendingState(): Promise<string> {
-  const state = `st_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+  // A real CSPRNG (Node's crypto.randomBytes), not Math.random() —
+  // this token is the actual CSRF/OAuth-state gate on the public
+  // callback route, so it needs real unpredictable entropy.
+  const state = `st_${randomBytes(32).toString("base64url")}`;
   await db().collection(STATES_COLLECTION).doc(state).set({ createdAt: Date.now() });
   return state;
 }
