@@ -217,18 +217,14 @@ export async function applyPaymentStatus(
     if (consultationItems.length > 0) {
       // Lazy import, same reasoning as the reports hook above — most
       // callers of orders/store.ts never touch meetings.
-      const { createMeeting } = await import("@/lib/meetings/store");
+      const { createMeeting, updateMeetingStatus } = await import("@/lib/meetings/store");
       const { BUSINESS_TIMEZONE } = await import("@/lib/consultation/availability");
       for (const item of consultationItems) {
         if (!item.preferredDate || !item.preferredTime) continue; // legacy pre-date/time order, nothing to schedule
-        // Every meeting is created honestly in MEETING_CREATION_PENDING
-        // — see src/lib/meetings/types.ts's doc comment on why: Google
-        // Meet/Calendar creation itself needs a one-time OAuth
-        // authorization this project doesn't have configured yet.
         // createMeeting is itself idempotent (orderId+serviceId), so a
         // duplicate webhook/verify call can never create two meetings
         // for the same booking.
-        await createMeeting({
+        const meeting = await createMeeting({
           orderId: result.id,
           consultationServiceId: item.serviceId,
           serviceName: item.serviceName,
@@ -240,6 +236,54 @@ export async function applyPaymentStatus(
           durationMinutes: item.duration,
           timezone: item.timezone ?? BUSINESS_TIMEZONE,
         }).catch(() => null);
+
+        // Real Google Meet creation — only proceeds past
+        // MEETING_CREATION_PENDING if a host account is connected
+        // (src/app/admin/google). Never lets a Calendar API failure
+        // touch the order/payment; the meeting simply stays honestly
+        // pending/failed for admin follow-up (AGENTS "Google Meet
+        // failure handling").
+        if (meeting && meeting.status === "MEETING_CREATION_PENDING") {
+          try {
+            const { createMeetEvent } = await import("@/lib/google/calendar");
+            const created = await createMeetEvent({
+              serviceName: item.serviceName,
+              customerName: result.customerName ?? result.customerEmail,
+              customerEmail: result.customerEmail,
+              date: item.preferredDate,
+              startTime: item.preferredTime,
+              durationMinutes: item.duration,
+              timezone: item.timezone ?? BUSINESS_TIMEZONE,
+              orderId: result.id,
+              consultationServiceId: item.serviceId,
+            });
+            await updateMeetingStatus(meeting.id, "SCHEDULED", {
+              googleEventId: created.eventId,
+              googleMeetUrl: created.meetUrl,
+              hostEmail: created.hostEmail,
+            });
+            const { sendMeetingScheduledEmail } = await import("@/lib/email/events");
+            await sendMeetingScheduledEmail({
+              meetingId: meeting.id,
+              toEmail: result.customerEmail,
+              customerName: result.customerName ?? result.customerEmail,
+              serviceName: item.serviceName,
+              date: item.preferredDate,
+              time: item.preferredTime,
+              durationMinutes: item.duration,
+              meetUrl: created.meetUrl,
+            }).catch(() => {});
+          } catch (err) {
+            // Not connected yet, or a real Calendar API error — leave
+            // it as MEETING_CREATION_PENDING if Calendar simply isn't
+            // connected (so a later admin connect + retry mechanism
+            // can still pick it up), FAILED for any other real error.
+            const notConnected = err instanceof Error && err.message.includes("not connected");
+            if (!notConnected) {
+              await updateMeetingStatus(meeting.id, "MEETING_CREATION_FAILED").catch(() => {});
+            }
+          }
+        }
 
         const { sendConsultationBookingEmail } = await import("@/lib/email/events");
         await sendConsultationBookingEmail({

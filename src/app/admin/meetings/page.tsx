@@ -226,6 +226,9 @@ export default function AdminMeetingsPage() {
                         Copy Meeting Link
                       </button>
                     )}
+                    {(m.status === "MEETING_CREATION_PENDING" || m.status === "MEETING_CREATION_FAILED") && (
+                      <RetryButton meetingId={m.id} onDone={load} />
+                    )}
                   </div>
                 </li>
               ))}
@@ -234,5 +237,35 @@ export default function AdminMeetingsPage() {
         </>
       )}
     </div>
+  );
+}
+
+function RetryButton({ meetingId, onDone }: { meetingId: string; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleClick() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await authedFetch(`/api/admin/meetings/${meetingId}/create-meet`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError((data && data.error) || "Failed to create meeting link.");
+        return;
+      }
+      onDone();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="flex flex-col gap-1">
+      <button type="button" onClick={handleClick} disabled={busy} className="text-sm font-medium text-nav-amethyst-deep hover:underline disabled:cursor-not-allowed disabled:opacity-60">
+        {busy ? "Creating…" : "Create Meet Link"}
+      </button>
+      {error && <span className="text-xs text-red-600">{error}</span>}
+    </span>
   );
 }

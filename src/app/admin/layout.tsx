@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Menu, PackageSearch, Users, X, LogOut, Gem, Tag, Settings, FileText, Sparkles, UserRound, CalendarClock } from "lucide-react";
+import { LayoutDashboard, Menu, PackageSearch, Users, X, LogOut, Gem, Tag, Settings, FileText, Sparkles, UserRound, CalendarClock, Video } from "lucide-react";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { useAuth } from "@/context/AuthContext";
 import { authedFetch } from "@/lib/auth/authed-fetch";
@@ -29,6 +29,7 @@ const NAV_LINKS = [
   { href: "/admin/services", label: "Services", Icon: Sparkles },
   { href: "/admin/reports", label: "Reports", Icon: FileText, notificationTab: "reports" as NotificationTab },
   { href: "/admin/meetings", label: "Meetings", Icon: CalendarClock, notificationTab: "meetings" as NotificationTab },
+  { href: "/admin/google", label: "Google Calendar", Icon: Video },
   { href: "/admin/astrologers", label: "Astrologers", Icon: UserRound, notificationTab: "astrologerApplications" as NotificationTab },
   { href: "/admin/coupons", label: "Coupons", Icon: Tag },
   { href: "/admin/settings", label: "Settings", Icon: Settings },
