@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/verify-request";
 import { getUnseenCounts, markTabSeen, type NotificationTab } from "@/lib/admin-notifications/store";
 
-const VALID_TABS: NotificationTab[] = ["orders", "meetings", "astrologerApplications", "reports"];
+const VALID_TABS: NotificationTab[] = ["orders", "meetings", "astrologerApplications", "reports", "support"];
 
 export async function GET(request: Request) {
   const admin = await verifyAdminRequest(request);

@@ -172,6 +172,12 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
         >
           View Order
         </Link>
+        <Link
+          href={`/contact?meetingId=${encodeURIComponent(meeting.id)}&orderId=${encodeURIComponent(meeting.orderId)}&category=meeting`}
+          className="inline-flex min-h-9 items-center text-sm font-medium text-nav-amethyst-deep hover:underline"
+        >
+          Meeting Help
+        </Link>
       </div>
     </div>
   );

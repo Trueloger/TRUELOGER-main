@@ -170,6 +170,54 @@ export async function sendAstrologerApplicationStatusEmail(input: {
   await sendOnce(`astrologer_status:${input.applicationId}:${input.status}`, input.toEmail, "Your TrueLoger astrologer application status", html);
 }
 
+export async function sendAccountDeletionConfirmationEmail(input: { uid: string; toEmail: string; name: string }): Promise<void> {
+  const html = emailShell({
+    heading: "Your Account Has Been Deleted",
+    bodyHtml: `
+      <p>Hi ${escapeHtml(input.name)},</p>
+      <p>Your TrueLoger account and profile have been deleted, as requested. Order, payment, report, and support-ticket records associated with your account are retained separately for a limited period as described in our Privacy Policy, in line with applicable legal and accounting requirements — this data is not accessible through the app you signed into.</p>
+      <p>If you didn't request this, please contact us immediately.</p>
+    `,
+  });
+  // Keyed by uid (not email+timestamp) — the uid is stable and unique
+  // per account, so a genuine duplicate call for the SAME deletion
+  // event is correctly deduplicated, unlike a timestamp-based key
+  // which would defeat idempotency entirely.
+  await sendOnce(`account_deleted:${input.uid}`, input.toEmail, "Your TrueLoger account has been deleted", html);
+}
+
+export async function sendSupportTicketReceivedEmail(input: { ticketId: string; toEmail: string; name: string; category: string }): Promise<void> {
+  const html = emailShell({
+    heading: "We've Received Your Request",
+    bodyHtml: `
+      <p>Hi ${escapeHtml(input.name)},</p>
+      <p>Thank you for contacting TrueLoger. Your request has been received (reference <strong>${escapeHtml(input.ticketId)}</strong>, category: ${escapeHtml(input.category)}). We aim to respond as promptly as possible.</p>
+    `,
+  });
+  await sendOnce(`support_ticket_received:${input.ticketId}`, input.toEmail, "Your TrueLoger request has been received", html);
+}
+
+export async function sendSupportTicketAdminNotification(input: {
+  ticketId: string;
+  adminEmail: string;
+  name: string;
+  email: string;
+  category: string;
+  message: string;
+}): Promise<void> {
+  const html = emailShell({
+    heading: "New Support Request",
+    bodyHtml: `
+      <p>New request (${escapeHtml(input.category)}) from ${escapeHtml(input.name)} (${escapeHtml(input.email)}).</p>
+      <p style="white-space:pre-wrap;">${escapeHtml(input.message)}</p>
+      <p>Reference: ${escapeHtml(input.ticketId)}</p>
+    `,
+    ctaLabel: "Open in Admin",
+    ctaHref: `${appUrl()}/admin/support`,
+  });
+  await sendOnce(`support_ticket_admin:${input.ticketId}`, input.adminEmail, `New TrueLoger support request — ${input.category}`, html);
+}
+
 function appUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "https://trueloger.vercel.app";
 }

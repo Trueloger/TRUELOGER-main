@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { LotusIcon } from "@/components/quick-services/icons";
 import { FOOTER_CONTACT } from "@/components/footer/footer-data";
+import { POLICY_META, BUSINESS_INFO } from "@/lib/policy/config";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions | TRUELOGER",
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
     "Terms and Conditions governing the use of TRUELOGER's website, astrology consultations, and gemstone/spiritual product purchases.",
 };
 
-const LAST_UPDATED = "10 September 2026";
+const LAST_UPDATED = POLICY_META.terms.lastUpdated;
 
 const SECTIONS: { id: string; title: string }[] = [
   { id: "acceptance", title: "1. Acceptance of Terms" },
@@ -33,6 +34,8 @@ const SECTIONS: { id: string; title: string }[] = [
   { id: "nature-of-services", title: "4. Nature of Our Services — Important Disclaimer" },
   { id: "account", title: "5. Account Registration, Profile, and Security" },
   { id: "products", title: "6. Products and Services Offered" },
+  { id: "meetings-astrologers", title: "6A. Google Meet Consultations and Astrologer Registration" },
+  { id: "ai-content", title: "6B. AI-Assisted Report Content" },
   { id: "pricing-payments", title: "7. Pricing, Taxes, and Payments" },
   { id: "orders", title: "8. Order Placement and Acceptance" },
   { id: "cancellation-refunds", title: "9. Cancellation, Return, and Refund Policy" },
@@ -73,11 +76,10 @@ export default function TermsAndConditionsPage() {
         <p className="mt-6 text-sm leading-relaxed text-nav-plum/85">
           These Terms and Conditions (&quot;Terms&quot;) constitute a legally binding agreement
           between you (&quot;User&quot;, &quot;you&quot;, &quot;your&quot;) and{" "}
-          <strong>[Legal Entity Name], a company/proprietorship registered under the laws of
-          India</strong> having its registered office at [Registered Business Address, City,
-          State, PIN Code], operating the website located at trueloger.vercel.app and any
-          successor domain (collectively, &quot;TRUELOGER&quot;, &quot;we&quot;, &quot;us&quot;,
-          &quot;our&quot;, the &quot;Platform&quot;). GSTIN: [GSTIN Number].
+          <strong>{BUSINESS_INFO.entityName}, {BUSINESS_INFO.entityType}</strong> having its
+          registered office at {BUSINESS_INFO.registeredAddress}, operating the website located at
+          trueloger.vercel.app and any successor domain (collectively, &quot;TRUELOGER&quot;,
+          &quot;we&quot;, &quot;us&quot;, &quot;our&quot;, the &quot;Platform&quot;). GSTIN: {BUSINESS_INFO.gstin}.
         </p>
         <p className="mt-3 text-sm leading-relaxed text-nav-plum/85">
           By accessing or using the Platform, creating an account, placing an order, or
@@ -218,16 +220,44 @@ export default function TermsAndConditionsPage() {
 
           <Section id="products" title="6. Products and Services Offered">
             <p>
-              We offer, on a rolling and admin-managed basis: astrology and related
-              Consultations; gemstones; bracelets; Rudraksha; Yantras; and other spiritual
-              products. Product descriptions, images (including placeholder imagery pending real
-              product photography), pricing, and availability are managed by us and may be added,
-              modified, discontinued, or marked out of stock at any time without prior notice.
-              Certain free tools on the Platform (for example, basic horoscope, Kundli, Rashi,
-              Nakshatra, or compatibility calculators marked as free) may be used without
-              registration or payment; these Terms apply to your use of those free tools as well,
-              except that Sections 7 through 10 (pricing, orders, cancellation/refunds, and
-              shipping) apply only to paid Consultations and Products.
+              We offer, on a rolling and admin-managed basis: astrology and related Consultations;
+              Healing sessions; Puja bookings; Courses; Personalized Reports; gemstones; bracelets;
+              Rudraksha; Yantras; and other spiritual products. Product/service descriptions,
+              images (including placeholder imagery pending real product photography), pricing,
+              and availability are managed by us and may be added, modified, discontinued, or
+              marked out of stock/unavailable at any time without prior notice. Certain free tools
+              on the Platform (for example, basic horoscope, Kundli, Rashi, Nakshatra, or
+              compatibility calculators marked as free) may be used without registration or
+              payment; these Terms apply to your use of those free tools as well, except that
+              Sections 7 through 10 (pricing, orders, cancellation/refunds, and shipping) apply
+              only to paid Consultations, Healing, Puja, Courses, Reports, and Products. Category-
+              specific terms for each of these are set out in our{" "}
+              <Link href="/refund-cancellation" className="text-nav-amethyst-deep hover:underline">Refund & Cancellation Policy</Link>.
+            </p>
+          </Section>
+
+          <Section id="meetings-astrologers" title="6A. Google Meet Consultations and Astrologer Registration">
+            <p>
+              For paid Consultations that involve a live session, we create a Google Meet link for
+              your appointment using the Google Calendar/Meet API after your payment is confirmed.
+              Only your name, email, and appointment schedule are shared with this integration for
+              that purpose. If a link cannot be created immediately due to a technical issue, your
+              order and payment remain valid — see our{" "}
+              <Link href="/refund-cancellation" className="text-nav-amethyst-deep hover:underline">Refund & Cancellation Policy</Link>{" "}
+              and <Link href="/help" className="text-nav-amethyst-deep hover:underline">Help & Support</Link>. Astrologers
+              and experts who apply to join the Platform are additionally bound by our{" "}
+              <Link href="/astrologer-terms" className="text-nav-amethyst-deep hover:underline">Astrologer / Expert Terms</Link>.
+            </p>
+          </Section>
+
+          <Section id="ai-content" title="6B. AI-Assisted Report Content">
+            <p>
+              Personalized Reports combine real astrological calculations — performed by our own
+              deterministic engine and never invented or altered by AI — with narrative
+              interpretation generated section-by-section by an AI model (via the OpenRouter API).
+              AI-generated content can contain errors and is not a substitute for professional
+              medical, legal, or financial advice; see our{" "}
+              <Link href="/disclaimer" className="text-nav-amethyst-deep hover:underline">Disclaimer</Link>.
             </p>
           </Section>
 
@@ -276,7 +306,10 @@ export default function TermsAndConditionsPage() {
             <p>
               This Section is drafted in line with the Consumer Protection (E-Commerce) Rules,
               2020. Different categories of purchase are treated differently because of their
-              inherent nature:
+              inherent nature — see our full{" "}
+              <Link href="/refund-cancellation" className="text-nav-amethyst-deep hover:underline">Refund & Cancellation Policy</Link>{" "}
+              for the complete, per-category rules (including Healing, Puja, Courses, and
+              Personalized Reports, which are summarised here and covered in full detail there):
             </p>
             <p className="mt-3 font-medium text-nav-plum">Consultations</p>
             <ul className="mt-1 list-disc space-y-1.5 pl-5">
@@ -337,6 +370,10 @@ export default function TermsAndConditionsPage() {
 
           <Section id="shipping" title="10. Shipping and Delivery">
             <p>
+              See our full <Link href="/shipping-delivery" className="text-nav-amethyst-deep hover:underline">Shipping & Delivery Policy</Link> for
+              physical products. In summary:
+            </p>
+            <p className="mt-2">
               Estimated delivery timelines shown on a Product page or at checkout are good-faith
               estimates, not guaranteed delivery dates, and may be affected by courier delays,
               remote delivery locations, natural events, strikes, or other circumstances beyond
@@ -483,15 +520,19 @@ export default function TermsAndConditionsPage() {
               calculations, Consultation reports, and personalised recommendations, and are not
               sold to third parties. Full details of what we collect, why, and your rights over
               it (including the right to access, correct, and request deletion of your data) are
-              set out in our Privacy Policy; where a standalone Privacy Policy page has not yet
-              been published, this Section 18, together with Section 19 below, serves as our
-              privacy disclosure until that page is published, and you may request full details
-              of our data practices at any time at {FOOTER_CONTACT.email}.
+              set out in our <Link href="/privacy-policy" className="text-nav-amethyst-deep hover:underline">Privacy Policy</Link>, with
+              the underlying technical/security practices described in{" "}
+              <Link href="/privacy-security" className="text-nav-amethyst-deep hover:underline">Privacy & Security</Link>. You
+              may request full details of our data practices at any time at {FOOTER_CONTACT.email}.
             </p>
           </Section>
 
           <Section id="cookies" title="19. Cookies">
             <p>
+              See our full <Link href="/cookie-policy" className="text-nav-amethyst-deep hover:underline">Cookie & Tracking Policy</Link> for
+              the complete, audited list. In summary:
+            </p>
+            <p className="mt-2">
               The Platform uses only essential cookies and browser storage required for it to
               function — specifically: (a) Firebase Authentication session cookies/tokens, which
               keep you signed in between visits; and (b) cookies set directly by our Payment
@@ -513,8 +554,8 @@ export default function TermsAndConditionsPage() {
               are published below:
             </p>
             <div className="mt-3 rounded-xl border border-nav-lavender-line bg-white/60 p-4 text-sm">
-              <p><strong>Grievance Officer:</strong> [Grievance Officer Name]</p>
-              <p className="mt-1"><strong>Designation:</strong> [Designation]</p>
+              <p><strong>Grievance Officer:</strong> {BUSINESS_INFO.grievanceOfficer.name}</p>
+              <p className="mt-1"><strong>Designation:</strong> {BUSINESS_INFO.grievanceOfficer.designation}</p>
               <p className="mt-1">
                 <strong>Email:</strong>{" "}
                 <a href={`mailto:${FOOTER_CONTACT.email}`} className="text-nav-amethyst-deep hover:underline">
@@ -522,14 +563,15 @@ export default function TermsAndConditionsPage() {
                 </a>
               </p>
               <p className="mt-1"><strong>Phone:</strong> {FOOTER_CONTACT.phone}</p>
-              <p className="mt-1"><strong>Address:</strong> [Registered Business Address, City, State, PIN Code]</p>
+              <p className="mt-1"><strong>Address:</strong> {BUSINESS_INFO.registeredAddress}</p>
             </div>
             <p className="mt-3">
               Any complaint or grievance regarding any Content, Order, Consultation, Product, or
-              your data may be sent to the Grievance Officer above. We will acknowledge receipt
-              of your complaint within 48 (forty-eight) hours and endeavour to redress it within
-              1 (one) month of its receipt, or such other timeline as may be prescribed by
-              applicable law from time to time.
+              your data may be sent to the Grievance Officer above, or submitted through our{" "}
+              <Link href="/grievance" className="text-nav-amethyst-deep hover:underline">Grievance Redressal</Link> page.
+              We will acknowledge receipt of your complaint within 48 (forty-eight) hours and
+              endeavour to redress it within 1 (one) month of its receipt, or such other timeline
+              as may be prescribed by applicable law from time to time.
             </p>
           </Section>
 
@@ -543,12 +585,13 @@ export default function TermsAndConditionsPage() {
               (thirty) days. If the dispute is not resolved within that period, it shall be
               referred to and finally resolved by arbitration under the Arbitration and
               Conciliation Act, 1996, conducted by a sole arbitrator appointed by mutual consent,
-              with the seat and venue of arbitration at [City, State], India, and the proceedings
-              conducted in English. This arbitration agreement does not affect your right to
-              approach a consumer forum/commission under the Consumer Protection Act, 2019, which
-              remains available to you as a consumer, at your option. Subject to the foregoing,
-              the courts at [City], [State] shall have exclusive jurisdiction over any matter not
-              subject to arbitration or the consumer forum.
+              with the seat and venue of arbitration at {BUSINESS_INFO.arbitrationSeat}, India,
+              and the proceedings conducted in English. This arbitration agreement does not affect
+              your right to approach a consumer forum/commission under the Consumer Protection
+              Act, 2019, which remains available to you as a consumer, at your option. Subject to
+              the foregoing, the courts at {BUSINESS_INFO.jurisdictionCity}, {BUSINESS_INFO.jurisdictionState} shall
+              have exclusive jurisdiction over any matter not subject to arbitration or the
+              consumer forum.
             </p>
           </Section>
 
@@ -610,8 +653,8 @@ export default function TermsAndConditionsPage() {
               For any questions about these Terms, please contact us at:
             </p>
             <div className="mt-3 rounded-xl border border-nav-lavender-line bg-white/60 p-4 text-sm">
-              <p><strong>[Legal Entity Name]</strong></p>
-              <p className="mt-1">[Registered Business Address, City, State, PIN Code]</p>
+              <p><strong>{BUSINESS_INFO.entityName}</strong></p>
+              <p className="mt-1">{BUSINESS_INFO.registeredAddress}</p>
               <p className="mt-1">
                 Email:{" "}
                 <a href={`mailto:${FOOTER_CONTACT.email}`} className="text-nav-amethyst-deep hover:underline">
@@ -624,15 +667,15 @@ export default function TermsAndConditionsPage() {
         </div>
 
         <p className="mt-10 border-t border-nav-lavender-line pt-5 text-xs leading-relaxed text-nav-plum/50">
-          This document is a general-purpose legal template drafted to align with Indian
-          consumer-protection, e-commerce, and information-technology law as currently in force,
-          and should be reviewed by a qualified legal professional and updated with the
-          business&apos;s actual registered entity details, GSTIN, grievance officer, and
-          jurisdiction before being relied upon as a final, binding document. See also our{" "}
-          <Link href="/" className="text-nav-amethyst-deep hover:underline">
-            homepage
-          </Link>{" "}
-          and our Consultation-specific disclaimers on each service page.
+          This document is drafted to align with Indian consumer-protection, e-commerce, and
+          information-technology law as currently in force, and should be reviewed by a qualified
+          legal professional and updated with the business&apos;s actual registered entity
+          details, GSTIN, grievance officer, and jurisdiction before being relied upon as a final,
+          binding document — see LEGAL_REVIEW_CHECKLIST.md. See also our{" "}
+          <Link href="/privacy-policy" className="text-nav-amethyst-deep hover:underline">Privacy Policy</Link>,{" "}
+          <Link href="/refund-cancellation" className="text-nav-amethyst-deep hover:underline">Refund & Cancellation Policy</Link>,{" "}
+          <Link href="/disclaimer" className="text-nav-amethyst-deep hover:underline">Disclaimer</Link>, and{" "}
+          our full <Link href="/help" className="text-nav-amethyst-deep hover:underline">Help & Support</Link> section.
         </p>
       </div>
     </main>

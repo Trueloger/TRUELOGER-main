@@ -94,6 +94,24 @@ export async function DELETE(request: Request) {
   const verified = await verifyRequest(request);
   if (!verified) return NextResponse.json({ error: "Please sign in to continue." }, { status: 401 });
 
+  const profileSnap = await db().collection("users").doc(verified.uid).get();
+  const fullName = profileSnap.exists ? (profileSnap.data() as { fullName?: string }).fullName : undefined;
+
   await db().collection("users").doc(verified.uid).delete();
+
+  // Sent here (server-side, still has a valid uid/email) rather than
+  // from the client page that calls this route — by the time that
+  // page also calls Firebase Auth's deleteUser(), the ID token this
+  // route needs would already be invalidated. Best-effort: a failed
+  // email must never block the deletion itself.
+  if (verified.email) {
+    const { sendAccountDeletionConfirmationEmail } = await import("@/lib/email/events");
+    await sendAccountDeletionConfirmationEmail({
+      uid: verified.uid,
+      toEmail: verified.email,
+      name: fullName ?? verified.email,
+    }).catch(() => {});
+  }
+
   return NextResponse.json({ ok: true });
 }

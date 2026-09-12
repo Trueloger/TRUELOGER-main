@@ -286,13 +286,19 @@ function ReaderReady({ report }: { report: Report }) {
         </div>
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex flex-wrap items-center justify-center gap-4">
         <Link
           href="/account/reports"
           className="flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-nav-lavender-line bg-white px-6 py-2.5 text-sm font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist"
         >
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Back to My Reports
+        </Link>
+        <Link
+          href={`/contact?reportId=${encodeURIComponent(report.id)}&orderId=${encodeURIComponent(report.orderId)}&category=report`}
+          className="text-sm font-medium text-nav-amethyst-deep hover:underline"
+        >
+          Report Support
         </Link>
       </div>
     </div>

@@ -184,6 +184,13 @@ function OrderDetailCard({ order }: { order: Order }) {
           Payment reference: {order.cashfreeOrderId}
         </p>
       )}
+
+      <Link
+        href={`/contact?orderId=${encodeURIComponent(order.id)}&category=order`}
+        className="mt-5 inline-block text-sm font-medium text-nav-amethyst-deep hover:underline"
+      >
+        Need help with this order?
+      </Link>
     </div>
   );
 }

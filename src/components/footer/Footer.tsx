@@ -9,7 +9,9 @@ import { InstagramGlyph, YoutubeGlyph, FacebookGlyph } from "./social-icons";
 import {
   FOOTER_COMPANY,
   FOOTER_CONTACT,
-  FOOTER_DISCOVER,
+  FOOTER_HELP,
+  FOOTER_POLICIES,
+  FOOTER_LEGAL_TRUST,
   FOOTER_EXPLORE,
   FOOTER_SOCIALS,
 } from "./footer-data";
@@ -32,12 +34,11 @@ const LOGO_ASPECT = 1318 / 373;
  * nav-lavender-soft) and fades back to nav-ivory; no dark/black background.
  *
  * Brand mark + description, contact (email/phone/WhatsApp) + social icons,
- * three nav groups (Explore/Discover/Company) built from real routes, real
- * homepage-section anchors, and — by explicit request — /about and /support
- * (not built yet), and a copyright bar with a dynamic year. Contact details
- * and social URLs are PLACEHOLDERS (see footer-data.ts) pending real ones.
- * Still no legal-page row, no newsletter form — nothing real to link/submit
- * to in this codebase yet.
+ * five nav groups (Explore, Company, Help, Policies, Legal & Trust — the
+ * full Legal/Company/Help/Support/Policy/Trust section) built from real
+ * routes, and a copyright bar with a dynamic year plus the core legal
+ * links. Contact details and social URLs are PLACEHOLDERS (see
+ * footer-data.ts / LEGAL_REVIEW_CHECKLIST.md) pending real ones.
  */
 export function Footer() {
   const year = new Date().getFullYear();
@@ -61,7 +62,7 @@ export function Footer() {
       </div>
 
       <div className="mx-auto max-w-[1320px] px-4 py-10 sm:px-6 md:px-8 md:py-14">
-        <div className="grid gap-10 md:grid-cols-[1.3fr_1fr_1fr_1fr] md:gap-8 lg:gap-12">
+        <div className="grid gap-10 md:grid-cols-[1.1fr_0.7fr_0.7fr_1fr_1fr] md:gap-8 lg:gap-10">
           {/* Brand + short description + contact + socials */}
           <div className="flex flex-col items-center text-center md:items-start md:text-left">
             <Link
@@ -139,36 +140,44 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Primary nav group */}
+          {/* Primary nav group — real homepage utility links. */}
           <nav aria-label="Explore">
             <FooterAccordion title="Explore" links={FOOTER_EXPLORE} />
           </nav>
 
-          {/* Secondary nav group — a different cut of the site, not the
-              same list repeated. */}
-          <nav aria-label="Discover">
-            <FooterAccordion title="Discover" links={FOOTER_DISCOVER} />
-          </nav>
-
-          {/* Company — About Us / Support. Pages don't exist yet, entries
-              added by explicit request; see footer-data.ts. */}
+          {/* Company — About / Contact. */}
           <nav aria-label="Company">
             <FooterAccordion title="Company" links={FOOTER_COMPANY} />
+          </nav>
+
+          {/* Help — Help & Support / FAQ. */}
+          <nav aria-label="Help">
+            <FooterAccordion title="Help" links={FOOTER_HELP} />
+          </nav>
+
+          {/* Policies — the commerce/consumer-facing policy set. */}
+          <nav aria-label="Policies">
+            <FooterAccordion title="Policies" links={FOOTER_POLICIES} />
+          </nav>
+
+          {/* Legal & Trust — grievance, data deletion, accessibility,
+              astrologer terms, security. */}
+          <nav aria-label="Legal & Trust">
+            <FooterAccordion title="Legal & Trust" links={FOOTER_LEGAL_TRUST} />
           </nav>
         </div>
       </div>
 
       {/* Bottom bar — dynamic copyright year, real brand name, and the
-          one real legal link (Terms & Conditions, also in FOOTER_COMPANY
-          above) — no separate Privacy/Refund pages yet, so this stays
-          just the one link rather than a full legal-links row. */}
+          core legal-links row. */}
       <div className="border-t border-nav-lavender-line px-4 py-6 sm:px-6 md:px-8">
         <div className="mx-auto flex max-w-[1320px] flex-col items-center gap-3 text-center">
-          <p className="text-[0.85rem] text-nav-plum/70">
-            &copy; {year} TRUELOGER. All rights reserved.{" "}
-            <Link href="/terms-and-conditions" className="underline underline-offset-2 hover:text-nav-amethyst-deep">
-              Terms &amp; Conditions
-            </Link>
+          <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[0.85rem] text-nav-plum/70">
+            <span>&copy; {year} TRUELOGER. All rights reserved.</span>
+            <Link href="/terms-and-conditions" className="underline underline-offset-2 hover:text-nav-amethyst-deep">Terms</Link>
+            <Link href="/privacy-policy" className="underline underline-offset-2 hover:text-nav-amethyst-deep">Privacy</Link>
+            <Link href="/refund-cancellation" className="underline underline-offset-2 hover:text-nav-amethyst-deep">Refunds</Link>
+            <Link href="/grievance" className="underline underline-offset-2 hover:text-nav-amethyst-deep">Grievance</Link>
           </p>
           <LotusIcon
             aria-hidden="true"

@@ -9,11 +9,12 @@ import { countPaidOrdersSince } from "@/lib/orders/store";
 import { countMeetingsSince } from "@/lib/meetings/store";
 import { countApplicationsSince } from "@/lib/astrologers/store";
 import { countReadyReportsSince } from "@/lib/reports/store";
+import { countTicketsSince } from "@/lib/support/store";
 
 const COLLECTION = "adminNotifications";
 
-export type NotificationTab = "orders" | "meetings" | "astrologerApplications" | "reports";
-const TABS: NotificationTab[] = ["orders", "meetings", "astrologerApplications", "reports"];
+export type NotificationTab = "orders" | "meetings" | "astrologerApplications" | "reports" | "support";
+const TABS: NotificationTab[] = ["orders", "meetings", "astrologerApplications", "reports", "support"];
 
 type LastSeenMap = Partial<Record<NotificationTab, number>>;
 
@@ -34,14 +35,15 @@ export async function getUnseenCounts(adminUid: string): Promise<Record<Notifica
   // meaningful once a baseline "last seen" exists.
   const since = (tab: NotificationTab) => lastSeen[tab] ?? Date.now();
 
-  const [orders, meetings, astrologerApplications, reports] = await Promise.all([
+  const [orders, meetings, astrologerApplications, reports, support] = await Promise.all([
     countPaidOrdersSince(since("orders")),
     countMeetingsSince(since("meetings")),
     countApplicationsSince(since("astrologerApplications")),
     countReadyReportsSince(since("reports")),
+    countTicketsSince(since("support")),
   ]);
 
-  return { orders, meetings, astrologerApplications, reports };
+  return { orders, meetings, astrologerApplications, reports, support };
 }
 
 export async function markTabSeen(adminUid: string, tab: NotificationTab): Promise<void> {

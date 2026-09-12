@@ -1,36 +1,46 @@
-// Footer navigation data — real routes and real homepage-section anchors
-// only. Every href here resolves to something that actually exists today:
-// `/` and `/predictions/daily-horoscope` are real pages; the `/#*-heading`
-// links point at real section headings that carry that exact id (see each
-// section's <h2 id="...">, which also now carries a matching scroll-mt-*
-// so the anchor jump clears the fixed navbar). Nothing here references the
-// aspirational routes in `src/components/nav/nav-data.ts` (e.g. /consult,
-// /reports, /puja, /mall, /account/*) — those don't have pages yet.
-//
-// Two distinct groupings on purpose (not the same six links twice): FOOTER_EXPLORE
-// is "get around the site" (home, the one real standalone route, then the
-// homepage sections in page order); FOOTER_DISCOVER is "what's on this
-// page" framed differently (a different subset, different order, its own
-// standalone-route repeat is fine since it's the only real non-anchor
-// route in the whole site).
+// Footer navigation data — real routes and real homepage-section
+// anchors only. Every href here resolves to something that actually
+// exists.
 export type FooterLink = {
   label: string;
   href: string;
 };
 
-// /about and /support don't exist yet — user explicitly asked for these
-// footer entries now, pages to follow later. Everything else in this file
-// stays link-to-real-destinations-only; this pair is the one deliberate
-// exception, by request.
+// Company / Help / Policies / Legal & Trust — the full Legal, Company
+// Information, Help, Support, Policy and Trust section. Kept as four
+// distinct groups (not one giant list) so the footer stays scannable
+// rather than overwhelming.
 export const FOOTER_COMPANY: FooterLink[] = [
   { label: "About Us", href: "/about" },
-  { label: "Support", href: "/support" },
-  { label: "Terms & Conditions", href: "/terms-and-conditions" },
+  { label: "Contact Us", href: "/contact" },
 ];
 
-// PLACEHOLDER contact details — user asked to wire these up now with
-// placeholders, to be swapped for real values later. Update all three here
-// when real details are available; nothing else needs to change.
+export const FOOTER_HELP: FooterLink[] = [
+  { label: "Help & Support", href: "/help" },
+  { label: "FAQ", href: "/faq" },
+];
+
+export const FOOTER_POLICIES: FooterLink[] = [
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Terms & Conditions", href: "/terms-and-conditions" },
+  { label: "Refund & Cancellation", href: "/refund-cancellation" },
+  { label: "Shipping & Delivery", href: "/shipping-delivery" },
+  { label: "Payment & Billing", href: "/payment-billing" },
+  { label: "Cookie Policy", href: "/cookie-policy" },
+  { label: "Disclaimer", href: "/disclaimer" },
+];
+
+export const FOOTER_LEGAL_TRUST: FooterLink[] = [
+  { label: "Privacy & Security", href: "/privacy-security" },
+  { label: "Grievance Redressal", href: "/grievance" },
+  { label: "Account & Data Deletion", href: "/data-deletion" },
+  { label: "Accessibility", href: "/accessibility" },
+  { label: "Astrologer Terms", href: "/astrologer-terms" },
+];
+
+// PLACEHOLDER contact details — real values pending, see
+// LEGAL_REVIEW_CHECKLIST.md. Update all three here when real details
+// are available; nothing else needs to change.
 export const FOOTER_CONTACT = {
   email: "support@trueloger.com",
   phone: "+91 98765 43210",
@@ -57,12 +67,4 @@ export const FOOTER_EXPLORE: FooterLink[] = [
   { label: "Quick Services", href: "/#quick-services-heading" },
   { label: "Puja & Rituals", href: "/#puja-heading" },
   { label: "Sacred Gemstones", href: "/#products-heading" },
-];
-
-export const FOOTER_DISCOVER: FooterLink[] = [
-  { label: "Explore Services", href: "/#explore-services-heading" },
-  { label: "Today's Horoscope", href: "/#horoscope-heading" },
-  { label: "Healing & Balance", href: "/#healing-heading" },
-  { label: "Seeker Stories", href: "/#testimonials-heading" },
-  { label: "Daily Horoscope", href: "/predictions/daily-horoscope" },
 ];
