@@ -35,7 +35,7 @@ const STATIC_ROUTES = [
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://trueloger.vercel.app";
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://trueloger.com";
   const now = new Date();
   return STATIC_ROUTES.map((path) => ({
     url: `${base}${path}`,

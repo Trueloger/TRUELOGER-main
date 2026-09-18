@@ -47,7 +47,7 @@ type AuthContextValue = {
    * window.opener while both windows stay open, with no cross-origin
    * storage handoff involved — which matters because this project's
    * authDomain (trueloger-d4432.firebaseapp.com) is a different domain
-   * from the app (trueloger.vercel.app), and getRedirectResult's
+   * from the app (trueloger.com / trueloger.vercel.app), and getRedirectResult's
    * cross-domain handoff (an iframe on the authDomain relaying the
    * result back via storage) is exactly what browser third-party
    * storage partitioning breaks — confirmed live: after a real,

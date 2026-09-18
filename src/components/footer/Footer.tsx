@@ -173,7 +173,7 @@ export function Footer() {
       <div className="border-t border-nav-lavender-line px-4 py-6 sm:px-6 md:px-8">
         <div className="mx-auto flex max-w-[1320px] flex-col items-center gap-3 text-center">
           <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[0.85rem] text-nav-plum/70">
-            <span>&copy; {year} TRUELOGER. All rights reserved.</span>
+            <span>&copy; {year} TRUELOGER · Regal Innovations. All rights reserved.</span>
             <Link href="/terms-and-conditions" className="underline underline-offset-2 hover:text-nav-amethyst-deep">Terms</Link>
             <Link href="/privacy-policy" className="underline underline-offset-2 hover:text-nav-amethyst-deep">Privacy</Link>
             <Link href="/refund-cancellation" className="underline underline-offset-2 hover:text-nav-amethyst-deep">Refunds</Link>

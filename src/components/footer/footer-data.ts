@@ -38,14 +38,13 @@ export const FOOTER_LEGAL_TRUST: FooterLink[] = [
   { label: "Astrologer Terms", href: "/astrologer-terms" },
 ];
 
-// PLACEHOLDER contact details — real values pending, see
-// LEGAL_REVIEW_CHECKLIST.md. Update all three here when real details
-// are available; nothing else needs to change.
+// Email is still a placeholder pending LEGAL_REVIEW_CHECKLIST.md; phone
+// and whatsappDigits are the real support number.
 export const FOOTER_CONTACT = {
   email: "support@trueloger.com",
-  phone: "+91 98765 43210",
+  phone: "+91 98186 22024",
   // Digits only, no "+"/spaces — required by the wa.me deep-link format.
-  whatsappDigits: "919876543210",
+  whatsappDigits: "919818622024",
 };
 
 // PLACEHOLDER social URLs — same as above, real handles to follow.

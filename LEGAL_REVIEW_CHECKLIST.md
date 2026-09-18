@@ -18,7 +18,7 @@ compliant until every item below is resolved.
 - [ ] GSTIN (`BUSINESS_INFO.gstin`)
 - [ ] Grievance Officer name and designation (`BUSINESS_INFO.grievanceOfficer`)
 - [ ] Jurisdiction city/state for governing-law and arbitration-seat clauses (`BUSINESS_INFO.jurisdictionCity` / `jurisdictionState` / `arbitrationSeat`)
-- [ ] Real support email/phone/WhatsApp number (`src/components/footer/footer-data.ts`'s `FOOTER_CONTACT` — currently placeholder values)
+- [ ] Real support email (`src/components/footer/footer-data.ts`'s `FOOTER_CONTACT.email` — still a placeholder; phone/WhatsApp are now real)
 
 ## Legal-review items flagged inline in the app
 

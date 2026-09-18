@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
 // pages, is public and discoverable, per AGENTS "public policies
 // generally need to be discoverable."
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://trueloger.vercel.app";
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://trueloger.com";
   return {
     rules: {
       userAgent: "*",

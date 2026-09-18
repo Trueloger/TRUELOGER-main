@@ -78,7 +78,7 @@ export default function TermsAndConditionsPage() {
           between you (&quot;User&quot;, &quot;you&quot;, &quot;your&quot;) and{" "}
           <strong>{BUSINESS_INFO.entityName}, {BUSINESS_INFO.entityType}</strong> having its
           registered office at {BUSINESS_INFO.registeredAddress}, operating the website located at
-          trueloger.vercel.app and any successor domain (collectively, &quot;TRUELOGER&quot;,
+          trueloger.com (and its prior address, trueloger.vercel.app) and any successor domain (collectively, &quot;TRUELOGER&quot;,
           &quot;we&quot;, &quot;us&quot;, &quot;our&quot;, the &quot;Platform&quot;). GSTIN: {BUSINESS_INFO.gstin}.
         </p>
         <p className="mt-3 text-sm leading-relaxed text-nav-plum/85">

@@ -219,7 +219,7 @@ export async function sendSupportTicketAdminNotification(input: {
 }
 
 function appUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://trueloger.vercel.app";
+  return process.env.NEXT_PUBLIC_APP_URL ?? "https://trueloger.com";
 }
 
 function escapeHtml(s: string): string {
