@@ -120,22 +120,25 @@ async function callOpenRouter(prompt: string, apiKey: string, model: string): Pr
       temperature: 0.7,
     }),
     // A single section, not the whole report — MUST stay under the
-    // internal route's own maxDuration (see
-    // api/internal/process-report/route.ts). This used to say 90_000
-    // while that route capped at 60s, so any section call slower than
-    // 60s got killed by the PLATFORM's hard timeout mid-flight, before
-    // this fetch's own AbortSignal ever fired and before generate.ts's
-    // try/catch ever ran — no error, no attemptCount increment, no
-    // section saved, just silence, and the report sat on the same
-    // pending section indefinitely. Dropping this to 45s (in the same
-    // fix) turned out too tight for real sections — "Career &
-    // Profession" reliably needed more — so the route's maxDuration
-    // was raised to 120 (see that route's own comment: this project's
-    // cron routes already run at 300, so 60 was never a real platform
-    // ceiling to begin with) instead of shaving this further. 100s
-    // leaves genuine margin under 120 for the astrology-snapshot
-    // build, JSON parsing, and the Firestore write around this call.
-    signal: AbortSignal.timeout(100_000),
+    // internal route's own maxDuration (60s, see
+    // api/internal/process-report/route.ts — see that route's own
+    // comment for why 60 is the real ceiling to design around here,
+    // not just an assumption). This used to say 90_000, well over that
+    // 60s, so any section call slower than 60s got killed by the
+    // PLATFORM's hard timeout mid-flight, before this fetch's own
+    // AbortSignal ever fired and before generate.ts's try/catch ever
+    // ran — no error, no attemptCount increment, no section saved,
+    // just silence, and the report sat on the same pending section
+    // indefinitely. A first attempt at 45s turned out too tight for
+    // real sections ("Career & Profession" reliably needed more,
+    // producing a real but premature SECTION_GENERATION_FAILED). 55s
+    // is the tightest-but-real margin available under 60 — leaves ~5s
+    // for the astrology-snapshot build, JSON parsing, and the
+    // Firestore write that happen in the same invocation around this
+    // call. If a section still needs more than that in practice,
+    // MAX_SECTION_ATTEMPTS (generate.ts) gives it 2 more tries before
+    // the report is marked FAILED rather than silently stuck.
+    signal: AbortSignal.timeout(55_000),
   });
   if (!res.ok) {
     // Never include the key in the error — nothing here logs it either.

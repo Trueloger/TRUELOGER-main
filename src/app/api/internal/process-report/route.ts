@@ -25,15 +25,17 @@ import { processReport } from "@/lib/reports/generate";
 import { triggerReportProcessing } from "@/lib/reports/trigger";
 
 export const dynamic = "force-dynamic";
-// 120, not 60 — the project's own cron routes (process-reports,
-// generate-horoscopes) already run at maxDuration=300, so this was
-// never actually capped at Vercel's Hobby-tier 60s ceiling; that
-// assumption was wrong and cost real reports real time (see
-// paid-report-section.ts's callOpenRouter doc comment). 120 gives a
-// single ~90-100s section call real margin against the platform's
-// actual limit instead of racing a limit this route was never really
-// bound by.
-export const maxDuration = 120;
+// Left at 60 (not raised to 120 as first attempted) — every deploy of
+// this route at maxDuration=60 has gone out normally; the one attempt
+// at 120 sat stuck "Initializing" on Vercel for 40+ minutes with no
+// error surfaced, which reads as this specific route (POST-invoked,
+// not cron) actually being capped at 60 in practice even though the
+// project's cron routes run at 300 — crons and regular invocations
+// may simply have different real ceilings on this plan. Not worth
+// blocking report delivery on confirming that theory; see
+// paid-report-section.ts's callOpenRouter doc comment for how the
+// section timeout was tuned to fit inside 60 instead.
+export const maxDuration = 60;
 
 // Deliberately excludes "SCHEDULED" — a report still SCHEDULED after a
 // tick means its scheduledAt hasn't arrived yet (production's 6-hour
