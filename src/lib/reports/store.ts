@@ -224,6 +224,16 @@ export async function appendGeneratedSection(
   await ref.update({
     sections: [...report.sections, section],
     pendingSectionIds: report.pendingSectionIds.filter((id) => id !== section.id),
+    // Reset here, not just incremented in incrementAttemptCount — this
+    // field is meant to bound retries on ONE section (generate.ts's
+    // MAX_SECTION_ATTEMPTS check), but without a reset on success it's
+    // actually a whole-REPORT lifetime counter: a section that needed
+    // 3 retries before succeeding left only 3 of a 6-attempt budget for
+    // every section after it, so a second merely-average-difficulty
+    // section could fail the entire report even though it alone would
+    // have been well within budget. Each section now gets its own full
+    // MAX_SECTION_ATTEMPTS tries.
+    attemptCount: 0,
     updatedAt: Date.now(),
   });
 }

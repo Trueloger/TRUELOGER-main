@@ -150,7 +150,18 @@ async function continueGenerating(report: Report): Promise<void> {
     } catch (err) {
       await incrementAttemptCount(report.id);
       if (report.attemptCount + 1 >= MAX_SECTION_ATTEMPTS) {
-        await markReportFailed(report.id, "SECTION_GENERATION_FAILED", `Section "${spec.title}": ${errorMessage(err)}`);
+        // Multiple ticks can be in flight for the same report at once
+        // (the self-chain isn't mutually exclusive the way the
+        // SCHEDULED->GENERATING transition is) — if a concurrent tick
+        // already succeeded on this exact section while this one was
+        // timing out, don't overwrite that real success with a stale
+        // failure. Re-check against the CURRENT doc, not the `report`
+        // snapshot this function started with.
+        const current = await getReport(report.id);
+        const stillPending = current?.pendingSectionIds.includes(spec.id) ?? false;
+        if (stillPending) {
+          await markReportFailed(report.id, "SECTION_GENERATION_FAILED", `Section "${spec.title}": ${errorMessage(err)}`);
+        }
         return;
       }
       // Leave this section in pendingSectionIds — the next tick retries
