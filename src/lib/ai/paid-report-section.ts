@@ -119,10 +119,20 @@ async function callOpenRouter(prompt: string, apiKey: string, model: string): Pr
       response_format: { type: "json_object" },
       temperature: 0.7,
     }),
-    // A single section, not the whole report — kept well under the
-    // route's own maxDuration so one slow section can't starve the
-    // others in the same processing batch.
-    signal: AbortSignal.timeout(90_000),
+    // A single section, not the whole report — MUST stay under the
+    // internal route's own maxDuration (60s, see
+    // api/internal/process-report/route.ts), not just "well under" in
+    // name only: this used to say 90_000 here while that route capped
+    // at 60s, so any section call slower than 60s got killed by the
+    // PLATFORM's hard timeout mid-flight, before this fetch's own
+    // AbortSignal ever fired and before generate.ts's try/catch ever
+    // ran — no error recorded, no attemptCount increment, no section
+    // saved, just silence. A report could sit on the exact same
+    // pending section indefinitely, each self-chained retry racing the
+    // same 60s wall and losing. 45s leaves real margin under 60s for
+    // the astrology-snapshot build, JSON parsing, and the Firestore
+    // write that all happen in the same invocation around this call.
+    signal: AbortSignal.timeout(45_000),
   });
   if (!res.ok) {
     // Never include the key in the error — nothing here logs it either.
