@@ -133,19 +133,23 @@ function LoginForm() {
     };
   }, [consumeGoogleRedirectResult]);
 
-  function handleGoogleSignIn() {
+  async function handleGoogleSignIn() {
     setError(null);
     setGoogleSubmitting(true);
-    // Not awaited — signInWithRedirect navigates the browser away, it
-    // doesn't resolve on this page. If it throws synchronously (rare —
-    // an unsupported environment), surface that instead of leaving the
-    // button stuck in a loading state forever.
-    signInWithGoogle().catch((err) => {
+    try {
+      const path = await signInWithGoogle();
+      // Popup already resolved with a signed-in user — navigate now
+      // rather than waiting on the live-auth-state effect to notice
+      // (it will too, but navigateOnce()'s guard makes that a no-op).
+      // A redirect, on the other hand, has already navigated the
+      // browser away by the time this resolves — nothing to do here.
+      if (path === "popup") navigateOnce();
+    } catch (err) {
       const code = (err as { code?: string } | null)?.code ?? "";
       const message = mapGoogleAuthError(code);
       if (message) setError(message);
       setGoogleSubmitting(false);
-    });
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

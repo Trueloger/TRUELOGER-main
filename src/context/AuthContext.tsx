@@ -21,6 +21,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   signOut,
   updateProfile,
@@ -39,19 +40,27 @@ type AuthContextValue = {
   isAdmin: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  /** Google sign-in/sign-up via a full-page redirect — used identically
-   * by /login and /signup (there's no separate "Google signup" flow;
-   * Firebase creates the account on first sign-in automatically). A
-   * redirect, not a popup: popups are blocked by default in enough
-   * real browsers (especially mobile Safari/in-app browsers) that a
-   * popup-based flow reliably fails for a meaningful slice of users —
-   * a redirect can't be popup-blocked since there's no popup. Calling
-   * this navigates the browser away immediately; it does not resolve
-   * before that happens, so callers should not await it expecting
-   * further code on the same page to run afterward. See
-   * consumeGoogleRedirectResult below for how the return trip is
-   * handled. */
-  signInWithGoogle: () => Promise<void>;
+  /** Google sign-in/sign-up — used identically by /login and /signup
+   * (there's no separate "Google signup" flow; Firebase creates the
+   * account on first sign-in automatically). Tries signInWithPopup
+   * first: the result comes back directly in this promise via
+   * window.opener while both windows stay open, with no cross-origin
+   * storage handoff involved — which matters because this project's
+   * authDomain (trueloger-d4432.firebaseapp.com) is a different domain
+   * from the app (trueloger.vercel.app), and getRedirectResult's
+   * cross-domain handoff (an iframe on the authDomain relaying the
+   * result back via storage) is exactly what browser third-party
+   * storage partitioning breaks — confirmed live: after a real,
+   * completed Google OAuth consent, firebaseLocalStorageDb held no
+   * user and sessionStorage held no pending-redirect key, so
+   * getRedirectResult() had nothing to resolve. Falls back to
+   * signInWithRedirect only for environments where popups genuinely
+   * don't work (auth/popup-blocked, auth/operation-not-supported-in-
+   * this-environment) — mobile Safari/in-app browsers. Returns which
+   * path was taken so the caller knows whether to navigate immediately
+   * (popup — already resolved) or wait (redirect — page is navigating
+   * away). */
+  signInWithGoogle: () => Promise<"popup" | "redirect">;
   /** Call once on mount of /login and /signup: resolves true if the
    * browser just returned from a Google sign-in redirect (so the
    * caller should navigate on to /profile/complete), false on a normal
@@ -136,7 +145,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signInWithGoogle() {
         const provider = new GoogleAuthProvider();
-        await signInWithRedirect(firebaseAuth, provider);
+        try {
+          await signInWithPopup(firebaseAuth, provider);
+          return "popup";
+        } catch (err) {
+          const code = (err as { code?: string } | null)?.code ?? "";
+          if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+            await signInWithRedirect(firebaseAuth, provider);
+            return "redirect";
+          }
+          throw err;
+        }
       },
       async consumeGoogleRedirectResult() {
         const result = await getRedirectResult(firebaseAuth);
