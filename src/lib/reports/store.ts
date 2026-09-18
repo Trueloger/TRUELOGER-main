@@ -179,6 +179,23 @@ export async function listDueReports(cutoff: number, limitCount = 5): Promise<Re
   return [...due, ...inProgress].sort((a, b) => a.createdAt - b.createdAt).slice(0, limitCount);
 }
 
+/** Admin-only: bring a SCHEDULED report's due time forward to now, so
+ * the next processing kick (this call also fires one directly — see
+ * the admin route) generates it immediately instead of waiting out the
+ * original delay. No-op (returns null) if the report isn't currently
+ * SCHEDULED — already GENERATING/RENDERING/READY reports have nothing
+ * to expedite, and this must never resurrect a FAILED one silently. */
+export async function expediteReport(reportId: string): Promise<Report | null> {
+  const ref = db().collection(REPORTS_COLLECTION).doc(reportId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const report = snap.data() as Report;
+  if (report.status !== "SCHEDULED") return null;
+  const updated: Report = { ...report, scheduledAt: Date.now(), updatedAt: Date.now() };
+  await ref.update({ scheduledAt: updated.scheduledAt, updatedAt: updated.updatedAt });
+  return updated;
+}
+
 /** Atomic status transition — uses tx.update (never a raw ref.update()
  * inside the transaction; see orders/store.ts's applyPaymentStatus doc
  * comment for the exact production bug that pattern caused). Returns

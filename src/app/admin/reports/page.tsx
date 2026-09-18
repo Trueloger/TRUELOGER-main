@@ -11,7 +11,9 @@
 //   2. Report Orders — the report generation job list
 //      (GET /api/admin/reports), a deliberately trimmed summary with no
 //      birth details/sections (the API doesn't return them to this
-//      view at all).
+//      view at all). SCHEDULED rows get a "Generate Now" action
+//      (POST /api/admin/reports/:id/expedite) to bring a stuck report's
+//      due time forward instead of waiting out the delay.
 // Mirrors admin/orders/page.tsx and admin/coupons/page.tsx's structural
 // conventions: header, mobile-card/desktop-table split, loading/error/
 // empty states, the same ivory/lavender/amethyst/gold palette and
@@ -497,6 +499,8 @@ export function ReportStatusBadge({ status }: { status: ReportStatus }) {
 function OrdersTab() {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const [expeditingId, setExpeditingId] = useState<string | null>(null);
+  const [expediteError, setExpediteError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState({ status: "loading" });
@@ -516,6 +520,24 @@ function OrdersTab() {
     // identical comment (react-hooks/set-state-in-effect).
     queueMicrotask(() => load());
   }, [load]);
+
+  async function expedite(reportId: string) {
+    setExpediteError(null);
+    setExpeditingId(reportId);
+    try {
+      const res = await authedFetch(`/api/admin/reports/${reportId}/expedite`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setExpediteError((data && data.error) || "Couldn't generate this report now.");
+        return;
+      }
+      await load();
+    } catch {
+      setExpediteError("Couldn't generate this report now.");
+    } finally {
+      setExpeditingId(null);
+    }
+  }
 
   if (state.status === "loading") {
     return (
@@ -548,11 +570,21 @@ function OrdersTab() {
 
   return (
     <>
+      {expediteError && (
+        <p role="alert" className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700 ring-1 ring-rose-200">
+          {expediteError}
+        </p>
+      )}
+
       {/* Mobile: cards */}
       <ul className="flex flex-col gap-3 lg:hidden">
         {reports.map((report) => (
           <li key={report.id}>
-            <ReportOrderCard report={report} />
+            <ReportOrderCard
+              report={report}
+              onExpedite={() => expedite(report.id)}
+              expediting={expeditingId === report.id}
+            />
           </li>
         ))}
       </ul>
@@ -571,6 +603,7 @@ function OrdersTab() {
                 <th className="px-5 py-3.5">Scheduled</th>
                 <th className="px-5 py-3.5">Completed</th>
                 <th className="px-5 py-3.5">Pages</th>
+                <th className="px-5 py-3.5" />
               </tr>
             </thead>
             <tbody>
@@ -589,6 +622,18 @@ function OrdersTab() {
                   <td className="px-5 py-3.5 text-nav-plum/70">{formatDateTime(report.scheduledAt)}</td>
                   <td className="px-5 py-3.5 text-nav-plum/70">{formatDateTime(report.completedAt)}</td>
                   <td className="px-5 py-3.5 text-nav-plum/70">{report.pageCount ?? "—"}</td>
+                  <td className="px-5 py-3.5 text-right">
+                    {report.status === "SCHEDULED" && (
+                      <button
+                        type="button"
+                        onClick={() => expedite(report.id)}
+                        disabled={expeditingId === report.id}
+                        className="flex min-h-9 items-center justify-center rounded-full border border-nav-lavender-line bg-white px-4 text-xs font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {expeditingId === report.id ? "Generating…" : "Generate Now"}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -599,7 +644,15 @@ function OrdersTab() {
   );
 }
 
-function ReportOrderCard({ report }: { report: ReportSummary }) {
+function ReportOrderCard({
+  report,
+  onExpedite,
+  expediting,
+}: {
+  report: ReportSummary;
+  onExpedite: () => void;
+  expediting: boolean;
+}) {
   return (
     <div className="rounded-2xl border border-nav-lavender-line bg-white p-4 shadow-[0_1px_2px_rgba(70,40,120,0.04)]">
       <div className="flex items-start justify-between gap-2">
@@ -632,6 +685,16 @@ function ReportOrderCard({ report }: { report: ReportSummary }) {
           <p className="mt-0.5 text-nav-plum/80">{formatDateTime(report.completedAt)}</p>
         </div>
       </div>
+      {report.status === "SCHEDULED" && (
+        <button
+          type="button"
+          onClick={onExpedite}
+          disabled={expediting}
+          className="mt-3 flex min-h-9 w-full items-center justify-center rounded-full border border-nav-lavender-line bg-white text-xs font-medium text-nav-violet transition-colors hover:bg-nav-lavender-mist disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {expediting ? "Generating…" : "Generate Now"}
+        </button>
+      )}
     </div>
   );
 }

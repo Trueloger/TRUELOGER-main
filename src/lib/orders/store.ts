@@ -182,7 +182,7 @@ export async function applyPaymentStatus(
       // most once per order, same as the coupon hook above, so a
       // duplicate webhook/verify call can never create a duplicate
       // report job for the same order.
-      const { createReport, envDeliveryDelayHours } = await import("@/lib/reports/store");
+      const { createReport, getReportProduct, envDeliveryDelayHours } = await import("@/lib/reports/store");
       const { getReportBlueprint } = await import("@/lib/reports/blueprints");
       // A fire-and-forget HTTP kick to a dedicated internal route
       // (src/app/api/internal/process-report/route.ts) rather than
@@ -198,13 +198,20 @@ export async function applyPaymentStatus(
       const { triggerReportProcessing } = await import("@/lib/reports/trigger");
       for (const item of reportItems) {
         const blueprint = getReportBlueprint(item.reportType);
+        // The product's own admin-edited deliveryHours takes priority
+        // (this is the whole point of that field being editable — an
+        // admin change must take effect on the NEXT purchase without a
+        // redeploy); envDeliveryDelayHours() is only the fallback if
+        // the product doc is somehow missing.
+        const product = await getReportProduct(item.productId).catch(() => null);
+        const deliveryDelayHours = product?.deliveryHours ?? envDeliveryDelayHours();
         const created = await createReport({
           userId: result.userId,
           orderId: result.id,
           reportType: item.reportType,
           productSlug: item.productId,
           profileSnapshot: item.profileSnapshot,
-          deliveryDelayHours: envDeliveryDelayHours(),
+          deliveryDelayHours,
           pendingSectionIds: blueprint.sections.map((s) => s.id),
         }).catch(() => null);
         if (created) triggerReportProcessing(created.id);
