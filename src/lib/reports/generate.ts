@@ -38,7 +38,15 @@ import type { GeneratedSection, Report } from "./types";
 // self-chains another tick when sections remain, rather than relying
 // on a fast cron cadence — see that route's doc comment for why.
 const SECTIONS_PER_TICK = 1;
-const MAX_SECTION_ATTEMPTS = 3;
+// 6, not 3 — some sections are structurally heavier than others (e.g.
+// "career-theme" pulls 3 dataKeys — planets, bhavabala, shadbala —
+// against 2 for most sections, meaning a genuinely bigger prompt and
+// consistently closer to the 55s section-call timeout), not just
+// occasionally network-flaky. A model response near that edge succeeds
+// often enough on a retry that more attempts meaningfully helps, and a
+// truly stuck section still fails the report rather than looping
+// forever — just after more real tries first.
+const MAX_SECTION_ATTEMPTS = 6;
 
 export async function processReport(reportId: string): Promise<void> {
   const report = await getReport(reportId);
