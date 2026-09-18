@@ -23,15 +23,17 @@ import type { GeneratedSection, Report } from "./types";
 
 // How many sections to generate per invocation — 1, not 2. This used
 // to be 2 on the reasoning that "one call comfortably fits inside a
-// modest maxDuration", but two sequential ~15-45s model calls plus
-// snapshot/render overhead does NOT reliably fit inside the route's
-// actual 60s maxDuration (Vercel's Hobby-tier ceiling) — when it
-// didn't, the platform killed the invocation mid-second-section with
-// no error, no attemptCount increment, nothing: a report could sit on
-// the same pending section indefinitely, each self-chained retry
-// racing the same wall and losing (see paid-report-section.ts's
-// callOpenRouter doc comment for the full story). One section per
-// tick, each individually bounded well under 60s, leaves real margin.
+// modest maxDuration", but two sequential ~15-100s model calls plus
+// snapshot/render overhead is exactly the kind of thing that can blow
+// even a generous maxDuration on a slow response — when it did, the
+// platform killed the invocation mid-second-section with no error, no
+// attemptCount increment, nothing: a report could sit on the same
+// pending section indefinitely, each self-chained retry racing the
+// same wall and losing (see paid-report-section.ts's callOpenRouter
+// doc comment for the full story, including why the route's
+// maxDuration itself was also wrong). One section per tick, each
+// individually bounded with real margin under that route's own
+// maxDuration, removes the race entirely rather than just narrowing it.
 // generate.ts's caller (src/app/api/internal/process-report/route.ts)
 // self-chains another tick when sections remain, rather than relying
 // on a fast cron cadence — see that route's doc comment for why.
