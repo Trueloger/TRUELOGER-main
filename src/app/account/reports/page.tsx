@@ -22,7 +22,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { firestoreDb } from "@/lib/firebase-client";
 import { getReportBlueprint } from "@/lib/reports/products";
-import { reportStageLabel } from "@/lib/reports/types";
+import { isReportDelivered, reportStageLabel } from "@/lib/reports/types";
 import type { Report, ReportStatus, ReportType } from "@/lib/reports/types";
 
 /** What `GET /api/reports` actually returns per item — see the route's
@@ -184,12 +184,19 @@ function formatDate(ms: number): string {
  * initial summary if the listener errors (e.g. a transient read
  * issue) — the API-provided data is never worse than what's shown. */
 function ReportCard({ initial }: { initial: ReportSummary }) {
+  // `live` always holds the TRUE raw doc fields — this listener reads
+  // the doc directly (allowed by firestore.rules' owner/admin read
+  // rule), unlike the API routes which withhold fields until
+  // scheduledAt. Delivery gating happens only at display time below,
+  // via `delivered`, so a locally-ticking clock can flip the display
+  // the moment scheduledAt passes without needing another write.
   const [live, setLive] = useState<ReportSummary>(initial);
+  const [, forceTick] = useState(0);
 
   useEffect(() => {
-    // No need to keep listening once a report has reached a terminal
-    // state — READY/FAILED/CANCELLED won't change again.
-    if (live.status === "READY" || live.status === "FAILED" || live.status === "CANCELLED") return;
+    // No need to keep listening once a report has reached a true
+    // terminal state — FAILED/CANCELLED won't change again.
+    if (live.status === "FAILED" || live.status === "CANCELLED") return;
 
     const unsubscribe = onSnapshot(
       doc(firestoreDb, "reports", initial.id),
@@ -216,7 +223,23 @@ function ReportCard({ initial }: { initial: ReportSummary }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-subscribe when the report id changes; `live.status` is read to decide whether to (re)subscribe at all, not to drive it.
   }, [initial.id]);
 
-  const isReady = live.status === "READY";
+  // Generation can finish before the promised delivery time — nothing
+  // else re-renders this card at the exact moment scheduledAt passes,
+  // so tick every 15s while genuinely waiting on that clock (never
+  // while still actually generating) to flip the display right on
+  // time instead of only on the next unrelated re-render.
+  useEffect(() => {
+    if (live.status !== "READY" || Date.now() >= live.scheduledAt) return;
+    const interval = window.setInterval(() => forceTick((n) => n + 1), 15000);
+    return () => window.clearInterval(interval);
+  }, [live.status, live.scheduledAt]);
+
+  const delivered = isReportDelivered(live, false);
+  const isReady = delivered;
+  // Displayed status: same "READY-but-not-delivered-yet reads as
+  // RENDERING" gate the API routes apply, so the badge/label never
+  // contradicts `isReady`.
+  const displayStatus: ReportStatus = delivered ? live.status : live.status === "READY" ? "RENDERING" : live.status;
   const name = reportDisplayName(live.productSlug, live.reportType);
   const deliveryHours = Math.max(0, Math.round((live.scheduledAt - live.createdAt) / (60 * 60 * 1000)));
 
@@ -227,7 +250,7 @@ function ReportCard({ initial }: { initial: ReportSummary }) {
           <p className="font-serif text-base text-nav-violet sm:text-lg">{name}</p>
           <p className="mt-0.5 text-xs text-nav-plum/60">Purchased {formatDate(live.createdAt)}</p>
         </div>
-        <StatusBadge status={live.status} />
+        <StatusBadge status={displayStatus} />
       </div>
 
       <p className="mt-3 text-sm text-nav-plum/80">
@@ -240,7 +263,7 @@ function ReportCard({ initial }: { initial: ReportSummary }) {
           "Our system is completing the final preparation."
         ) : (
           <>
-            {reportStageLabel(live.status)} · Within {deliveryHours} hour{deliveryHours === 1 ? "" : "s"} of purchase
+            {reportStageLabel(displayStatus)} · Within {deliveryHours} hour{deliveryHours === 1 ? "" : "s"} of purchase
           </>
         )}
       </p>

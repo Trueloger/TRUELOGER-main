@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { verifyRequest } from "@/lib/auth/verify-request";
 import { getReport } from "@/lib/reports/store";
+import { maskUntilDelivered } from "@/lib/reports/types";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const verified = await verifyRequest(request);
@@ -19,5 +20,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Report not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ report });
+  // Generation can genuinely finish before the admin-promised delivery
+  // time (see maskUntilDelivered's doc comment) — a non-admin owner
+  // doesn't see sections/pdfStorageRef, and status reads as the last
+  // pre-READY stage, until scheduledAt actually passes.
+  return NextResponse.json({ report: maskUntilDelivered(report, verified.isAdmin) });
 }

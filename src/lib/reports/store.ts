@@ -159,41 +159,26 @@ export async function listReportsForAdmin(limitCount = 100): Promise<Report[]> {
   return snap.docs.map((d) => d.data() as Report).sort((a, b) => b.createdAt - a.createdAt);
 }
 
-/** Reports due for processing right now — status SCHEDULED with
- * scheduledAt <= cutoff, OR already mid-pipeline (GENERATING/RENDERING)
- * so a previous cron tick that ran out of time gets resumed. Equality
- * `where` on status needs no composite index when there's no orderBy
- * alongside it (same reasoning as the earlier products/coupons fixes
- * this session already made) — sorted in memory instead. */
-export async function listDueReports(cutoff: number, limitCount = 5): Promise<Report[]> {
+/** Reports due for processing right now — any SCHEDULED report (that
+ * status never waits on scheduledAt any more, see generate.ts's
+ * processReport doc comment — a SCHEDULED report here only means its
+ * immediate post-payment kick was somehow lost) or already mid-pipeline
+ * (GENERATING/RENDERING, so a previous cron tick that ran out of time
+ * gets resumed). Equality `where` on status needs no composite index
+ * when there's no orderBy alongside it (same reasoning as the earlier
+ * products/coupons fixes this session already made) — sorted in memory
+ * instead. `cutoff` is unused now that SCHEDULED is never time-gated
+ * here, kept only so callers don't need to change. */
+export async function listDueReports(_cutoff: number, limitCount = 5): Promise<Report[]> {
   const db_ = db();
   const [scheduled, generating, rendering] = await Promise.all([
     db_.collection(REPORTS_COLLECTION).where("status", "==", "SCHEDULED").get(),
     db_.collection(REPORTS_COLLECTION).where("status", "==", "GENERATING").get(),
     db_.collection(REPORTS_COLLECTION).where("status", "==", "RENDERING").get(),
   ]);
-  const due = scheduled.docs
-    .map((d) => d.data() as Report)
-    .filter((r) => r.scheduledAt <= cutoff);
+  const due = scheduled.docs.map((d) => d.data() as Report);
   const inProgress = [...generating.docs, ...rendering.docs].map((d) => d.data() as Report);
   return [...due, ...inProgress].sort((a, b) => a.createdAt - b.createdAt).slice(0, limitCount);
-}
-
-/** Admin-only: bring a SCHEDULED report's due time forward to now, so
- * the next processing kick (this call also fires one directly — see
- * the admin route) generates it immediately instead of waiting out the
- * original delay. No-op (returns null) if the report isn't currently
- * SCHEDULED — already GENERATING/RENDERING/READY reports have nothing
- * to expedite, and this must never resurrect a FAILED one silently. */
-export async function expediteReport(reportId: string): Promise<Report | null> {
-  const ref = db().collection(REPORTS_COLLECTION).doc(reportId);
-  const snap = await ref.get();
-  if (!snap.exists) return null;
-  const report = snap.data() as Report;
-  if (report.status !== "SCHEDULED") return null;
-  const updated: Report = { ...report, scheduledAt: Date.now(), updatedAt: Date.now() };
-  await ref.update({ scheduledAt: updated.scheduledAt, updatedAt: updated.updatedAt });
-  return updated;
 }
 
 /** Atomic status transition — uses tx.update (never a raw ref.update()

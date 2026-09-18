@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { verifyRequest } from "@/lib/auth/verify-request";
 import { getReport } from "@/lib/reports/store";
+import { isReportDelivered } from "@/lib/reports/types";
 import { getAdminApp } from "@/lib/firebase-admin";
 import { getStorage } from "firebase-admin/storage";
 
@@ -19,7 +20,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!report || (report.userId !== verified.uid && !verified.isAdmin)) {
     return NextResponse.json({ error: "Report not found." }, { status: 404 });
   }
-  if (report.status !== "READY" || !report.pdfStorageRef) {
+  // Same delivery-time gate as the list/detail routes — generation can
+  // finish before the promised delivery time, but the PDF isn't
+  // downloadable until then either.
+  if (!isReportDelivered(report, verified.isAdmin) || !report.pdfStorageRef) {
     return NextResponse.json({ error: "This report isn't ready yet." }, { status: 409 });
   }
 

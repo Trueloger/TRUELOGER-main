@@ -19,10 +19,11 @@ import Link from "next/link";
 import { doc, onSnapshot } from "firebase/firestore";
 import { ArrowLeft, Download, FileQuestion, RefreshCw, Sparkles } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { useAuth } from "@/context/AuthContext";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { firestoreDb } from "@/lib/firebase-client";
 import { getReportBlueprint } from "@/lib/reports/products";
-import { reportStageLabel } from "@/lib/reports/types";
+import { isReportDelivered, maskUntilDelivered, reportStageLabel } from "@/lib/reports/types";
 import type { Report } from "@/lib/reports/types";
 import { ReportCover } from "@/components/reports/ReportCover";
 import { ReportTableOfContents } from "@/components/reports/ReportTableOfContents";
@@ -45,7 +46,9 @@ export default function ReportReaderPage({ params }: { params: Promise<{ reportI
 }
 
 function ReportReaderContent({ reportId }: { reportId: string }) {
+  const { isAdmin } = useAuth();
   const [state, setState] = useState<FetchState>({ status: "loading" });
+  const [, forceTick] = useState(0);
 
   const load = useCallback(async () => {
     setState({ status: "loading" });
@@ -89,6 +92,13 @@ function ReportReaderContent({ reportId }: { reportId: string }) {
       doc(firestoreDb, "reports", reportId),
       (snap) => {
         if (!snap.exists()) return;
+        // Stored RAW (never masked) — the API's initial authedFetch
+        // result is already masked server-side, but this listener
+        // reads the doc directly (allowed by firestore.rules'
+        // owner/admin read rule) and needs the true fields so the
+        // ticking effect below can re-evaluate delivery against a
+        // fresh Date.now() on every tick, not a mask baked in once at
+        // snapshot time.
         const data = snap.data() as Report;
         setState((prev) => {
           // Don't resurrect a listener update after a confirmed 404 —
@@ -105,6 +115,21 @@ function ReportReaderContent({ reportId }: { reportId: string }) {
     return unsubscribe;
   }, [reportId]);
 
+  // Generation can finish before the promised delivery time — nothing
+  // else re-renders this page at the exact moment scheduledAt passes,
+  // so tick every 15s while genuinely waiting on that clock (never
+  // while already delivered or truly still generating) to flip the
+  // display right on time instead of only on the next unrelated
+  // re-render or refresh.
+  useEffect(() => {
+    if (state.status !== "ready" || isReportDelivered(state.report, isAdmin) || state.report.status !== "READY") return;
+    const interval = window.setInterval(() => forceTick((n) => n + 1), 15000);
+    return () => window.clearInterval(interval);
+  }, [state, isAdmin]);
+
+  const displayState: FetchState =
+    state.status === "ready" ? { status: "ready", report: maskUntilDelivered(state.report, isAdmin) } : state;
+
   return (
     <main className="bg-gradient-to-b from-nav-ivory via-nav-pearl to-nav-lavender-soft">
       <div className="mx-auto max-w-3xl px-4 pt-24 pb-16 sm:px-6 md:px-8 md:pt-28 md:pb-24">
@@ -116,10 +141,10 @@ function ReportReaderContent({ reportId }: { reportId: string }) {
           Back to My Reports
         </Link>
 
-        {state.status === "loading" && <ReaderLoading />}
-        {state.status === "error" && <ReaderError message={state.message} onRetry={load} />}
-        {state.status === "not-found" && <ReaderNotFound />}
-        {state.status === "ready" && <ReaderBody report={state.report} />}
+        {displayState.status === "loading" && <ReaderLoading />}
+        {displayState.status === "error" && <ReaderError message={displayState.message} onRetry={load} />}
+        {displayState.status === "not-found" && <ReaderNotFound />}
+        {displayState.status === "ready" && <ReaderBody report={displayState.report} />}
       </div>
     </main>
   );

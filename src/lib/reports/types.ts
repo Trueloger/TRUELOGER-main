@@ -233,3 +233,32 @@ export function reportStageLabel(status: ReportStatus): string {
       return "Cancelled";
   }
 }
+
+/** The delivery-time gate: generation itself is never delayed (see
+ * generate.ts's processReport doc comment), but a finished report only
+ * becomes visible/downloadable to its owner once `scheduledAt`
+ * (createdAt + the admin-set deliveryHours at purchase time) has
+ * passed — that field is a delivery promise, not a generation
+ * throttle. Admins always see the true state, since they need it for
+ * support/QA regardless of the promised delivery window. */
+export function isReportDelivered(report: Pick<Report, "status" | "scheduledAt">, isAdmin: boolean): boolean {
+  if (isAdmin) return report.status === "READY";
+  return report.status === "READY" && Date.now() >= report.scheduledAt;
+}
+
+/** Applies the same gate as a masking transform on a full Report —
+ * shared by the detail API route and the report-reader page's direct
+ * Firestore listener (which, unlike the API, can't just withhold
+ * fields — it already has the full doc), so both ever show the same
+ * "not delivered yet" shape. */
+export function maskUntilDelivered(report: Report, isAdmin: boolean): Report {
+  if (isReportDelivered(report, isAdmin)) return report;
+  return {
+    ...report,
+    status: report.status === "READY" ? "RENDERING" : report.status,
+    sections: [],
+    pdfStorageRef: undefined,
+    pageCount: undefined,
+    completedAt: undefined,
+  };
+}

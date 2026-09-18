@@ -37,14 +37,19 @@ export async function processReport(reportId: string): Promise<void> {
   if (!report) return;
 
   if (report.status === "SCHEDULED") {
-    // Respect the delivery delay — the immediate self-chaining kick
-    // (see api/internal/process-report) calls processReport() as soon
-    // as the order is paid, regardless of scheduledAt; in production
-    // (REPORT_DELIVERY_DELAY_HOURS=6) that's still hours away, and
-    // only the cron sweep (which filters via listDueReports) should
-    // act on it once it's actually due. In test mode (delay=0),
-    // scheduledAt is already <= now, so this proceeds immediately.
-    if (report.scheduledAt > Date.now()) return;
+    // Generation always starts immediately on payment, regardless of
+    // scheduledAt/deliveryDelayHours — that field is a DELIVERY promise
+    // (when the finished report becomes visible/downloadable to the
+    // user; see the visibility gate in api/reports/route.ts,
+    // api/reports/[id]/route.ts and api/reports/[id]/pdf/route.ts), not
+    // a generation throttle. Waiting to even START generating until the
+    // delay elapsed used to mean a report could sit untouched for up to
+    // ~24h beyond that delay too, since only the once-daily cron sweep
+    // (listDueReports) would ever revisit a still-SCHEDULED report —
+    // the immediate self-chaining kick (api/internal/process-report)
+    // was never enough on its own to clear that gate. Starting
+    // unconditionally here removes that gap entirely: the kick that
+    // already fires right after payment now always does real work.
     await startGenerating(report);
     return;
   }
