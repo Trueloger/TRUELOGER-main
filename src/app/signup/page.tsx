@@ -8,7 +8,7 @@
 // create the Firestore profile doc, so signup always continues into
 // /profile/complete rather than dropping a user into the app with an
 // empty profile.
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -53,7 +53,7 @@ function LoadingShell() {
 }
 
 function SignupForm() {
-  const { signUp, signInWithGoogle, consumeGoogleRedirectResult } = useAuth();
+  const { signUp, signInWithGoogle, consumeGoogleRedirectResult, currentUser, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -67,6 +67,9 @@ function SignupForm() {
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Guards against a double router.replace between the live-auth-state
+  // effect below and the email-signup submit handler.
+  const hasNavigatedRef = useRef(false);
 
   const redirectParam = searchParams.get("redirect");
   const loginHref = redirectParam
@@ -77,19 +80,35 @@ function SignupForm() {
     return redirectParam ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}` : "/profile/complete";
   }
 
-  // Google sign-in uses a full-page redirect, not a popup — see
-  // AuthContext.tsx's signInWithGoogle doc comment for why. This
-  // effect is what notices the browser just came back from Google and
-  // sends the user on to /profile/complete; same pattern as
-  // /login/page.tsx.
+  function navigateOnce() {
+    if (hasNavigatedRef.current) return;
+    hasNavigatedRef.current = true;
+    router.replace(profileCompleteTarget());
+  }
+
+  // THE ACTUAL FIX for "Google auth succeeds, app still thinks I'm
+  // logged out" — see the identical, more detailed comment in
+  // src/app/login/page.tsx. In short: consumeGoogleRedirectResult()'s
+  // return value is NOT a reliable signal that sign-in succeeded (it
+  // can legitimately resolve null even after a real sign-in, due to
+  // how Firebase matches a returning redirect via a sessionStorage key
+  // that doesn't always survive the round trip through Google). Auth
+  // STATE — currentUser/loading from AuthContext, backed by Firebase's
+  // own onIdTokenChanged — is the real source of truth for navigation.
+  useEffect(() => {
+    if (loading) return;
+    if (currentUser) navigateOnce();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigateOnce is a plain function (new identity each render) wrapping router.replace + a ref guard; including it would re-run this effect every render for no behavioral difference
+  }, [loading, currentUser]);
+
+  // Kept to surface real Google errors (account-exists-with-different-
+  // credential, unauthorized domain, etc.) — navigation no longer
+  // depends on what this resolves to.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const justSignedIn = await consumeGoogleRedirectResult();
-        if (justSignedIn && !cancelled) {
-          router.replace(profileCompleteTarget());
-        }
+        await consumeGoogleRedirectResult();
       } catch (err) {
         if (cancelled) return;
         const code = (err as { code?: string } | null)?.code ?? "";
@@ -100,8 +119,7 @@ function SignupForm() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- redirectParam intentionally excluded: re-running this on every search-param change would re-check a redirect result that only exists once, right after mount
-  }, [consumeGoogleRedirectResult, router]);
+  }, [consumeGoogleRedirectResult]);
 
   function handleGoogleSignIn() {
     setError(null);
@@ -154,10 +172,7 @@ function SignupForm() {
         }
       }
 
-      const target = redirectParam
-        ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}`
-        : "/profile/complete";
-      router.replace(target);
+      navigateOnce();
     } catch (err) {
       const code = (err as { code?: string } | null)?.code ?? "";
       setError(mapSignUpError(code));

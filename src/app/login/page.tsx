@@ -6,7 +6,7 @@
 // the form UI, client-side validation, and a friendly presentation of
 // whatever Firebase Auth error comes back (never the raw Firebase
 // error code/message, per this project's UX rule).
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -15,16 +15,6 @@ import { LotusIcon } from "@/components/quick-services/icons";
 import { fieldLabelClass, fieldInputClass } from "@/components/forms/field-styles";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { mapGoogleAuthError } from "@/lib/auth/google-error";
-
-/** Only ever redirect to a same-origin relative path — never let a
- * `?redirect=` query param send a signed-in user off-site (open
- * redirect). `//evil.com` is rejected too since browsers treat a
- * leading `//` as protocol-relative. */
-function safeRedirectPath(value: string | null): string | null {
-  if (!value) return null;
-  if (!value.startsWith("/") || value.startsWith("//")) return null;
-  return value;
-}
 
 /** Maps the Firebase Auth error codes a sign-in attempt can realistically
  * throw to plain-English copy. Never surfaces `error.code`/`error.message`
@@ -57,7 +47,7 @@ function LoadingShell() {
 }
 
 function LoginForm() {
-  const { signIn, signInWithGoogle, consumeGoogleRedirectResult } = useAuth();
+  const { signIn, signInWithGoogle, consumeGoogleRedirectResult, currentUser, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -67,36 +57,70 @@ function LoginForm() {
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Guards against firing router.replace twice — once from the
+  // Google-redirect effect below and once from the live-auth-state
+  // effect that follows it — for what is really the same navigation
+  // decision.
+  const hasNavigatedRef = useRef(false);
 
   const redirectParam = searchParams.get("redirect");
   const signupHref = redirectParam
     ? `/signup?redirect=${encodeURIComponent(redirectParam)}`
     : "/signup";
 
-  // Always route a completed Google sign-in through /profile/complete
-  // rather than straight to the target — it redirects on through
-  // instantly if this Google account already has a complete profile
-  // from an earlier session, and shows the completion form if not
-  // (e.g. brand-new Google sign-up), exactly like the email/password
-  // signup flow.
+  // Always route a completed sign-in (Google OR email/password) through
+  // /profile/complete rather than straight to the target — it redirects
+  // on through instantly once that page's own live Firestore profile
+  // listener confirms the profile is already complete, and shows the
+  // completion form if not. One decision point, used by every auth
+  // method, instead of email/password computing its own separate
+  // "profile complete?" check here with a possibly-stale profile value.
   function profileCompleteTarget() {
     return redirectParam ? `/profile/complete?redirect=${encodeURIComponent(redirectParam)}` : "/profile/complete";
   }
 
-  // Google sign-in uses a full-page redirect, not a popup (popups are
-  // blocked by default in enough real browsers — especially mobile
-  // Safari and in-app browsers — that a popup-based flow reliably
-  // fails for a meaningful slice of users). That means the actual
-  // completion happens on the NEXT page load, after the browser comes
-  // back from Google — this effect checks for that on every mount.
+  function navigateOnce() {
+    if (hasNavigatedRef.current) return;
+    hasNavigatedRef.current = true;
+    router.replace(profileCompleteTarget());
+  }
+
+  // THE ACTUAL FIX for "Google auth succeeds, app still thinks I'm
+  // logged out": this used to gate navigation ENTIRELY on
+  // consumeGoogleRedirectResult()'s return value. That promise can
+  // resolve to null even after a real, successful sign-in — Firebase
+  // matches a returning redirect to its origin via a sessionStorage
+  // key written before the browser ever left for Google, and that key
+  // can legitimately be gone by the time the browser comes back (e.g.
+  // Safari/ITP storage partitioning across the accounts.google.com hop,
+  // or simply a slow network making the round trip outlast the
+  // session). When that happens, the ID token itself is still valid —
+  // onIdTokenChanged in AuthContext DOES fire with the real user — but
+  // this page, waiting only on getRedirectResult, never notices and
+  // never navigates, so the user is left staring at the login form
+  // looking exactly as if the whole thing failed.
+  //
+  // The fix: auth STATE (currentUser/loading from AuthContext, backed
+  // by Firebase's own onIdTokenChanged) is the source of truth for
+  // navigation here, not the one-shot redirect-result promise. The
+  // moment Firebase reports a real signed-in user, we leave — however
+  // that happened to occur (Google redirect return, or simply an
+  // already-authenticated user who landed on /login directly).
+  useEffect(() => {
+    if (loading) return; // auth state unresolved — never redirect on an unknown state
+    if (currentUser) navigateOnce();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigateOnce is a plain function (new identity each render) wrapping router.replace + a ref guard; including it would re-run this effect every render for no behavioral difference
+  }, [loading, currentUser]);
+
+  // Kept alongside the effect above purely to surface real Google
+  // errors (account-exists-with-different-credential, unauthorized
+  // domain, etc.) that getRedirectResult can still throw — navigation
+  // itself no longer depends on what this resolves to.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const justSignedIn = await consumeGoogleRedirectResult();
-        if (justSignedIn && !cancelled) {
-          router.replace(profileCompleteTarget());
-        }
+        await consumeGoogleRedirectResult();
       } catch (err) {
         if (cancelled) return;
         const code = (err as { code?: string } | null)?.code ?? "";
@@ -107,8 +131,7 @@ function LoginForm() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- redirectParam intentionally excluded: re-running this on every search-param change would re-check a redirect result that only exists once, right after mount
-  }, [consumeGoogleRedirectResult, router]);
+  }, [consumeGoogleRedirectResult]);
 
   function handleGoogleSignIn() {
     setError(null);
@@ -138,8 +161,13 @@ function LoginForm() {
     setSubmitting(true);
     try {
       await signIn(trimmedEmail, password);
-      const target = safeRedirectPath(redirectParam) ?? "/account/profile";
-      router.replace(target);
+      // Navigate via the same single decision point Google uses (see
+      // the live-auth-state effect above) rather than computing a
+      // second, independent "where does this user go" answer here —
+      // the effect will also fire once `currentUser` updates, but
+      // navigateOnce()'s guard means only the first call actually
+      // navigates.
+      navigateOnce();
     } catch (err) {
       const code = (err as { code?: string } | null)?.code ?? "";
       setError(mapSignInError(code));
