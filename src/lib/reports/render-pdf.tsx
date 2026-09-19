@@ -9,6 +9,7 @@
 // templates). TrueLoger branding only; no competitor branding.
 import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from "@react-pdf/renderer";
 import { REPORT_PRODUCTS } from "./products";
+import { BirthChartPdf } from "./pdf-chart";
 import type { Report } from "./types";
 import type { ReportBlueprint } from "./blueprints/types";
 
@@ -100,10 +101,14 @@ function TableOfContentsPage({ report, blueprint, productName }: { report: Repor
         <Text>Basic Details</Text>
         <Text>3</Text>
       </View>
+      <View style={styles.tocRow}>
+        <Text>Your Birth Chart</Text>
+        <Text>4</Text>
+      </View>
       {blueprint.sections.map((s, i) => (
         <View key={s.id} style={styles.tocRow}>
           <Text>{s.title}</Text>
-          <Text>{4 + i}</Text>
+          <Text>{5 + i}</Text>
         </View>
       ))}
     </Page>
@@ -139,6 +144,27 @@ function BasicDetailsPage({ report, productName }: { report: Report; productName
           <Text style={styles.tableCell}>{value}</Text>
         </View>
       ))}
+    </Page>
+  );
+}
+
+function BirthChartPage({ report, productName }: { report: Report; productName: string }) {
+  const snap = report.astrologySnapshot;
+  if (!snap) return null;
+  return (
+    <Page size="A4" style={styles.page}>
+      <HeaderFooter title={productName} reportId={report.id} />
+      <Text style={styles.sectionTitle}>Your Birth Chart</Text>
+      <Text style={{ ...styles.paragraph, marginBottom: 16 }}>
+        Rasi (D1) Chart — North Indian Style. Houses are fixed in place; the number in each house
+        is the zodiac sign occupying it, calculated for {report.profileSnapshot.fullName}&apos;s
+        exact birth date, time and place.
+      </Text>
+      <BirthChartPdf
+        ascendantSign={snap.ascendant.sign}
+        planets={snap.planets}
+        caption={`Ascendant: ${snap.ascendant.signName} · Moon Sign: ${snap.moonSign.signName}`}
+      />
     </Page>
   );
 }
@@ -226,6 +252,7 @@ export async function renderReportPdf(report: Report, blueprint: ReportBlueprint
       <CoverPage report={report} productName={productName} generatedAt={generatedAt} />
       <TableOfContentsPage report={report} blueprint={blueprint} productName={productName} />
       <BasicDetailsPage report={report} productName={productName} />
+      <BirthChartPage report={report} productName={productName} />
       {report.sections.map((section) => (
         <SectionPage key={section.id} section={section} productName={productName} reportId={report.id} />
       ))}

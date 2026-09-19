@@ -4,6 +4,7 @@
 // shape, the same state machine, the same generation pipeline. Section
 // CONTENT differs per report type via blueprints (./blueprints/*.ts);
 // nothing else does.
+import type { ChartPlanetEntry, ChartPlanetName } from "@/lib/astro-engine/ephemeris";
 
 export type ReportType =
   | "kundli"
@@ -116,7 +117,12 @@ export type AstrologySnapshot = {
   ascendant: { sign: number; signName: string; degree: number };
   moonSign: { sign: number; signName: string };
   nakshatra: { name: string; pada: number };
-  planets: Record<string, unknown>; // ChartPlanetEntry per planet, keyed by name
+  // The one field tightened beyond "loose transport container" (see
+  // this type's own doc comment) — reusing astro-engine's own real
+  // type directly, not re-deriving it, since the chart components
+  // (BirthChartCard and its PDF-native counterpart, pdf-chart.tsx)
+  // need this shape precisely, not `unknown`.
+  planets: Record<ChartPlanetName, ChartPlanetEntry>;
   houses: Record<string, unknown>;
   divisionalCharts: Record<string, unknown>; // vargaNumber -> DivisionalChartResult
   yogas: unknown[]; // YogaResult[]

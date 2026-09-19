@@ -49,7 +49,13 @@ export type NorthIndianChartProps = ChartStyleProps;
 // 1-12 counterclockwise loop.
 // ---------------------------------------------------------------------
 
-const SIZE = 400;
+// SIZE/HOUSE_CELLS/Point are exported — src/lib/reports/pdf-chart.tsx
+// (the PDF-native version of this exact chart, built from
+// @react-pdf/renderer primitives instead of browser SVG) reuses this
+// same geometry so the web reader and the downloaded PDF show
+// pixel-consistent house placement, not two independently-drifting
+// hand-derived layouts.
+export const SIZE = 400;
 const TL = { x: 0, y: 0 };
 const TR = { x: SIZE, y: 0 };
 const BR = { x: SIZE, y: SIZE };
@@ -66,9 +72,9 @@ const mTR = { x: (TR.x + C.x) / 2, y: (TR.y + C.y) / 2 };
 const mBR = { x: (BR.x + C.x) / 2, y: (BR.y + C.y) / 2 };
 const mBL = { x: (BL.x + C.x) / 2, y: (BL.y + C.y) / 2 };
 
-type Point = { x: number; y: number };
+export type Point = { x: number; y: number };
 
-type HouseCell = {
+export type HouseCell = {
   house: number;
   polygon: Point[];
   /** Where the sign-number + planet glyphs are centered — deliberately
@@ -84,7 +90,7 @@ function centroid(points: Point[]): Point {
   return { x: sum.x / points.length, y: sum.y / points.length };
 }
 
-const HOUSE_CELLS: HouseCell[] = [
+export const HOUSE_CELLS: HouseCell[] = [
   { house: 1, polygon: [TM, mTL, C, mTR], anchor: centroid([TM, mTL, mTR]) },
   { house: 2, polygon: [TL, TM, mTL], anchor: centroid([TL, TM, mTL]) },
   { house: 3, polygon: [TL, mTL, LM], anchor: centroid([TL, mTL, LM]) },

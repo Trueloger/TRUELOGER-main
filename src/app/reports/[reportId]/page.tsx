@@ -29,6 +29,7 @@ import { ReportCover } from "@/components/reports/ReportCover";
 import { ReportTableOfContents } from "@/components/reports/ReportTableOfContents";
 import { ReportSection } from "@/components/reports/ReportSection";
 import { ReportDisclaimer } from "@/components/reports/ReportDisclaimer";
+import { BirthChartCard } from "@/components/charts/BirthChartCard";
 
 type FetchState =
   | { status: "loading" }
@@ -299,6 +300,21 @@ function ReaderReady({ report }: { report: Report }) {
           date={completedDate}
         />
         <div className="px-4 py-6 sm:px-8">
+          {report.astrologySnapshot && (
+            <div className="mb-8 flex flex-col items-center border-b border-nav-lavender-line pb-8">
+              <h2 className="font-serif text-lg text-nav-violet sm:text-xl">Your Birth Chart</h2>
+              <p className="mt-1 max-w-sm text-center text-sm text-nav-plum/70">
+                Ascendant: {report.astrologySnapshot.ascendant.signName} · Moon Sign:{" "}
+                {report.astrologySnapshot.moonSign.signName}
+              </p>
+              <div className="mt-4 w-full max-w-[360px]">
+                <BirthChartCard
+                  ascendantSign={report.astrologySnapshot.ascendant.sign}
+                  planets={report.astrologySnapshot.planets}
+                />
+              </div>
+            </div>
+          )}
           <ReportTableOfContents sections={report.sections} />
           <div className="mt-8 flex flex-col gap-10">
             {report.sections.map((section) => (
