@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { useCart, type CartItem } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -42,11 +43,6 @@ export function CartDrawer() {
     closeCart();
     router.push("/checkout");
   }
-  // Two-phase mount: render off-screen first, then flip to the resting
-  // transform on the next frame so the transform transition actually
-  // animates instead of snapping in already-settled.
-  const [slidIn, setSlidIn] = useState(false);
-
   useEffect(() => {
     if (!isOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -58,17 +54,18 @@ export function CartDrawer() {
     }
     document.addEventListener("keydown", onKeyDown);
 
-    const raf = requestAnimationFrame(() => setSlidIn(true));
-
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKeyDown);
-      cancelAnimationFrame(raf);
-      setSlidIn(false);
     };
   }, [isOpen, closeCart]);
 
-  if (!isOpen) return null;
+  // No early `if (!isOpen) return null` anymore — AnimatePresence needs
+  // this component to keep rendering so the exit animation can play,
+  // so the SSR guard moves here instead (document doesn't exist during
+  // server-side prerendering, and previously the early return made this
+  // unreachable there).
+  if (typeof document === "undefined") return null;
 
   // Portaled to document.body for the same reason DurationSheet and
   // DemoReportViewer are (see DurationSheet.tsx's doc comment): any
@@ -77,23 +74,31 @@ export function CartDrawer() {
   // trap this `position: fixed` drawer inside that ancestor's box
   // instead of the viewport.
   return createPortal(
+    <AnimatePresence>
+      {isOpen && (
     <div className="fixed inset-0 z-[70]">
       {/* overlay */}
-      <button
+      <motion.button
         type="button"
         aria-label="Close cart overlay"
         onClick={closeCart}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
         className="absolute inset-0 bg-nav-violet/25 backdrop-blur-[1px]"
       />
 
       {/* panel */}
-      <div
+      <motion.div
         role="dialog"
         aria-modal="true"
         aria-label="Your cart"
-        className={`absolute inset-y-0 right-0 flex w-[88%] max-w-sm sm:w-[400px] sm:max-w-[400px] flex-col bg-nav-ivory shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
-          slidIn ? "translate-x-0" : "translate-x-full"
-        }`}
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="absolute inset-y-0 right-0 flex w-[88%] max-w-sm sm:w-[400px] sm:max-w-[400px] flex-col bg-nav-ivory shadow-2xl"
         style={{
           backgroundImage:
             "radial-gradient(circle at 0% 0%, rgba(164,128,207,0.10), transparent 55%)",
@@ -153,13 +158,13 @@ export function CartDrawer() {
             <button
               type="button"
               onClick={handleCheckoutClick}
-              className="flex w-full items-center justify-center rounded-full bg-nav-amethyst px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst focus-visible:ring-offset-2 focus-visible:ring-offset-nav-pearl"
+              className="flex w-full items-center justify-center rounded-full bg-nav-amethyst px-4 py-3 text-sm font-semibold text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst focus-visible:ring-offset-2 focus-visible:ring-offset-nav-pearl"
             >
               Checkout
             </button>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {gateReason && (
         <PurchaseGateModal
@@ -169,7 +174,9 @@ export function CartDrawer() {
           redirectTo="/checkout"
         />
       )}
-    </div>,
+    </div>
+      )}
+    </AnimatePresence>,
     document.body,
   );
 }

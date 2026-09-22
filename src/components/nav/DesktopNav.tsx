@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type FocusEvent } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, LogIn, LogOut, ShoppingBag, ShoppingCart, UserPlus } from "lucide-react";
+
+// One shared open/close motion for every desktop dropdown panel below
+// — NavEntry's submenu, MallControl, AuthControl — so all three feel
+// like the same interaction instead of three independently-tuned ones.
+const DROPDOWN_MOTION = {
+  initial: { opacity: 0, y: -6, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -6, scale: 0.98 },
+  transition: { duration: 0.15, ease: "easeOut" as const },
+};
 import { NAV_ITEMS, MALL_ITEM, PROFILE_MENU, type NavItem } from "./nav-data";
 import { useCart } from "@/context/CartContext";
 import { useAuth, getInitials } from "@/context/AuthContext";
@@ -214,27 +225,30 @@ function NavEntry({
         />
       </button>
 
-      {open && (
-        <div
-          id={menuId}
-          role="menu"
-          aria-label={item.label}
-          className={`absolute left-0 top-[calc(100%+0.5rem)] z-50 rounded-xl border border-nav-lavender-line bg-nav-pearl p-2 shadow-[0_12px_32px_rgba(80,50,130,0.14)] ${
-            wide ? "grid grid-cols-2 gap-x-2 gap-y-0.5 min-w-[420px]" : "flex flex-col gap-0.5 min-w-[220px]"
-          }`}
-        >
-          {item.children!.map((child) => (
-            <Link
-              key={child.href}
-              href={child.href}
-              role="menuitem"
-              className="rounded-lg px-3 py-2 text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
-            >
-              {child.label}
-            </Link>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            id={menuId}
+            role="menu"
+            aria-label={item.label}
+            {...DROPDOWN_MOTION}
+            className={`absolute left-0 top-[calc(100%+0.5rem)] z-50 rounded-xl border border-nav-lavender-line bg-nav-pearl p-2 shadow-[0_12px_32px_rgba(80,50,130,0.14)] ${
+              wide ? "grid grid-cols-2 gap-x-2 gap-y-0.5 min-w-[420px]" : "flex flex-col gap-0.5 min-w-[220px]"
+            }`}
+          >
+            {item.children!.map((child) => (
+              <Link
+                key={child.href}
+                href={child.href}
+                role="menuitem"
+                className="rounded-lg px-3 py-2 text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
+              >
+                {child.label}
+              </Link>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </li>
   );
 }
@@ -259,25 +273,28 @@ function MallControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
         {MALL_ITEM.label}
       </button>
 
-      {open && (
-        <div
-          id="nav-menu-mall"
-          role="menu"
-          aria-label={MALL_ITEM.label}
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 flex min-w-[200px] flex-col gap-0.5 rounded-xl border border-nav-lavender-line bg-nav-pearl p-2 shadow-[0_12px_32px_rgba(80,50,130,0.14)]"
-        >
-          {MALL_ITEM.children!.map((child) => (
-            <Link
-              key={child.href}
-              href={child.href}
-              role="menuitem"
-              className="rounded-lg px-3 py-2 text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
-            >
-              {child.label}
-            </Link>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            id="nav-menu-mall"
+            role="menu"
+            aria-label={MALL_ITEM.label}
+            {...DROPDOWN_MOTION}
+            className="absolute right-0 top-[calc(100%+0.5rem)] z-50 flex min-w-[200px] flex-col gap-0.5 rounded-xl border border-nav-lavender-line bg-nav-pearl p-2 shadow-[0_12px_32px_rgba(80,50,130,0.14)]"
+          >
+            {MALL_ITEM.children!.map((child) => (
+              <Link
+                key={child.href}
+                href={child.href}
+                role="menuitem"
+                className="rounded-lg px-3 py-2 text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
+              >
+                {child.label}
+              </Link>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -344,39 +361,42 @@ function AuthControl({ open, onOpen, onLeave, onBlur }: DropdownHandlers & { ope
         />
       </button>
 
-      {open && (
-        <div
-          id="nav-menu-profile"
-          role="menu"
-          aria-label="Account"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[210px] rounded-xl border border-nav-lavender-line bg-nav-pearl p-2 shadow-[0_12px_32px_rgba(80,50,130,0.14)]"
-        >
-          <div className="px-3 py-2 text-sm font-semibold text-nav-violet truncate">
-            {displayName}
-          </div>
-          <div className="my-1 h-px bg-nav-lavender-line" />
-          {PROFILE_MENU.map((entry) => (
-            <Link
-              key={entry.href}
-              href={entry.href}
-              role="menuitem"
-              className="block rounded-lg px-3 py-2 text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
-            >
-              {entry.label}
-            </Link>
-          ))}
-          <div className="my-1 h-px bg-nav-lavender-line" />
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => void logout()}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            id="nav-menu-profile"
+            role="menu"
+            aria-label="Account"
+            {...DROPDOWN_MOTION}
+            className="absolute right-0 top-[calc(100%+0.5rem)] z-50 min-w-[210px] rounded-xl border border-nav-lavender-line bg-nav-pearl p-2 shadow-[0_12px_32px_rgba(80,50,130,0.14)]"
           >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            Logout
-          </button>
-        </div>
-      )}
+            <div className="px-3 py-2 text-sm font-semibold text-nav-violet truncate">
+              {displayName}
+            </div>
+            <div className="my-1 h-px bg-nav-lavender-line" />
+            {PROFILE_MENU.map((entry) => (
+              <Link
+                key={entry.href}
+                href={entry.href}
+                role="menuitem"
+                className="block rounded-lg px-3 py-2 text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
+              >
+                {entry.label}
+              </Link>
+            ))}
+            <div className="my-1 h-px bg-nav-lavender-line" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => void logout()}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Logout
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

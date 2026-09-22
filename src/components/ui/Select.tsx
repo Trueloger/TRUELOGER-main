@@ -18,6 +18,7 @@
 // field-styles.ts so a Select looks identical to every text/date/time
 // field already on the page.
 import { useEffect, useId, useRef, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import {
   fieldLabelClass,
@@ -229,11 +230,16 @@ export function Select<T extends string = string>({
         </p>
       )}
 
+      <AnimatePresence>
       {open && (
-        <ul
+        <motion.ul
           id={listboxId}
           role="listbox"
           aria-label={label ?? rest["aria-label"]}
+          initial={{ opacity: 0, scale: 0.97, y: -4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.97, y: -4 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
           className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-50 max-h-64 overflow-y-auto rounded-xl border border-nav-lavender-line bg-nav-pearl p-1.5 shadow-[0_12px_32px_rgba(80,50,130,0.14)]"
         >
           {options.map((option, index) => {
@@ -271,8 +277,9 @@ export function Select<T extends string = string>({
               </li>
             );
           })}
-        </ul>
+        </motion.ul>
       )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -10,6 +10,7 @@
 // trigger, mirroring src/components/nav/MobileNav.tsx's MobileMenuPanel.
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion } from "motion/react";
 import {
   DURATION_PRESETS,
   consultationVariantId,
@@ -171,10 +172,13 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
   return createPortal(
     <div className="fixed inset-0 z-[70]">
       {/* backdrop */}
-      <button
+      <motion.button
         type="button"
         aria-label="Close dialog overlay"
         onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
         className="absolute inset-0 bg-nav-violet/35 backdrop-blur-[1px]"
       />
 
@@ -185,7 +189,7 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
         role="dialog"
         aria-modal="true"
         aria-labelledby="duration-sheet-heading"
-        className="absolute inset-x-0 bottom-0 flex max-h-[90vh] w-full flex-col rounded-t-3xl border border-nav-lavender-line bg-nav-pearl shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
+        className="duration-sheet-panel absolute inset-x-0 bottom-0 flex max-h-[90vh] w-full flex-col rounded-t-3xl border border-nav-lavender-line bg-nav-pearl shadow-2xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[85vh] sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
         style={{
           backgroundImage:
             "radial-gradient(circle at 100% 0%, rgba(164,128,207,0.10), transparent 55%)",
@@ -308,7 +312,7 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
           <button
             type="button"
             onClick={step === "datetime" ? () => setStep("duration") : onClose}
-            className="flex min-h-[48px] flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white text-nav-plum transition-colors duration-200 hover:bg-nav-lavender-mist"
+            className="flex min-h-[48px] flex-1 items-center justify-center rounded-full border border-nav-lavender-line bg-white text-nav-plum transition-colors duration-200 hover:bg-nav-lavender-mist active:scale-[0.98]"
           >
             {step === "datetime" ? "Back" : "Cancel"}
           </button>
@@ -317,7 +321,7 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
               type="button"
               onClick={handleNext}
               disabled={!canGoToDateTime}
-              className="flex min-h-[48px] flex-1 items-center justify-center rounded-full bg-nav-amethyst px-4 font-medium text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-h-[48px] flex-1 items-center justify-center rounded-full bg-nav-amethyst px-4 font-medium text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
             >
               Next
             </button>
@@ -326,7 +330,7 @@ export function DurationSheet({ service, open, onClose, onConfirm }: DurationShe
               type="button"
               onClick={handleConfirm}
               disabled={!canConfirmBooking}
-              className="flex min-h-[48px] flex-1 items-center justify-center rounded-full bg-nav-amethyst px-4 font-medium text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-h-[48px] flex-1 items-center justify-center rounded-full bg-nav-amethyst px-4 font-medium text-white shadow-[0_4px_10px_rgba(90,55,140,0.25)] transition-colors duration-200 hover:bg-nav-amethyst-deep active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
             >
               {submitting ? "Adding…" : "Add to Cart"}
             </button>

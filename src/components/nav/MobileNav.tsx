@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronDown,
   HelpCircle,
@@ -89,35 +90,43 @@ export function MobileMenuPanel({ open, onClose }: { open: boolean; onClose: () 
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-
   function toggleAccordion(key: string) {
     setOpenAccordion((cur) => (cur === key ? null : key));
   }
 
   return (
-    <div className="fixed inset-0 z-[60] 2xl:hidden">
-      {/* overlay */}
-      <button
-        type="button"
-        aria-label="Close menu overlay"
-        onClick={onClose}
-        className="absolute inset-0 bg-nav-violet/25 backdrop-blur-[1px]"
-      />
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-[60] 2xl:hidden">
+          {/* overlay */}
+          <motion.button
+            type="button"
+            aria-label="Close menu overlay"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-nav-violet/25 backdrop-blur-[1px]"
+          />
 
-      {/* panel */}
-      <div
-        id="mobile-nav-panel"
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Site navigation"
-        className="absolute inset-y-0 left-0 flex w-[88%] max-w-sm flex-col bg-nav-lavender-mist shadow-2xl"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 100% 0%, rgba(164,128,207,0.10), transparent 55%)",
-        }}
-      >
+          {/* panel */}
+          <motion.div
+            id="mobile-nav-panel"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Site navigation"
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ duration: 0.28, ease: "easeOut" }}
+            className="absolute inset-y-0 left-0 flex w-[88%] max-w-sm flex-col bg-nav-lavender-mist shadow-2xl"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 100% 0%, rgba(164,128,207,0.10), transparent 55%)",
+            }}
+          >
         {/* header */}
         <div className="flex shrink-0 items-center justify-between border-b border-nav-lavender-line px-5 py-4">
           <Logo />
@@ -195,8 +204,10 @@ export function MobileMenuPanel({ open, onClose }: { open: boolean; onClose: () 
             )}
           </ul>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -259,22 +270,31 @@ function MobileRow({
         />
       </button>
 
-      {expanded && (
-        <ul id={panelId} className="mt-0.5 mb-1 flex flex-col gap-0.5 pl-[3.1rem] pr-2">
-          {item.children!.map((child) => (
-            <li key={child.href}>
-              <Link
-                href={child.href}
-                onClick={onNavigate}
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-[0.92rem] text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
-              >
-                <span className="h-1 w-1 shrink-0 rounded-full bg-nav-orchid" aria-hidden="true" />
-                {child.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.ul
+            id={panelId}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="mt-0.5 mb-1 flex flex-col gap-0.5 overflow-hidden pl-[3.1rem] pr-2"
+          >
+            {item.children!.map((child) => (
+              <li key={child.href}>
+                <Link
+                  href={child.href}
+                  onClick={onNavigate}
+                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-[0.92rem] text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
+                >
+                  <span className="h-1 w-1 shrink-0 rounded-full bg-nav-orchid" aria-hidden="true" />
+                  {child.label}
+                </Link>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </li>
   );
 }
@@ -323,36 +343,45 @@ function MobileProfileRow({
         />
       </button>
 
-      {expanded && (
-        <ul id={panelId} className="mt-0.5 mb-1 flex flex-col gap-0.5 pl-[3.1rem] pr-2">
-          {PROFILE_MENU.map((entry) => (
-            <li key={entry.href}>
-              <Link
-                href={entry.href}
-                onClick={onNavigate}
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-[0.92rem] text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.ul
+            id={panelId}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="mt-0.5 mb-1 flex flex-col gap-0.5 overflow-hidden pl-[3.1rem] pr-2"
+          >
+            {PROFILE_MENU.map((entry) => (
+              <li key={entry.href}>
+                <Link
+                  href={entry.href}
+                  onClick={onNavigate}
+                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-[0.92rem] text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
+                >
+                  <span className="h-1 w-1 shrink-0 rounded-full bg-nav-orchid" aria-hidden="true" />
+                  {entry.label}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <div className="mx-2.5 my-1 h-px bg-nav-lavender-line" />
+              <button
+                type="button"
+                onClick={() => {
+                  void logout();
+                  onNavigate();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left text-[0.92rem] text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
               >
-                <span className="h-1 w-1 shrink-0 rounded-full bg-nav-orchid" aria-hidden="true" />
-                {entry.label}
-              </Link>
+                <LogOut className="h-4 w-4 shrink-0 text-nav-violet" aria-hidden="true" />
+                Logout
+              </button>
             </li>
-          ))}
-          <li>
-            <div className="mx-2.5 my-1 h-px bg-nav-lavender-line" />
-            <button
-              type="button"
-              onClick={() => {
-                void logout();
-                onNavigate();
-              }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left text-[0.92rem] text-nav-plum transition-colors duration-150 hover:bg-nav-lavender-soft hover:text-nav-violet"
-            >
-              <LogOut className="h-4 w-4 shrink-0 text-nav-violet" aria-hidden="true" />
-              Logout
-            </button>
-          </li>
-        </ul>
-      )}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </li>
   );
 }

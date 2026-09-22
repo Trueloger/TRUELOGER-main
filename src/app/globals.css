@@ -131,3 +131,34 @@ img {
     transform: none !important;
   }
 }
+
+/* DurationSheet's panel: bottom sheet on mobile, centered modal from sm
+   up — same dual-layout shape as .picker-panel above, but the desktop
+   "to" transform must land exactly on translate(-50%,-50%), the same
+   static transform DurationSheet.tsx's sm: classes already set, so the
+   animation hands off to the resting CSS with no jump when it ends. */
+@keyframes duration-sheet-in-mobile {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes duration-sheet-in-desktop {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.duration-sheet-panel {
+  animation: duration-sheet-in-mobile 0.25s ease-out;
+}
+
+@media (min-width: 40rem) {
+  .duration-sheet-panel {
+    animation: duration-sheet-in-desktop 0.2s ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duration-sheet-panel {
+    animation: none !important;
+  }
+}

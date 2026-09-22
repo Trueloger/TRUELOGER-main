@@ -4,6 +4,7 @@
 // mirrors the toggle mechanics of MobileNav.tsx's accordion rows
 // (single `openIndex` piece of state, not a full component reuse).
 import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import type { ConsultationFaq } from "@/lib/consultation/types";
 
@@ -35,11 +36,20 @@ export function FaqAccordion({ faqs }: { faqs: ConsultationFaq[] }) {
                 }`}
               />
             </button>
-            {expanded && (
-              <div id={panelId} className="px-4 pb-4 text-sm leading-relaxed text-nav-plum/80">
-                {faq.answer}
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {expanded && (
+                <motion.div
+                  id={panelId}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 text-sm leading-relaxed text-nav-plum/80">{faq.answer}</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </li>
         );
       })}

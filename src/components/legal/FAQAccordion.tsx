@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown } from "lucide-react";
 
 export type FaqItem = { question: string; answer: string };
@@ -37,11 +38,20 @@ export function FAQAccordion({ items }: { items: FaqItem[] }) {
                 className={`h-4 w-4 shrink-0 text-nav-amethyst-deep transition-transform duration-200 ${open ? "rotate-180" : ""}`}
               />
             </button>
-            {open && (
-              <div id={panelId} className="px-4 pb-4 text-sm leading-relaxed text-nav-plum/80">
-                {item.answer}
-              </div>
-            )}
+            <AnimatePresence initial={false}>
+              {open && (
+                <motion.div
+                  id={panelId}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 text-sm leading-relaxed text-nav-plum/80">{item.answer}</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </li>
         );
       })}
