@@ -21,6 +21,7 @@ import { InsightCard } from "@/components/reports/InsightCard";
 import { KundliChartIcon } from "@/components/quick-services/icons";
 import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import { SectionTabs, type SectionTab } from "@/components/ui/SectionTabs";
+import { CollapsibleReportCard } from "@/components/ui/CollapsibleReportCard";
 import type { FreeKundliApiResponse } from "./types";
 
 const EMPTY_VALUES: BirthDetailsValues = {
@@ -218,23 +219,25 @@ export function FreeKundliForm() {
                       rendered as a real React SVG component — never
                       third-party markup, so there's nothing here to
                       sanitize. BirthChartCard is the one shared entry
-                      point for every chart style. */}
-                  <div>
-                    <h2 className="mb-3 font-serif text-lg text-nav-plum">Rasi (D1) Chart</h2>
+                      point for every chart style. Each chart is its
+                      own collapsible card (open by default for the
+                      main D1, collapsed for the two secondary charts)
+                      so mobile isn't forced to scroll past all three
+                      full SVGs before reaching Planets/Houses. */}
+                  <CollapsibleReportCard title="Rasi (D1) Chart" defaultOpen>
                     <BirthChartCard ascendantSign={chart.ascendantSign} planets={chart.planets} />
-                  </div>
+                  </CollapsibleReportCard>
 
                   {/* D9 Navamsa — the chart traditionally consulted for
                       marriage and a planet's deeper strength, real
                       placements only. */}
-                  <div>
-                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Navamsa (D9) Chart</h2>
-                    <p className="mb-3 text-xs text-nav-plum/60">
-                      Each planet&rsquo;s Navamsa placement — traditionally consulted for marriage
-                      and a planet&rsquo;s deeper strength.
-                    </p>
+                  <CollapsibleReportCard
+                    title="Navamsa (D9) Chart"
+                    summary="Traditionally consulted for marriage and a planet's deeper strength"
+                    defaultOpen={false}
+                  >
                     <BirthChartCard ascendantSign={navamsaChart.ascendantSign} planets={navamsaChart.planets} />
-                  </div>
+                  </CollapsibleReportCard>
 
                   {/* Current-transit (Gochar) chart — real planetary
                       positions for right now, houses counted from the
@@ -242,20 +245,21 @@ export function FreeKundliForm() {
                       is deliberately a separate chart from the birth
                       chart above, never overlaid onto it, so natal and
                       transit placements are never mixed. */}
-                  <div>
-                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Transit Chart (Today)</h2>
-                    <p className="mb-3 text-xs text-nav-plum/60">
-                      Where the planets are right now, as of{" "}
-                      {new Intl.DateTimeFormat("en-IN", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZone: "Asia/Kolkata",
-                      }).format(new Date(transitUtc))}{" "}
-                      IST — houses counted from your birth chart&rsquo;s Ascendant, not overlaid
-                      onto your natal placements above.
+                  <CollapsibleReportCard
+                    title="Transit Chart (Today)"
+                    summary={`As of ${new Intl.DateTimeFormat("en-IN", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "Asia/Kolkata",
+                    }).format(new Date(transitUtc))} IST`}
+                    defaultOpen={false}
+                  >
+                    <p className="text-xs text-nav-plum/60">
+                      Where the planets are right now — houses counted from your birth
+                      chart&rsquo;s Ascendant, not overlaid onto your natal placements above.
                     </p>
                     <BirthChartCard ascendantSign={transitChart.ascendantSign} planets={transitChart.planets} />
-                  </div>
+                  </CollapsibleReportCard>
                 </>
               ),
             },
@@ -264,22 +268,19 @@ export function FreeKundliForm() {
               label: "Planets & Houses",
               content: (
                 <>
-                  <div>
-                    <h2 className="mb-3 font-serif text-lg text-nav-plum">Planetary Positions</h2>
+                  <CollapsibleReportCard title="Planetary Positions" summary="Sign, house, and degree for every planet">
                     <PlanetaryTable rows={planetaryRows} caption="Planetary positions, houses, and degrees" />
-                  </div>
+                  </CollapsibleReportCard>
 
                   {/* Bhava Bala — core/simplified classical house
                       strength, not a full BPHS reproduction (see
                       src/lib/astro-engine/bhavabala.ts). Real computed
                       strength totals only, never an interpretive
                       score. */}
-                  <div>
-                    <h2 className="mb-1 font-serif text-lg text-nav-plum">House Strength (Bhava Bala)</h2>
-                    <p className="mb-3 text-xs text-nav-plum/60">
-                      A simplified core version of the classical house-strength system, for all 12
-                      whole-sign houses counted from the Ascendant.
-                    </p>
+                  <CollapsibleReportCard
+                    title="House Strength (Bhava Bala)"
+                    summary="All 12 whole-sign houses, simplified classical strength totals"
+                  >
                     <ul className="grid gap-2 sm:grid-cols-2">
                       {houseStrength.map((h) => (
                         <li
@@ -293,7 +294,7 @@ export function FreeKundliForm() {
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </CollapsibleReportCard>
                 </>
               ),
             },
@@ -306,11 +307,14 @@ export function FreeKundliForm() {
                       invented interpretation. Only the hits are
                       listed; the full checked set is in the API
                       response for anyone who needs it. */}
-                  <div>
-                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
-                    <p className="mb-3 text-xs text-nav-plum/60">
-                      Classical planetary combinations this chart was checked against.
-                    </p>
+                  <CollapsibleReportCard
+                    title="Yogas"
+                    summary={
+                      presentYogas.length > 0
+                        ? `${presentYogas.length} classical yoga${presentYogas.length === 1 ? "" : "s"} present`
+                        : "No classical yogas detected in this chart"
+                    }
+                  >
                     {presentYogas.length > 0 ? (
                       <ul className="grid gap-2 sm:grid-cols-2">
                         {presentYogas.map((y) => (
@@ -332,19 +336,16 @@ export function FreeKundliForm() {
                         None of the classical yogas this engine checks for were detected in this chart.
                       </p>
                     )}
-                  </div>
+                  </CollapsibleReportCard>
 
                   {/* Shadbala — core/simplified classical planetary
                       strength, not a full BPHS reproduction (see
                       src/lib/astro-engine/shadbala.ts). Real computed
                       Rupas only, never an interpretive score. */}
-                  <div>
-                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
-                    <p className="mb-3 text-xs text-nav-plum/60">
-                      A simplified core version of the classical six-fold strength system, for the 7
-                      classical planets. &ldquo;Meets requirement&rdquo; compares each planet&rsquo;s
-                      total against its own classical minimum.
-                    </p>
+                  <CollapsibleReportCard
+                    title="Planetary Strength (Shadbala)"
+                    summary="The 7 classical planets against their classical minimum"
+                  >
                     <ul className="grid gap-2 sm:grid-cols-2">
                       {planetaryStrength.map((s) => (
                         <li
@@ -359,7 +360,7 @@ export function FreeKundliForm() {
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </CollapsibleReportCard>
                 </>
               ),
             },

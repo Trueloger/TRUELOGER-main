@@ -23,6 +23,7 @@ import { KundliMatchIcon } from "@/components/quick-services/icons";
 import { buildKootaRows } from "@/lib/astrology/ashtakoot-view";
 import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import { SectionTabs, type SectionTab } from "@/components/ui/SectionTabs";
+import { CollapsibleReportCard } from "@/components/ui/CollapsibleReportCard";
 import type { KundliMatchingApiResponse } from "./types";
 
 const EMPTY_VALUES: BirthDetailsValues = {
@@ -242,8 +243,7 @@ export function KundliMatchingForm() {
               label: "Charts",
               content: (
                 <>
-                  <div className="space-y-6">
-                    <h2 className="font-serif text-lg text-nav-plum">Birth Charts</h2>
+                  <CollapsibleReportCard title="Birth Charts" defaultOpen>
                     <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                       <div className="space-y-2 text-center">
                         <h3 className="text-sm font-medium text-nav-amethyst">Bride</h3>
@@ -254,16 +254,13 @@ export function KundliMatchingForm() {
                         <BirthChartCard ascendantSign={groomChart.ascendantSign} planets={groomChart.planets} />
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleReportCard>
 
-                  <div className="space-y-6">
-                    <div>
-                      <h2 className="font-serif text-lg text-nav-plum">Navamsa (D9) Charts</h2>
-                      <p className="text-xs text-nav-plum/60">
-                        Each person&rsquo;s Navamsa placement — traditionally consulted for
-                        marriage and a planet&rsquo;s deeper strength.
-                      </p>
-                    </div>
+                  <CollapsibleReportCard
+                    title="Navamsa (D9) Charts"
+                    summary="Traditionally consulted for marriage and a planet's deeper strength"
+                    defaultOpen={false}
+                  >
                     <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                       <div className="space-y-2 text-center">
                         <h3 className="text-sm font-medium text-nav-amethyst">Bride</h3>
@@ -280,7 +277,7 @@ export function KundliMatchingForm() {
                         />
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleReportCard>
                 </>
               ),
             },

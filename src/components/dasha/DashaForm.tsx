@@ -20,6 +20,7 @@ import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { BirthChartCard } from "@/components/charts/BirthChartCard";
 import { SectionTabs, type SectionTab } from "@/components/ui/SectionTabs";
+import { CollapsibleReportCard } from "@/components/ui/CollapsibleReportCard";
 import { parseApiDate } from "@/lib/dasha/format";
 import type { DashaApiResponse } from "./types";
 
@@ -210,22 +211,20 @@ export function DashaForm() {
               label: "Charts",
               content: (
                 <>
-                  <div className="space-y-3">
-                    <h2 className="font-serif text-lg text-nav-plum">Birth Chart</h2>
+                  <CollapsibleReportCard title="Birth Chart" defaultOpen>
                     <BirthChartCard ascendantSign={result.chart.ascendantSign} planets={result.chart.planets} />
-                  </div>
+                  </CollapsibleReportCard>
 
-                  <div className="space-y-3">
-                    <h2 className="font-serif text-lg text-nav-plum">Navamsa (D9) Chart</h2>
-                    <p className="text-xs text-nav-plum/60">
-                      Each planet&rsquo;s Navamsa placement — traditionally consulted for marriage
-                      and a planet&rsquo;s deeper strength.
-                    </p>
+                  <CollapsibleReportCard
+                    title="Navamsa (D9) Chart"
+                    summary="Traditionally consulted for marriage and a planet's deeper strength"
+                    defaultOpen={false}
+                  >
                     <BirthChartCard
                       ascendantSign={result.navamsaChart.ascendantSign}
                       planets={result.navamsaChart.planets}
                     />
-                  </div>
+                  </CollapsibleReportCard>
                 </>
               ),
             },
