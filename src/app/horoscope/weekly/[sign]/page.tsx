@@ -1,12 +1,11 @@
-// src/app/horoscope/[sign]/page.tsx
+// src/app/horoscope/weekly/[sign]/page.tsx
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ZODIAC_ORDER, ZODIAC_META, isZodiacSlug } from "@/lib/horoscope/zodiac";
-import { getOrGenerateDailyHoroscopes } from "@/lib/horoscope/store";
-import { getTodayIST } from "@/lib/horoscope/date";
+import { getOrGenerateWeeklyHoroscopes } from "@/lib/horoscope/store";
 import { CARD_BY_SLUG } from "@/components/horoscope/zodiac-ui-data";
 import { HoroscopeReading } from "@/components/horoscope/HoroscopeReading";
-import type { DailyHoroscopeDoc } from "@/lib/horoscope/types";
+import type { WeeklyHoroscopeDoc } from "@/lib/horoscope/types";
 
 export const revalidate = 3600;
 export const maxDuration = 300;
@@ -24,12 +23,12 @@ export async function generateMetadata({
   if (!isZodiacSlug(sign)) return {};
   const meta = ZODIAC_META[sign];
   return {
-    title: `${meta.name} Daily Horoscope | TRUELOGER`,
-    description: `Today's ${meta.name} horoscope — love, career, finance and health, refreshed daily.`,
+    title: `${meta.name} Weekly Horoscope | TRUELOGER`,
+    description: `This week's ${meta.name} horoscope — love, career, finance and health for the week ahead.`,
   };
 }
 
-export default async function ZodiacHoroscopePage({
+export default async function ZodiacWeeklyHoroscopePage({
   params,
 }: {
   params: Promise<{ sign: string }>;
@@ -39,21 +38,12 @@ export default async function ZodiacHoroscopePage({
 
   const meta = ZODIAC_META[sign];
   const card = CARD_BY_SLUG[sign];
-  const date = getTodayIST();
-  const dateLabel = new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "long",
-    timeZone: "Asia/Kolkata",
-  }).format(new Date());
 
-  // The Firestore fetch is isolated in try/catch, but the JSX return is
-  // built outside it (react-hooks/error-boundaries flags constructing
-  // JSX inside a try/catch, since a later render-time throw wouldn't be
-  // caught there anyway) — same behavior, lint-clean structure.
-  let doc: DailyHoroscopeDoc | null = null;
+  let doc: WeeklyHoroscopeDoc | null = null;
   try {
-    doc = await getOrGenerateDailyHoroscopes(date);
+    doc = await getOrGenerateWeeklyHoroscopes();
   } catch (err) {
-    console.error("[horoscope] fetch failed for", sign, date, err);
+    console.error("[horoscope] weekly fetch failed for", sign, err);
     doc = null;
   }
 
@@ -63,13 +53,20 @@ export default async function ZodiacHoroscopePage({
         <div className="mx-auto max-w-lg px-4 pb-20 pt-28 text-center md:pt-32">
           <h1 className="font-serif text-2xl text-nav-plum">{meta.name}</h1>
           <p className="mt-4 text-nav-plum/70">
-            The stars are aligning — today&apos;s reading will be ready shortly.
-            Please check back in a few minutes.
+            The stars are aligning — this week&apos;s reading will be ready shortly. Please check
+            back in a few minutes.
           </p>
         </div>
       </section>
     );
   }
+
+  const dateLabel = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(
+    new Date(`${doc.startDate}T00:00:00Z`)
+  );
+  const endLabel = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(
+    new Date(`${doc.endDate}T00:00:00Z`)
+  );
 
   return (
     <section className="min-h-screen bg-nav-ivory">
@@ -77,10 +74,10 @@ export default async function ZodiacHoroscopePage({
         meta={meta}
         Icon={card.Icon}
         reading={doc.signs[sign]}
-        dateLabel={dateLabel}
+        dateLabel={`Week of ${dateLabel} – ${endLabel}`}
         periodTabs={[
-          { label: "Daily", href: `/horoscope/${sign}`, active: true },
-          { label: "Weekly", href: `/horoscope/weekly/${sign}`, active: false },
+          { label: "Daily", href: `/horoscope/${sign}`, active: false },
+          { label: "Weekly", href: `/horoscope/weekly/${sign}`, active: true },
           { label: "Monthly", href: `/horoscope/monthly/${sign}`, active: false },
         ]}
       />

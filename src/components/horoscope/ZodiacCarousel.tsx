@@ -25,7 +25,7 @@ const SCROLL_KEY = "truelogr:horoscope:carousel-scroll";
  * overscroll-x-contain keeps rubber-band scrolling from leaking into
  * the page. Client-only for the scroll-position restore below; the
  * scroll-snap behavior itself is still pure CSS. */
-export function ZodiacCarousel() {
+export function ZodiacCarousel({ hrefBase }: { hrefBase?: string } = {}) {
   const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export function ZodiacCarousel() {
             className="shrink-0 snap-start [container-type:inline-size]"
             style={{ width: CARD_WIDTH }}
           >
-            <ZodiacCard {...card} />
+            <ZodiacCard {...card} hrefBase={hrefBase} />
           </li>
         ))}
       </ul>

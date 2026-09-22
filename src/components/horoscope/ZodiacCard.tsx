@@ -27,7 +27,13 @@ export function rememberLastZodiacSign(slug: string) {
  * desktop grid or one of four visible in the mobile carousel — same
  * container-query approach as ProductCard. Equal width/height comes
  * from the parent grid/flex, not a fixed size here. */
-export function ZodiacCard({ slug, name, dateRange, Icon }: ZodiacCardData) {
+export function ZodiacCard({
+  slug,
+  name,
+  dateRange,
+  Icon,
+  hrefBase = "/horoscope",
+}: ZodiacCardData & { hrefBase?: string }) {
   const [justReturned, setJustReturned] = useState(false);
 
   useEffect(() => {
@@ -65,7 +71,7 @@ export function ZodiacCard({ slug, name, dateRange, Icon }: ZodiacCardData) {
       }`}
     >
       <Link
-        href={`/horoscope/${slug}`}
+        href={`${hrefBase}/${slug}`}
         onClick={() => rememberLastZodiacSign(slug)}
         aria-label={`${name} daily horoscope, ${dateRange}`}
         className="group flex h-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-nav-pearl to-nav-lavender-mist px-1.5 py-4 text-center shadow-[0_6px_18px_-12px_rgba(70,40,120,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-nav-amethyst/50 hover:shadow-[0_14px_28px_-14px_rgba(70,40,120,0.4)]"

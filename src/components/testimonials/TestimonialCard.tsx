@@ -13,14 +13,36 @@ import type { Testimonial } from "./testimonial-data";
 export function TestimonialCard({
   testimonial,
   ariaHidden,
+  onExpand,
 }: {
   testimonial: Testimonial;
   ariaHidden?: boolean;
+  /** Omitted (never called) for the aria-hidden duplicate copy the
+   * marquee track renders for its seamless loop — that copy must stay
+   * fully non-interactive, not just visually identical. */
+  onExpand?: () => void;
 }) {
+  const clickable = !ariaHidden && Boolean(onExpand);
+
   return (
     <article
       aria-hidden={ariaHidden || undefined}
-      className="flex h-[260px] w-[240px] shrink-0 flex-col items-center rounded-2xl border border-nav-lavender-line bg-nav-pearl px-5 py-6 text-center shadow-[0_8px_24px_-14px_rgba(90,55,140,0.3)] transition-transform duration-300 md:hover:-translate-y-1 md:hover:border-nav-amethyst/40 md:hover:shadow-[0_16px_32px_-14px_rgba(90,55,140,0.38)] sm:h-[270px] sm:w-[280px] sm:px-6 md:w-[300px]"
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? onExpand : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onExpand?.();
+              }
+            }
+          : undefined
+      }
+      className={`flex h-[260px] w-[240px] shrink-0 flex-col items-center rounded-2xl border border-nav-lavender-line bg-nav-pearl px-5 py-6 text-center shadow-[0_8px_24px_-14px_rgba(90,55,140,0.3)] transition-transform duration-300 md:hover:-translate-y-1 md:hover:border-nav-amethyst/40 md:hover:shadow-[0_16px_32px_-14px_rgba(90,55,140,0.38)] sm:h-[270px] sm:w-[280px] sm:px-6 md:w-[300px] ${
+        clickable ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst active:scale-[0.98]" : ""
+      }`}
     >
       <span aria-hidden="true" className="text-lg leading-none text-nav-gold">
         ✦

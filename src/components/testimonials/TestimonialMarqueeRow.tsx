@@ -9,6 +9,7 @@ type Props = {
   durationSec: number;
   parallaxPx: number;
   paused?: boolean;
+  onExpand?: (testimonial: Testimonial) => void;
 };
 
 /**
@@ -27,7 +28,7 @@ type Props = {
  * Second copy is aria-hidden so screen readers hit each testimonial once
  * despite the doubled DOM.
  */
-export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxPx, paused }: Props) {
+export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxPx, paused, onExpand }: Props) {
   const track = [...items, ...items];
 
   return (
@@ -49,6 +50,7 @@ export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxP
               key={`${item.id}-${i}`}
               testimonial={item}
               ariaHidden={i >= items.length}
+              onExpand={onExpand ? () => onExpand(item) : undefined}
             />
           ))}
         </div>

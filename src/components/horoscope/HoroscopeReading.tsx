@@ -1,20 +1,27 @@
 // src/components/horoscope/HoroscopeReading.tsx
 import type { ComponentType, SVGProps } from "react";
+import Link from "next/link";
 import type { SignReading } from "@/lib/horoscope/types";
 import type { ZodiacMeta } from "@/lib/horoscope/zodiac";
+
+type PeriodTab = { label: string; href: string; active: boolean };
 
 type Props = {
   meta: ZodiacMeta;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
   reading: SignReading;
   dateLabel: string;
+  /** Daily/Weekly/Monthly internal-linking row for this same sign —
+   * omitted where a caller doesn't supply one (kept optional so this
+   * component doesn't require every caller to wire it up). */
+  periodTabs?: PeriodTab[];
 };
 
 /** The full daily reading for one sign — overview, the four life-area
  * fields, lucky number/color, and optional mood/compatibility. Purely
  * presentational; the page component (page.tsx) handles data fetching
  * and the not-found/fallback states. */
-export function HoroscopeReading({ meta, Icon, reading, dateLabel }: Props) {
+export function HoroscopeReading({ meta, Icon, reading, dateLabel, periodTabs }: Props) {
   const fields: { label: string; value: string }[] = [
     { label: "Love", value: reading.love },
     { label: "Career", value: reading.career },
@@ -32,6 +39,28 @@ export function HoroscopeReading({ meta, Icon, reading, dateLabel }: Props) {
         <p className="mt-1 text-sm text-nav-plum/60">
           {meta.dateRange} · {dateLabel}
         </p>
+        {periodTabs && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            {periodTabs.map((tab) =>
+              tab.active ? (
+                <span
+                  key={tab.label}
+                  className="rounded-full bg-nav-amethyst px-4 py-1.5 text-xs font-medium text-white"
+                >
+                  {tab.label}
+                </span>
+              ) : (
+                <Link
+                  key={tab.label}
+                  href={tab.href}
+                  className="rounded-full border border-nav-lavender-line px-4 py-1.5 text-xs font-medium text-nav-plum transition-colors duration-150 hover:border-nav-amethyst/50 hover:bg-nav-lavender-mist"
+                >
+                  {tab.label}
+                </Link>
+              )
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-8 rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-nav-pearl to-nav-lavender-mist p-6 shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)] sm:p-8">

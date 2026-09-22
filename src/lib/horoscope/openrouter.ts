@@ -87,8 +87,44 @@ async function callOpenRouter(prompt: string): Promise<unknown> {
 export async function generateAllSignReadings(
   date: string
 ): Promise<Record<ZodiacSlug, SignReading>> {
-  const prompt = buildHoroscopePrompt(date);
+  return generateFromPrompt(buildHoroscopePrompt(date));
+}
 
+/** Same shape as buildHoroscopePrompt, for a period longer than one
+ * day — `periodLabel` is what the model is told the period is (e.g.
+ * "the week of Sep 22-28, 2026" or "September 2026"), `periodNoun` is
+ * "week"/"month" so the instructions read naturally. */
+export function buildPeriodHoroscopePrompt(periodNoun: "week" | "month", periodLabel: string): string {
+  const signLines = ZODIAC_ORDER.map((slug) => {
+    const m = ZODIAC_META[slug];
+    return `- ${m.name} (${slug}): ${m.dateRange}, ${m.element} sign`;
+  }).join("\n");
+
+  return `You are a professional astrologer writing the ${periodNoun}ly horoscope for ${periodLabel} for a premium astrology website. Write a complete, distinct reading for EACH of the following 12 zodiac signs, covering the whole ${periodNoun} (not a single day):
+${signLines}
+
+For each sign, write:
+- overview: 3-4 sentences, the ${periodNoun}'s general reading and overall arc
+- love: 1-2 sentences
+- career: 1-2 sentences
+- finance: 1-2 sentences
+- health: 1-2 sentences
+- luckyNumber: a whole number from 1 to 99
+- luckyColor: one color name
+- theme: a short one-line theme for the ${periodNoun} (max 8 words)
+
+Tone: warm, inspirational, spiritual, premium — never robotic. Each sign's reading must read as genuinely distinct from every other sign's — do not reuse the same sentence structure or phrasing across signs.
+
+Do not include: fear-based predictions, absolute guarantees, medical diagnoses, extreme financial claims, or guaranteed life outcomes.
+
+Respond with ONLY a single JSON object, no markdown fences, no commentary, matching exactly this shape (one entry per sign slug, using these exact slugs: ${ZODIAC_ORDER.join(", ")}):
+{
+  "aries": { "overview": "...", "love": "...", "career": "...", "finance": "...", "health": "...", "luckyNumber": 0, "luckyColor": "...", "theme": "..." },
+  "taurus": { "...": "..." }
+}`;
+}
+
+async function generateFromPrompt(prompt: string): Promise<Record<ZodiacSlug, SignReading>> {
   const first = await callOpenRouter(prompt);
   const validated = validateGeneratedSet(first);
   if (validated) return validated;
@@ -99,4 +135,14 @@ export async function generateAllSignReadings(
   if (validatedRetry) return validatedRetry;
 
   throw new Error("OpenRouter returned an invalid horoscope set after one retry");
+}
+
+/** Generates and validates all 12 signs' readings for a period longer
+ * than a day (week/month) — same retry contract as
+ * generateAllSignReadings. */
+export async function generateAllSignReadingsForPeriod(
+  periodNoun: "week" | "month",
+  periodLabel: string
+): Promise<Record<ZodiacSlug, SignReading>> {
+  return generateFromPrompt(buildPeriodHoroscopePrompt(periodNoun, periodLabel));
 }

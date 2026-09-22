@@ -1,12 +1,11 @@
-// src/app/horoscope/[sign]/page.tsx
+// src/app/horoscope/monthly/[sign]/page.tsx
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ZODIAC_ORDER, ZODIAC_META, isZodiacSlug } from "@/lib/horoscope/zodiac";
-import { getOrGenerateDailyHoroscopes } from "@/lib/horoscope/store";
-import { getTodayIST } from "@/lib/horoscope/date";
+import { getOrGenerateMonthlyHoroscopes } from "@/lib/horoscope/store";
 import { CARD_BY_SLUG } from "@/components/horoscope/zodiac-ui-data";
 import { HoroscopeReading } from "@/components/horoscope/HoroscopeReading";
-import type { DailyHoroscopeDoc } from "@/lib/horoscope/types";
+import type { MonthlyHoroscopeDoc } from "@/lib/horoscope/types";
 
 export const revalidate = 3600;
 export const maxDuration = 300;
@@ -24,12 +23,12 @@ export async function generateMetadata({
   if (!isZodiacSlug(sign)) return {};
   const meta = ZODIAC_META[sign];
   return {
-    title: `${meta.name} Daily Horoscope | TRUELOGER`,
-    description: `Today's ${meta.name} horoscope — love, career, finance and health, refreshed daily.`,
+    title: `${meta.name} Monthly Horoscope | TRUELOGER`,
+    description: `This month's ${meta.name} horoscope — love, career, finance and health for the month ahead.`,
   };
 }
 
-export default async function ZodiacHoroscopePage({
+export default async function ZodiacMonthlyHoroscopePage({
   params,
 }: {
   params: Promise<{ sign: string }>;
@@ -39,21 +38,12 @@ export default async function ZodiacHoroscopePage({
 
   const meta = ZODIAC_META[sign];
   const card = CARD_BY_SLUG[sign];
-  const date = getTodayIST();
-  const dateLabel = new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "long",
-    timeZone: "Asia/Kolkata",
-  }).format(new Date());
 
-  // The Firestore fetch is isolated in try/catch, but the JSX return is
-  // built outside it (react-hooks/error-boundaries flags constructing
-  // JSX inside a try/catch, since a later render-time throw wouldn't be
-  // caught there anyway) — same behavior, lint-clean structure.
-  let doc: DailyHoroscopeDoc | null = null;
+  let doc: MonthlyHoroscopeDoc | null = null;
   try {
-    doc = await getOrGenerateDailyHoroscopes(date);
+    doc = await getOrGenerateMonthlyHoroscopes();
   } catch (err) {
-    console.error("[horoscope] fetch failed for", sign, date, err);
+    console.error("[horoscope] monthly fetch failed for", sign, err);
     doc = null;
   }
 
@@ -63,8 +53,8 @@ export default async function ZodiacHoroscopePage({
         <div className="mx-auto max-w-lg px-4 pb-20 pt-28 text-center md:pt-32">
           <h1 className="font-serif text-2xl text-nav-plum">{meta.name}</h1>
           <p className="mt-4 text-nav-plum/70">
-            The stars are aligning — today&apos;s reading will be ready shortly.
-            Please check back in a few minutes.
+            The stars are aligning — this month&apos;s reading will be ready shortly. Please check
+            back in a few minutes.
           </p>
         </div>
       </section>
@@ -77,11 +67,11 @@ export default async function ZodiacHoroscopePage({
         meta={meta}
         Icon={card.Icon}
         reading={doc.signs[sign]}
-        dateLabel={dateLabel}
+        dateLabel={doc.monthLabel}
         periodTabs={[
-          { label: "Daily", href: `/horoscope/${sign}`, active: true },
+          { label: "Daily", href: `/horoscope/${sign}`, active: false },
           { label: "Weekly", href: `/horoscope/weekly/${sign}`, active: false },
-          { label: "Monthly", href: `/horoscope/monthly/${sign}`, active: false },
+          { label: "Monthly", href: `/horoscope/monthly/${sign}`, active: true },
         ]}
       />
     </section>

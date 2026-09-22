@@ -1,6 +1,8 @@
 {
   "crons": [
     { "path": "/api/cron/generate-horoscopes", "schedule": "35 18 * * *" },
+    { "path": "/api/cron/generate-weekly-horoscope", "schedule": "40 18 * * 0" },
+    { "path": "/api/cron/generate-monthly-horoscope", "schedule": "45 18 28-31 * *" },
     { "path": "/api/cron/generate-panchang", "schedule": "40 18 * * *" },
     { "path": "/api/cron/process-reports", "schedule": "45 18 * * *" }
   ]

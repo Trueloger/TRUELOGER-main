@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { LotusIcon } from "@/components/quick-services/icons";
-import { TESTIMONIALS } from "./testimonial-data";
+import { TESTIMONIALS, type Testimonial } from "./testimonial-data";
 import { TestimonialMarqueeRow } from "./TestimonialMarqueeRow";
+import { ExpandedTestimonial } from "./ExpandedTestimonial";
 
 const ROW_1 = TESTIMONIALS.slice(0, 6);
 const ROW_2 = TESTIMONIALS.slice(6, 12);
@@ -54,6 +56,7 @@ export function TestimonialsSection() {
   const parallaxRootRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const [paused, setPaused] = useState(false);
+  const [expanded, setExpanded] = useState<Testimonial | null>(null);
   const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function pauseNow() {
@@ -151,10 +154,15 @@ export function TestimonialsSection() {
               durationSec={isMobile ? Math.round(row.durationSec * 1.3) : row.durationSec}
               parallaxPx={isMobile ? Math.round(row.parallaxPx * 0.4) : row.parallaxPx}
               paused={paused}
+              onExpand={setExpanded}
             />
           ))}
         </div>
       </div>
+
+      <AnimatePresence>
+        {expanded && <ExpandedTestimonial testimonial={expanded} onClose={() => setExpanded(null)} />}
+      </AnimatePresence>
     </section>
   );
 }

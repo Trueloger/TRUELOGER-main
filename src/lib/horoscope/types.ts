@@ -26,3 +26,20 @@ export type DailyHoroscopeDoc = {
   model: string;
   signs: Record<ZodiacSlug, SignReading>;
 };
+
+export type WeeklyHoroscopeDoc = {
+  weekKey: string; // ISO week, "YYYY-Www"
+  startDate: string; // "YYYY-MM-DD", Monday
+  endDate: string; // "YYYY-MM-DD", Sunday
+  generatedAt: string;
+  model: string;
+  signs: Record<ZodiacSlug, SignReading>;
+};
+
+export type MonthlyHoroscopeDoc = {
+  monthKey: string; // "YYYY-MM"
+  monthLabel: string; // "September 2026"
+  generatedAt: string;
+  model: string;
+  signs: Record<ZodiacSlug, SignReading>;
+};
