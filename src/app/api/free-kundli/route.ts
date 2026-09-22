@@ -252,6 +252,29 @@ export async function POST(request: Request) {
     }, {} as FreeKundliChartData["planets"]),
   };
 
+  // Current-transit (Gochar) chart — real "where are the planets right
+  // now" positions from the same ephemeris engine as the natal chart,
+  // computed for this instant at the birth location. Houses are counted
+  // from the NATAL Ascendant, not a fresh "now" ascendant — the
+  // classical convention (see src/lib/astro-engine/transit.ts) is that
+  // transits are read against the chart you already have, so this never
+  // mixes natal and transit house frames.
+  const transitInstant = new Date();
+  const transitChartData = calculateChart(transitInstant, birthInput.latitude, birthInput.longitude);
+  const transitChart: FreeKundliChartData = {
+    ascendantSign: transitChartData.ascendant.sign,
+    planets: PLANET_DISPLAY_ORDER.reduce((acc, name) => {
+      const entry = transitChartData.planets[name];
+      acc[name] = {
+        sign: entry.sign,
+        house: signHouseNumber(ascendant.sign, entry.sign),
+        isRetrograde: entry.isRetrograde,
+        degree: entry.degree,
+      };
+      return acc;
+    }, {} as FreeKundliChartData["planets"]),
+  };
+
   // The real calculated chart above must always reach the client, even
   // if the AI-interpretation layer fails — an AI outage never hides
   // real calculated data.
@@ -286,6 +309,8 @@ export async function POST(request: Request) {
     planetaryRows,
     chart,
     navamsaChart,
+    transitChart,
+    transitUtc: transitInstant.toISOString(),
     yogas,
     planetaryStrength,
     houseStrength,

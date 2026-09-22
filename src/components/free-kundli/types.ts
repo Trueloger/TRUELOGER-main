@@ -107,6 +107,15 @@ export type FreeKundliApiResponse = {
    * — every sign/house here is the planet's Navamsa placement, not its
    * D1/Rasi placement (src/lib/astro-engine/divisional.ts). */
   navamsaChart: FreeKundliChartData;
+  /** Current-transit (Gochar) chart, same BirthChartCard-compatible
+   * shape as `chart` — sign/degree/retrograde are the planet's REAL
+   * position at `transitUtc`, houses counted from the natal Ascendant
+   * (src/lib/astro-engine/transit.ts's convention), never the natal
+   * placement. */
+  transitChart: FreeKundliChartData;
+  /** ISO instant the transit chart above was computed for — the actual
+   * server time of generation, not a display artifact. */
+  transitUtc: string;
   /** Every classical yoga this engine checks for, with its real
    * present/absent result (src/lib/astro-engine/yogas.ts) — not
    * filtered to just the hits, so the UI can show what was checked. */

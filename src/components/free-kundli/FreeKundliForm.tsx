@@ -140,6 +140,8 @@ export function FreeKundliForm() {
       planetaryRows,
       chart,
       navamsaChart,
+      transitChart,
+      transitUtc,
       yogas,
       planetaryStrength,
       houseStrength,
@@ -232,6 +234,27 @@ export function FreeKundliForm() {
                       and a planet&rsquo;s deeper strength.
                     </p>
                     <BirthChartCard ascendantSign={navamsaChart.ascendantSign} planets={navamsaChart.planets} />
+                  </div>
+
+                  {/* Current-transit (Gochar) chart — real planetary
+                      positions for right now, houses counted from the
+                      NATAL Ascendant per the classical convention. This
+                      is deliberately a separate chart from the birth
+                      chart above, never overlaid onto it, so natal and
+                      transit placements are never mixed. */}
+                  <div>
+                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Transit Chart (Today)</h2>
+                    <p className="mb-3 text-xs text-nav-plum/60">
+                      Where the planets are right now, as of{" "}
+                      {new Intl.DateTimeFormat("en-IN", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: "Asia/Kolkata",
+                      }).format(new Date(transitUtc))}{" "}
+                      IST — houses counted from your birth chart&rsquo;s Ascendant, not overlaid
+                      onto your natal placements above.
+                    </p>
+                    <BirthChartCard ascendantSign={transitChart.ascendantSign} planets={transitChart.planets} />
                   </div>
                 </>
               ),
