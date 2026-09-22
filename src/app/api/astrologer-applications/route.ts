@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { createApplication, newApplicationId, uploadResume } from "@/lib/astrologers/store";
 import { EXPERTISE_OPTIONS, CONSULTATION_FORMATS } from "@/lib/astrologers/types";
+import { isValidEmail, isValidPhone, isValidUrl } from "@/lib/validation/contact";
 
 export const maxDuration = 30;
 
@@ -31,8 +32,6 @@ function strList(value: FormDataEntryValue | null): string[] {
     .slice(0, 20);
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 export async function POST(request: Request) {
   let formData: FormData;
   try {
@@ -56,8 +55,8 @@ export async function POST(request: Request) {
   const preferredFormats = strList(formData.get("preferredFormats"));
 
   if (!fullName) return NextResponse.json({ error: "Full name is required." }, { status: 400 });
-  if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
-  if (!phone) return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
+  if (!isValidEmail(email)) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+  if (!isValidPhone(phone)) return NextResponse.json({ error: "Enter a valid phone number." }, { status: 400 });
   if (!location) return NextResponse.json({ error: "Location is required." }, { status: 400 });
   if (!Number.isFinite(yearsExperience) || yearsExperience < 0 || yearsExperience > 70) {
     return NextResponse.json({ error: "Enter a valid number of years of experience." }, { status: 400 });
@@ -71,6 +70,9 @@ export async function POST(request: Request) {
   }
   if (!preferredFormats.every((f) => (CONSULTATION_FORMATS as readonly string[]).includes(f))) {
     return NextResponse.json({ error: "Invalid consultation format selected." }, { status: 400 });
+  }
+  if (socialProfile && !isValidUrl(socialProfile)) {
+    return NextResponse.json({ error: "Enter a valid social/professional profile URL." }, { status: 400 });
   }
 
   const file = formData.get("resume");

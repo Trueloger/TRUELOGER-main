@@ -7,9 +7,39 @@
 // re-validates everything and is the real gate.
 import { useState, type FormEvent } from "react";
 import { LotusIcon } from "@/components/quick-services/icons";
-import { fieldLabelClass, fieldInputClass, fieldHintTextClass } from "@/components/forms/field-styles";
+import {
+  fieldLabelClass,
+  fieldInputClass,
+  fieldInputErrorClass,
+  fieldErrorTextClass,
+  fieldHintTextClass,
+} from "@/components/forms/field-styles";
 import { Select } from "@/components/ui/Select";
 import { EXPERTISE_OPTIONS, CONSULTATION_FORMATS } from "@/lib/astrologers/types";
+import { isValidEmail, isValidPhone, isValidUrl } from "@/lib/validation/contact";
+
+type FieldName = "fullName" | "email" | "phone" | "location" | "about" | "socialProfile";
+
+// Same rule the server (src/app/api/astrologer-applications/route.ts)
+// re-checks — this is UX only, never the real gate.
+function fieldError(field: FieldName, value: string): string | null {
+  switch (field) {
+    case "fullName":
+      return value.trim() ? null : "Full name is required.";
+    case "email":
+      return isValidEmail(value) ? null : "Please enter a valid email address.";
+    case "phone":
+      return isValidPhone(value) ? null : "Please enter a valid phone number.";
+    case "location":
+      return value.trim() ? null : "Location is required.";
+    case "about":
+      return value.trim().length >= 30
+        ? null
+        : "Please write at least a short paragraph about yourself (30+ characters).";
+    case "socialProfile":
+      return isValidUrl(value) ? null : "Please enter a valid URL.";
+  }
+}
 
 const LANGUAGE_SUGGESTIONS = ["Hindi", "English", "Punjabi", "Bengali", "Tamil", "Telugu", "Marathi", "Gujarati"];
 
@@ -44,6 +74,28 @@ export default function RegisterAsAstrologerPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
+  const [touched, setTouched] = useState<Partial<Record<FieldName, boolean>>>({});
+
+  const fieldValues: Record<FieldName, string> = {
+    fullName,
+    email,
+    phone,
+    location,
+    about,
+    socialProfile,
+  };
+
+  function errorFor(field: FieldName): string | null {
+    if (!touched[field]) return null;
+    // socialProfile is optional — an untouched-but-empty value should
+    // never show an error even after blur.
+    if (field === "socialProfile" && !fieldValues[field].trim()) return null;
+    return fieldError(field, fieldValues[field]);
+  }
+
+  function markTouched(field: FieldName) {
+    setTouched((t) => ({ ...t, [field]: true }));
+  }
 
   function toggle(list: string[], setList: (v: string[]) => void, value: string) {
     setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
@@ -52,9 +104,18 @@ export default function RegisterAsAstrologerPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setTouched({ fullName: true, email: true, phone: true, location: true, about: true, socialProfile: true });
 
-    if (!fullName.trim() || !email.trim() || !phone.trim() || !location.trim()) {
+    if (fieldError("fullName", fullName) || fieldError("location", location)) {
       setError("Please fill in all personal information fields.");
+      return;
+    }
+    if (fieldError("email", email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (fieldError("phone", phone)) {
+      setError("Please enter a valid phone number.");
       return;
     }
     if (!primaryExpertise) {
@@ -65,8 +126,12 @@ export default function RegisterAsAstrologerPage() {
       setError("Please select at least one language.");
       return;
     }
-    if (about.trim().length < 30) {
+    if (fieldError("about", about)) {
       setError("Please write at least a short paragraph about yourself (30+ characters).");
+      return;
+    }
+    if (socialProfile.trim() && !isValidUrl(socialProfile)) {
+      setError("Please enter a valid social/professional profile URL.");
       return;
     }
     if (!resume) {
@@ -151,21 +216,60 @@ export default function RegisterAsAstrologerPage() {
             <legend className="font-serif text-lg text-nav-plum">Personal Information</legend>
             <div>
               <label htmlFor="fullName" className={fieldLabelClass}>Full Name</label>
-              <input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required className={`mt-1.5 ${fieldInputClass}`} />
+              <input
+                id="fullName"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                onBlur={() => markTouched("fullName")}
+                required
+                aria-invalid={errorFor("fullName") ? true : undefined}
+                className={`mt-1.5 ${fieldInputClass} ${errorFor("fullName") ? fieldInputErrorClass : ""}`}
+              />
+              {errorFor("fullName") && <p className={fieldErrorTextClass}>{errorFor("fullName")}</p>}
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="email" className={fieldLabelClass}>Email</label>
-                <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={`mt-1.5 ${fieldInputClass}`} />
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => markTouched("email")}
+                  required
+                  aria-invalid={errorFor("email") ? true : undefined}
+                  className={`mt-1.5 ${fieldInputClass} ${errorFor("email") ? fieldInputErrorClass : ""}`}
+                />
+                {errorFor("email") && <p className={fieldErrorTextClass}>{errorFor("email")}</p>}
               </div>
               <div>
                 <label htmlFor="phone" className={fieldLabelClass}>Phone</label>
-                <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required className={`mt-1.5 ${fieldInputClass}`} />
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  onBlur={() => markTouched("phone")}
+                  required
+                  aria-invalid={errorFor("phone") ? true : undefined}
+                  className={`mt-1.5 ${fieldInputClass} ${errorFor("phone") ? fieldInputErrorClass : ""}`}
+                />
+                {errorFor("phone") && <p className={fieldErrorTextClass}>{errorFor("phone")}</p>}
               </div>
             </div>
             <div>
               <label htmlFor="location" className={fieldLabelClass}>Location</label>
-              <input id="location" value={location} onChange={(e) => setLocation(e.target.value)} required placeholder="City, State" className={`mt-1.5 ${fieldInputClass}`} />
+              <input
+                id="location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                onBlur={() => markTouched("location")}
+                required
+                placeholder="City, State"
+                aria-invalid={errorFor("location") ? true : undefined}
+                className={`mt-1.5 ${fieldInputClass} ${errorFor("location") ? fieldInputErrorClass : ""}`}
+              />
+              {errorFor("location") && <p className={fieldErrorTextClass}>{errorFor("location")}</p>}
             </div>
           </fieldset>
 
@@ -216,11 +320,14 @@ export default function RegisterAsAstrologerPage() {
                 id="about"
                 value={about}
                 onChange={(e) => setAbout(e.target.value)}
+                onBlur={() => markTouched("about")}
                 required
                 rows={4}
                 placeholder="Tell us about your background and approach to consultations…"
-                className={`mt-1.5 ${fieldInputClass} min-h-24 resize-y`}
+                aria-invalid={errorFor("about") ? true : undefined}
+                className={`mt-1.5 ${fieldInputClass} min-h-24 resize-y ${errorFor("about") ? fieldInputErrorClass : ""}`}
               />
+              {errorFor("about") && <p className={fieldErrorTextClass}>{errorFor("about")}</p>}
             </div>
             <div>
               <label htmlFor="qualifications" className={fieldLabelClass}>Qualifications / Certifications (optional)</label>
@@ -228,7 +335,16 @@ export default function RegisterAsAstrologerPage() {
             </div>
             <div>
               <label htmlFor="social" className={fieldLabelClass}>Social / Professional Profile (optional)</label>
-              <input id="social" value={socialProfile} onChange={(e) => setSocialProfile(e.target.value)} placeholder="LinkedIn, website, etc." className={`mt-1.5 ${fieldInputClass}`} />
+              <input
+                id="social"
+                value={socialProfile}
+                onChange={(e) => setSocialProfile(e.target.value)}
+                onBlur={() => markTouched("socialProfile")}
+                placeholder="LinkedIn, website, etc."
+                aria-invalid={errorFor("socialProfile") ? true : undefined}
+                className={`mt-1.5 ${fieldInputClass} ${errorFor("socialProfile") ? fieldInputErrorClass : ""}`}
+              />
+              {errorFor("socialProfile") && <p className={fieldErrorTextClass}>{errorFor("socialProfile")}</p>}
             </div>
           </fieldset>
 
