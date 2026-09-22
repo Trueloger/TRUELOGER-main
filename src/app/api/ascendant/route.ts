@@ -15,7 +15,7 @@ import { logAudit } from "@/lib/observability/audit-log";
 
 // AI-report layer generation can take a few seconds even though chart
 // calculation itself is now local and instant.
-export const maxDuration = 30;
+export const maxDuration = 35;
 
 /** BirthInput (`timezone` = the birth location's UTC offset in hours)
  * -> the actual UTC instant, for calculateChart(). */

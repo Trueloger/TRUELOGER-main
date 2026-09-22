@@ -12,7 +12,7 @@ import { generateStructuredReport, type StructuredReport } from "@/lib/ai/report
 
 // The AI-interpretation call can take a few seconds; the calculation
 // itself is instant, deterministic math with no external dependency.
-export const maxDuration = 30;
+export const maxDuration = 35;
 
 const MIN_BIRTH_YEAR = 1900;
 

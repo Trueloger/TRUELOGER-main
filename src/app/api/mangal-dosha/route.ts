@@ -16,7 +16,7 @@ import {
 
 // Chart calculation is now local/instant, but the AI-interpretation call
 // can still take a few seconds; give this route real headroom.
-export const maxDuration = 30;
+export const maxDuration = 35;
 
 /** deriveMangalDosha() (src/lib/astrology/derive.ts, unmodified) is
  * typed against FreeAstrologyAPI's PlanetExtendedEntry shape, but only

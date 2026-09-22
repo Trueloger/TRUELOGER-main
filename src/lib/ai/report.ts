@@ -109,7 +109,15 @@ async function callOpenRouter(prompt: string, apiKey: string, model: string): Pr
       response_format: { type: "json_object" },
       temperature: 0.8,
     }),
-    signal: AbortSignal.timeout(60_000),
+    // 12s, not 60s: the caller's own maxDuration (35s) must always win the
+    // race against Vercel's hard function-kill. Two sequential calls are
+    // possible (retry-on-invalid-shape or fallback-on-hard-failure, never
+    // both — see generateStructuredReport) — worst case 2 * 12s + jitter
+    // comfortably finishes inside the route's own try/catch instead of
+    // being killed mid-flight, which is what previously surfaced to the
+    // client as a network failure ("Failed" screen) instead of the
+    // graceful `reportError: true` response this module's callers expect.
+    signal: AbortSignal.timeout(12_000),
   });
 
   if (!res.ok) {

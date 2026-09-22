@@ -20,7 +20,7 @@ import type { DashaPlanetaryStrength } from "@/components/dasha/types";
 
 // Vimshottari dasha calc is now local/instant; AI interpretation can
 // still take a few seconds.
-export const maxDuration = 30;
+export const maxDuration = 35;
 
 const ROUTE_KEY = "dasha";
 const DEFAULT_TIME_WHEN_UNKNOWN = "12:00";

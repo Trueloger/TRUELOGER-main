@@ -30,7 +30,7 @@ import type {
 // — no network call, no rate limit on that step. The AI-interpretation
 // call is still a real network round trip, so this route keeps real
 // headroom for it.
-export const maxDuration = 30;
+export const maxDuration = 35;
 
 // Canonical display order for the planetary table — every real body
 // this local engine produces, in the traditional Vedic order (the

@@ -137,7 +137,7 @@ function toPlanetaryStrengthViewData(chart: ChartData): CompatibilityPlanetarySt
 
 // Two resolved birth charts + one match-making calculation + the AI
 // interpretation layer, all in one request — give it real headroom.
-export const maxDuration = 30;
+export const maxDuration = 35;
 
 const ROUTE_KEY = "compatibility";
 
