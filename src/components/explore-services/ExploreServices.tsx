@@ -3,6 +3,7 @@ import Image from "next/image";
 import { LotusIcon } from "@/components/quick-services/icons";
 import { EXPLORE_SERVICES, type ExploreService } from "./explore-services-data";
 import { EXPLORE_SERVICE_ART } from "./explore-service-art";
+import { Reveal } from "@/components/ui/Reveal";
 
 export function ExploreServices() {
   return (
@@ -16,7 +17,7 @@ export function ExploreServices() {
           edge that has to line up pixel-perfectly with its neighbour. */}
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         {/* Heading */}
-        <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
+        <Reveal className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
           <div className="flex items-center justify-center gap-3">
             <span className="h-px w-8 bg-nav-lavender-line" aria-hidden="true" />
             <LotusIcon className="h-6 w-6 text-nav-amethyst-deep" strokeWidth={1.3} />
@@ -31,18 +32,20 @@ export function ExploreServices() {
             <br />
             <span className="text-nav-amethyst">of Guidance</span>
           </h2>
-        </div>
+        </Reveal>
 
         {/* Cards — the images already contain title/description/CTA, so
             each card is just the image plus real (visually-hidden) text
             for accessibility and search crawlability. */}
-        <ul className="mt-8 grid grid-cols-3 gap-2 sm:gap-4 md:mt-14 lg:grid-cols-6 lg:gap-4">
-          {EXPLORE_SERVICES.map((service) => (
-            <li key={service.id}>
-              <ServiceCard service={service} />
-            </li>
-          ))}
-        </ul>
+        <Reveal delay={0.1}>
+          <ul className="mt-8 grid grid-cols-3 gap-2 sm:gap-4 md:mt-14 lg:grid-cols-6 lg:gap-4">
+            {EXPLORE_SERVICES.map((service) => (
+              <li key={service.id}>
+                <ServiceCard service={service} />
+              </li>
+            ))}
+          </ul>
+        </Reveal>
 
         {/* View All Services CTA */}
         <div className="mt-10 flex justify-center md:mt-14">

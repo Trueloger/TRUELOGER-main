@@ -1,6 +1,7 @@
 import { LotusIcon } from "@/components/quick-services/icons";
 import { ZodiacGrid } from "./ZodiacGrid";
 import { ZodiacCarousel } from "./ZodiacCarousel";
+import { Reveal } from "@/components/ui/Reveal";
 
 /** Homepage zodiac section — placed after CoursesSection (see page.tsx).
  * Flat nav-ivory background on both sides (CoursesSection ends ivory,
@@ -18,7 +19,7 @@ export function HoroscopeSection() {
       className="relative -mt-px bg-nav-ivory pb-10 pt-8 md:pb-14 md:pt-10"
     >
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
-        <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
+        <Reveal className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
           <div className="flex items-center justify-center gap-3">
             <span className="h-px w-8 bg-nav-lavender-line" aria-hidden="true" />
             <LotusIcon className="h-6 w-6 text-nav-amethyst-deep" strokeWidth={1.3} />
@@ -33,7 +34,7 @@ export function HoroscopeSection() {
           <p className="mx-auto mt-4 max-w-sm text-[0.95rem] leading-relaxed text-nav-plum/80 sm:max-w-md sm:text-base">
             Your stars, refreshed every day.
           </p>
-        </div>
+        </Reveal>
         <div className="mt-10 md:mt-14">
           <ZodiacGrid />
           <ZodiacCarousel />

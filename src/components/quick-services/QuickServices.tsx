@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { QUICK_SERVICES, type QuickService } from "./quick-services-data";
 import { LotusIcon } from "./icons";
+import { Reveal } from "@/components/ui/Reveal";
 
 // Desktop card sizing tuned so 5 cards + gaps actually fit in one row at
 // the breakpoint they switch on (xl, 1280px) — at the old lg (1024px)
@@ -20,7 +21,7 @@ export function QuickServices() {
         <BackgroundAtmosphere />
 
         <div className="relative mx-auto max-w-[1300px] px-4 pt-8 sm:px-6 md:px-8 md:pt-12">
-          <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
+          <Reveal className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
             <h2
               id="quick-services-heading"
               className="scroll-mt-28 font-serif text-[1.7rem] leading-[1.15] text-nav-violet sm:text-3xl md:text-4xl md:scroll-mt-32 lg:text-[2.75rem]"
@@ -28,32 +29,36 @@ export function QuickServices() {
               Our <span className="text-nav-amethyst">Services</span>
             </h2>
             <SectionDivider />
-          </div>
+          </Reveal>
 
           {/* Mobile / tablet — 3x3x3 grid, compact cards so two rows (6
               cards) are visible without scrolling on a typical phone. */}
-          <ul className="mt-6 grid grid-cols-3 gap-2 sm:gap-3 md:mt-9 xl:hidden">
-            {QUICK_SERVICES.map((service) => (
-              <li key={service.id}>
-                <ServiceCard service={service} compact className="w-full" />
-              </li>
-            ))}
-          </ul>
+          <Reveal delay={0.1}>
+            <ul className="mt-6 grid grid-cols-3 gap-2 sm:gap-3 md:mt-9 xl:hidden">
+              {QUICK_SERVICES.map((service) => (
+                <li key={service.id}>
+                  <ServiceCard service={service} compact className="w-full" />
+                </li>
+              ))}
+            </ul>
+          </Reveal>
 
           {/* Desktop — 5 cards, then 4 centered beneath */}
-          <div
-            className="mx-auto mt-10 hidden flex-wrap justify-center gap-5 xl:flex"
-            style={{ maxWidth: DESKTOP_ROW_MAX }}
-          >
-            {QUICK_SERVICES.map((service) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                className="h-[212px] shrink-0"
-                style={{ width: DESKTOP_CARD_W }}
-              />
-            ))}
-          </div>
+          <Reveal delay={0.1}>
+            <div
+              className="mx-auto mt-10 hidden flex-wrap justify-center gap-5 xl:flex"
+              style={{ maxWidth: DESKTOP_ROW_MAX }}
+            >
+              {QUICK_SERVICES.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  service={service}
+                  className="h-[212px] shrink-0"
+                  style={{ width: DESKTOP_CARD_W }}
+                />
+              ))}
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>

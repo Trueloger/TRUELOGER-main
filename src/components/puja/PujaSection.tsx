@@ -2,6 +2,7 @@ import { LotusIcon } from "@/components/quick-services/icons";
 import { PUJA_SERVICES } from "./puja-data";
 import { PujaCard } from "./PujaCard";
 import { PujaCarousel } from "./PujaCarousel";
+import { Reveal } from "@/components/ui/Reveal";
 
 /**
  * Puja & Rituals — six sacred-ritual booking cards. Each card is the
@@ -26,7 +27,7 @@ export function PujaSection() {
     >
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         {/* Heading */}
-        <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
+        <Reveal className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
           <div className="flex items-center justify-center gap-3">
             <span className="h-px w-8 bg-nav-lavender-line" aria-hidden="true" />
             <LotusIcon className="h-6 w-6 text-nav-amethyst-deep" strokeWidth={1.3} />
@@ -45,7 +46,7 @@ export function PujaSection() {
             Sacred Vedic rituals performed with devotion, intention, and
             authentic traditions.
           </p>
-        </div>
+        </Reveal>
 
         {/* Under md: a swipeable previous/main/next peek carousel (see
             PujaCarousel) — six overlaid-text cards don't compress into a

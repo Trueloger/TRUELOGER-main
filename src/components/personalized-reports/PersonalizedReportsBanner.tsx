@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { storageImage } from "@/lib/storage-image";
+import { Reveal } from "@/components/ui/Reveal";
 
 // Native dimensions of the supplied banner artwork — used to reserve exact
 // aspect-ratio space (no layout shift) and to compute a correct height for
@@ -24,7 +25,7 @@ export function PersonalizedReportsBanner() {
       {/* No background here — the page-level wrapper (see page.tsx) now
           paints one continuous wash behind this, QuickServices and
           ExploreServices together. */}
-      <div className="relative mx-auto max-w-[1320px] overflow-hidden rounded-2xl md:rounded-3xl">
+      <Reveal className="relative mx-auto max-w-[1320px] overflow-hidden rounded-2xl md:rounded-3xl">
         <Image
           src={storageImage("/personalized-reports/banner.png")}
           alt="TRUELOGER Personalized Reports, written for you. Go beyond general predictions with detailed readings shaped by your birth chart, planetary patterns and personal life themes — 100% Personalized, In-Depth Analysis, Easy to Understand, Private &amp; Secure. Kundli, Marriage, Career, Love &amp; Relationship, Finance and Life reports. Explore All Personalized Reports."
@@ -34,7 +35,7 @@ export function PersonalizedReportsBanner() {
           quality={92}
           className="block h-auto w-full"
         />
-      </div>
+      </Reveal>
     </section>
   );
 }

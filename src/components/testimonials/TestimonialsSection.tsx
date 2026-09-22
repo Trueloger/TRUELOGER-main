@@ -6,6 +6,7 @@ import { LotusIcon } from "@/components/quick-services/icons";
 import { TESTIMONIALS, type Testimonial } from "./testimonial-data";
 import { TestimonialMarqueeRow } from "./TestimonialMarqueeRow";
 import { ExpandedTestimonial } from "./ExpandedTestimonial";
+import { Reveal } from "@/components/ui/Reveal";
 
 const ROW_1 = TESTIMONIALS.slice(0, 6);
 const ROW_2 = TESTIMONIALS.slice(6, 12);
@@ -116,7 +117,7 @@ export function TestimonialsSection() {
     >
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         {/* Heading */}
-        <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
+        <Reveal className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
           <div className="flex items-center justify-center gap-3">
             <span className="h-px w-8 bg-nav-lavender-line" aria-hidden="true" />
             <LotusIcon className="h-6 w-6 text-nav-amethyst-deep" strokeWidth={1.3} />
@@ -135,7 +136,7 @@ export function TestimonialsSection() {
             Real experiences from people who found clarity, guidance, and
             healing through their journey with us.
           </p>
-        </div>
+        </Reveal>
 
         <div
           ref={parallaxRootRef}

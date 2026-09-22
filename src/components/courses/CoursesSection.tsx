@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Reveal } from "@/components/ui/Reveal";
 
 // Native dimensions of the supplied banner artwork — used to reserve exact
 // aspect-ratio space (no layout shift) and let next/image scale it
@@ -33,7 +34,7 @@ export function CoursesSection() {
       aria-label="Courses — Learn. Explore. Transform. Learn astrology, spirituality, healing, and ancient wisdom through guided courses designed for your journey."
       className="relative -mt-px w-full bg-gradient-to-b from-nav-lavender-soft to-nav-ivory px-4 py-8 sm:px-6 md:px-8 md:py-12"
     >
-      <div className="relative mx-auto max-w-[1320px] overflow-hidden rounded-2xl md:rounded-3xl">
+      <Reveal className="relative mx-auto max-w-[1320px] overflow-hidden rounded-2xl md:rounded-3xl">
         <Image
           src="/banner/courses banner.png"
           alt="Courses — Learn. Explore. Transform. Learn astrology, spirituality, healing, and ancient wisdom through guided courses designed for your journey. Explore Now."
@@ -43,7 +44,7 @@ export function CoursesSection() {
           quality={92}
           className="block h-auto w-full"
         />
-      </div>
+      </Reveal>
     </section>
   );
 }

@@ -3,6 +3,7 @@ import { listPublishedProducts } from "@/lib/products/store";
 import { toGemstoneProduct } from "@/lib/products/gemstone-adapter";
 import { GemstoneCard } from "@/components/gemstones/GemstoneCard";
 import { GemstoneCarousel } from "@/components/gemstones/GemstoneCarousel";
+import { Reveal } from "@/components/ui/Reveal";
 
 /**
  * Sacred Gemstones — a homepage showcase of the real gemstone catalogue,
@@ -55,7 +56,7 @@ export async function ProductsSection() {
     >
       <div className="relative mx-auto max-w-[1320px] px-4 sm:px-6 md:px-8">
         {/* Heading */}
-        <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
+        <Reveal className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
           <div className="flex items-center justify-center gap-3">
             <span className="h-px w-8 bg-nav-lavender-line" aria-hidden="true" />
             <LotusIcon className="h-6 w-6 text-nav-amethyst-deep" strokeWidth={1.3} />
@@ -74,7 +75,7 @@ export async function ProductsSection() {
             Handpicked gemstones to balance your energy and align you with
             favorable planetary influences.
           </p>
-        </div>
+        </Reveal>
 
         <div className="mt-10 md:mt-14">
           <GemstoneCarousel products={products} />

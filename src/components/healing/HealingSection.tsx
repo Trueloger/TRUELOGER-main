@@ -4,6 +4,7 @@ import { LotusIcon } from "@/components/quick-services/icons";
 import { HEALING_SERVICES, type HealingService } from "./healing-data";
 import { HEALING_ART } from "./healing-art";
 import { CrystalCluster, DiyaCandle, FourPointStar, LavenderFlower, MandalaRing } from "./decorative";
+import { Reveal } from "@/components/ui/Reveal";
 
 /**
  * Restore Your Inner Balance — the four healing-service cards (Chakra
@@ -24,7 +25,7 @@ export function HealingSection() {
 
       <div className="relative mx-auto max-w-[1320px] px-4 py-10 sm:px-6 md:px-8 md:py-16">
         {/* Heading */}
-        <div className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
+        <Reveal className="mx-auto max-w-md text-center sm:max-w-xl md:max-w-2xl">
           <div className="flex items-center justify-center gap-3">
             <span className="h-px w-8 bg-nav-lavender-line" aria-hidden="true" />
             <LotusIcon className="h-6 w-6 text-nav-amethyst-deep" strokeWidth={1.3} />
@@ -44,19 +45,21 @@ export function HealingSection() {
             Explore thoughtful healing practices designed to bring harmony to
             your energy, emotions and everyday life.
           </p>
-        </div>
+        </Reveal>
 
         {/* Cards — 2x2 on mobile, one row of four from lg up. Each image
             already contains the title, description and CTA line, so we
             only add real (visually-hidden) text alongside for
             accessibility and search crawlability. */}
-        <ul className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-3 sm:gap-5 md:mt-14 lg:max-w-none lg:grid-cols-4 lg:gap-6">
-          {HEALING_SERVICES.map((service) => (
-            <li key={service.id}>
-              <HealingCard service={service} />
-            </li>
-          ))}
-        </ul>
+        <Reveal delay={0.1}>
+          <ul className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-3 sm:gap-5 md:mt-14 lg:max-w-none lg:grid-cols-4 lg:gap-6">
+            {HEALING_SERVICES.map((service) => (
+              <li key={service.id}>
+                <HealingCard service={service} />
+              </li>
+            ))}
+          </ul>
+        </Reveal>
 
         {/* Primary CTA */}
         <div className="mt-10 flex justify-center md:mt-14">
