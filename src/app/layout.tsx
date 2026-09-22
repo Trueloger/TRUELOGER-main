@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { MotionConfig } from "motion/react";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -36,13 +37,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <ImageProtection />
-        <AuthProvider>
-          <CartProvider>
-            <ToastProvider>
-              <SiteChrome>{children}</SiteChrome>
-            </ToastProvider>
-          </CartProvider>
-        </AuthProvider>
+        {/* reducedMotion="user" — every motion.* component site-wide
+            (drawers, dropdowns, Reveal, toasts, testimonial expand,
+            etc.) automatically respects prefers-reduced-motion: OS
+            settings disable transform-driven animation (slides,
+            scales, parallax-style movement) while keeping short
+            opacity fades, matching the spec's reduced-motion guidance
+            without auditing each component individually. */}
+        <MotionConfig reducedMotion="user">
+          <AuthProvider>
+            <CartProvider>
+              <ToastProvider>
+                <SiteChrome>{children}</SiteChrome>
+              </ToastProvider>
+            </CartProvider>
+          </AuthProvider>
+        </MotionConfig>
       </body>
     </html>
   );
