@@ -1,16 +1,18 @@
 "use client";
 
 // src/components/ui/SectionTabs.tsx
-// Segmented navigation for a long, information-heavy result screen
-// (Free Kundli, and any future tool page with several distinct groups
-// of real content) — groups sections under labeled tabs instead of
-// one long uninterrupted scroll, so a reader can jump straight to
-// "Charts" or "Yogas & Strength" without paging past everything else.
-// Same pill button language already established by
-// consult/ServiceDurationPicker.tsx's duration selector (rounded-full,
-// border-nav-lavender-line / bg-nav-amethyst active state) — not a new
-// visual pattern, the existing one reused for a new purpose.
-import { useId, useState, type ReactNode } from "react";
+// A swipeable card carousel for a long, information-heavy result
+// screen (Free Kundli, Dasha, Kundli Matching, Compatibility) — each
+// section (Overview, Charts, Planets & Houses, Yogas & Strength,
+// Reading) is a full-width card the user SWIPES through natively,
+// not a filter/tab bar that hides everything behind a click. Same
+// native scroll-snap technique already used by ZodiacCarousel and
+// ConsultationDateTimePicker's day strip — no drag library, real
+// touch/trackpad swipe, works everywhere immediately. The dot row
+// below is a position indicator and an optional shortcut, never the
+// only way to move between sections.
+import { useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 export type SectionTab = {
   id: string;
@@ -19,50 +21,92 @@ export type SectionTab = {
 };
 
 export function SectionTabs({ tabs, defaultTabId }: { tabs: SectionTab[]; defaultTabId?: string }) {
-  const groupId = useId();
-  const [active, setActive] = useState(defaultTabId ?? tabs[0]?.id);
-  const activeTab = tabs.find((t) => t.id === active) ?? tabs[0];
+  const trackRef = useRef<HTMLDivElement>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressScroll = useRef(false);
+
+  const defaultIndex = Math.max(
+    0,
+    tabs.findIndex((t) => t.id === defaultTabId)
+  );
+  const [index, setIndex] = useState(defaultIndex === -1 ? 0 : defaultIndex);
+
+  function scrollToIndex(i: number, behavior: ScrollBehavior = "smooth") {
+    const el = trackRef.current;
+    if (!el) return;
+    const card = el.children[i] as HTMLElement | undefined;
+    if (!card) return;
+    suppressScroll.current = true;
+    el.scrollTo({ left: card.offsetLeft, behavior });
+    window.setTimeout(() => {
+      suppressScroll.current = false;
+    }, behavior === "smooth" ? 500 : 60);
+  }
+
+  function handleScroll() {
+    if (suppressScroll.current) return;
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      const el = trackRef.current;
+      if (!el) return;
+      let nearest = 0;
+      let nearestDist = Infinity;
+      Array.from(el.children).forEach((child, i) => {
+        const dist = Math.abs((child as HTMLElement).offsetLeft - el.scrollLeft);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearest = i;
+        }
+      });
+      setIndex(nearest);
+    }, 100);
+  }
 
   if (tabs.length === 0) return null;
 
   return (
     <div>
       <div
-        role="tablist"
-        aria-label="Sections"
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+        ref={trackRef}
+        onScroll={handleScroll}
+        role="group"
+        aria-label="Report sections — swipe to browse"
+        className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
       >
-        {tabs.map((tab) => {
-          const isActive = tab.id === active;
-          return (
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            className="w-full shrink-0 snap-start snap-always space-y-6"
+            style={{ scrollSnapStop: "always" }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-nav-lavender-soft px-3 py-1 text-xs font-medium text-nav-amethyst-deep">
+                {tab.label}
+              </span>
+              <span className="text-xs text-nav-plum/40">
+                {tabs.findIndex((t) => t.id === tab.id) + 1} / {tabs.length}
+              </span>
+            </div>
+            {tab.content}
+          </div>
+        ))}
+      </div>
+
+      {tabs.length > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-2" role="tablist" aria-label="Sections">
+          {tabs.map((tab, i) => (
             <button
               key={tab.id}
               type="button"
               role="tab"
-              id={`${groupId}-tab-${tab.id}`}
-              aria-selected={isActive}
-              aria-controls={`${groupId}-panel-${tab.id}`}
-              onClick={() => setActive(tab.id)}
-              className={`flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-full border px-4 text-sm font-medium transition-colors duration-150 ${
-                isActive
-                  ? "border-nav-amethyst bg-nav-amethyst text-white"
-                  : "border-nav-lavender-line bg-white text-nav-plum hover:bg-nav-lavender-soft"
+              aria-selected={i === index}
+              aria-label={`Go to ${tab.label}`}
+              onClick={() => scrollToIndex(i)}
+              className={`h-2 rounded-full transition-all duration-200 ${
+                i === index ? "w-6 bg-nav-amethyst" : "w-2 bg-nav-lavender-line hover:bg-nav-amethyst/40"
               }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {activeTab && (
-        <div
-          role="tabpanel"
-          id={`${groupId}-panel-${activeTab.id}`}
-          aria-labelledby={`${groupId}-tab-${activeTab.id}`}
-          className="mt-5 space-y-6"
-        >
-          {activeTab.content}
+            />
+          ))}
         </div>
       )}
     </div>
