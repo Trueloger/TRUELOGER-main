@@ -8,6 +8,7 @@ type Props = {
   direction: "left" | "right";
   durationSec: number;
   parallaxPx: number;
+  paused?: boolean;
 };
 
 /**
@@ -26,7 +27,7 @@ type Props = {
  * Second copy is aria-hidden so screen readers hit each testimonial once
  * despite the doubled DOM.
  */
-export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxPx }: Props) {
+export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxPx, paused }: Props) {
   const track = [...items, ...items];
 
   return (
@@ -40,6 +41,7 @@ export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxP
           style={{
             animationDuration: `${durationSec}s`,
             animationDirection: direction === "right" ? "reverse" : "normal",
+            animationPlayState: paused ? "paused" : "running",
           }}
         >
           {track.map((item, i) => (

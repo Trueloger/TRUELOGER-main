@@ -47,9 +47,33 @@ function useIsMobile() {
  * layered on top via a single direct DOM write to --tst-scroll (no
  * setState per scroll frame — see the rAF-gated handler below).
  */
+// How long after the user stops interacting before auto-scroll resumes.
+const RESUME_DELAY_MS = 2000;
+
 export function TestimonialsSection() {
   const parallaxRootRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const [paused, setPaused] = useState(false);
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function pauseNow() {
+    if (resumeTimer.current) {
+      clearTimeout(resumeTimer.current);
+      resumeTimer.current = null;
+    }
+    setPaused(true);
+  }
+
+  function scheduleResume() {
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    resumeTimer.current = setTimeout(() => setPaused(false), RESUME_DELAY_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     const root = parallaxRootRef.current;
@@ -110,7 +134,15 @@ export function TestimonialsSection() {
           </p>
         </div>
 
-        <div ref={parallaxRootRef} className="mt-10 md:mt-14 flex flex-col gap-4 md:gap-6">
+        <div
+          ref={parallaxRootRef}
+          className="mt-10 md:mt-14 flex flex-col gap-4 md:gap-6"
+          onMouseEnter={pauseNow}
+          onMouseLeave={scheduleResume}
+          onTouchStart={pauseNow}
+          onTouchEnd={scheduleResume}
+          onTouchCancel={scheduleResume}
+        >
           {ROWS.map((row) => (
             <TestimonialMarqueeRow
               key={row.direction + row.durationSec}
@@ -118,6 +150,7 @@ export function TestimonialsSection() {
               direction={row.direction}
               durationSec={isMobile ? Math.round(row.durationSec * 1.3) : row.durationSec}
               parallaxPx={isMobile ? Math.round(row.parallaxPx * 0.4) : row.parallaxPx}
+              paused={paused}
             />
           ))}
         </div>
