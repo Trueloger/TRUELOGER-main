@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ToastProvider } from "@/context/ToastContext";
 import { ImageProtection } from "@/components/ImageProtection";
 import { SiteChrome } from "@/components/layout/SiteChrome";
 
@@ -37,7 +38,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ImageProtection />
         <AuthProvider>
           <CartProvider>
-            <SiteChrome>{children}</SiteChrome>
+            <ToastProvider>
+              <SiteChrome>{children}</SiteChrome>
+            </ToastProvider>
           </CartProvider>
         </AuthProvider>
       </body>

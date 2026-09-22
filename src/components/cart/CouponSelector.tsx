@@ -16,6 +16,7 @@ import { authedFetch } from "@/lib/auth/authed-fetch";
 import { formatInr } from "@/lib/consultation/pricing";
 import { cartItemsToCategoriesAndProductIds } from "./cartLines";
 import { Select } from "@/components/ui/Select";
+import { useToast } from "@/context/ToastContext";
 
 type EligibleCoupon = {
   code: string;
@@ -42,6 +43,7 @@ export function CouponSelector({
   onChange: (code: string) => void;
 }) {
   const { currentUser } = useAuth();
+  const showToast = useToast();
   const [coupons, setCoupons] = useState<EligibleCoupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +118,13 @@ export function CouponSelector({
       <Select
         id="cart-coupon-select"
         value={value}
-        onChange={onChange}
+        onChange={(code) => {
+          onChange(code);
+          if (code) {
+            const applied = coupons.find((c) => c.code === code);
+            showToast(applied ? `Coupon applied — ${couponLabel(applied)}` : "Coupon applied");
+          }
+        }}
         disabled={loading || coupons.length === 0}
         options={[
           { value: "", label: "No coupon" },
