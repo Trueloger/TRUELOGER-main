@@ -1,8 +1,8 @@
 import { LotusIcon } from "@/components/quick-services/icons";
 import { listPublishedProducts } from "@/lib/products/store";
 import { toGemstoneProduct } from "@/lib/products/gemstone-adapter";
-import { GemstoneCard } from "@/components/gemstones/GemstoneCard";
 import { GemstoneCarousel } from "@/components/gemstones/GemstoneCarousel";
+import { GemstoneStaggerGrid } from "@/components/gemstones/GemstoneStaggerGrid";
 import { Reveal } from "@/components/ui/Reveal";
 
 /**
@@ -80,13 +80,7 @@ export async function ProductsSection() {
         <div className="mt-10 md:mt-14">
           <GemstoneCarousel products={products} />
 
-          <ul className="hidden md:grid sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
-            {products.map((product) => (
-              <li key={product.id}>
-                <GemstoneCard product={product} />
-              </li>
-            ))}
-          </ul>
+          <GemstoneStaggerGrid products={products} />
         </div>
       </div>
     </section>

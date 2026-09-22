@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { motion } from "motion/react";
 import { QUICK_SERVICES, type QuickService } from "./quick-services-data";
 import { LotusIcon } from "./icons";
-import { Reveal } from "@/components/ui/Reveal";
+import { Reveal, StaggerContainer, STAGGER_ITEM } from "@/components/ui/Reveal";
 
 // Desktop card sizing tuned so 5 cards + gaps actually fit in one row at
 // the breakpoint they switch on (xl, 1280px) — at the old lg (1024px)
@@ -33,32 +36,25 @@ export function QuickServices() {
 
           {/* Mobile / tablet — 3x3x3 grid, compact cards so two rows (6
               cards) are visible without scrolling on a typical phone. */}
-          <Reveal delay={0.1}>
-            <ul className="mt-6 grid grid-cols-3 gap-2 sm:gap-3 md:mt-9 xl:hidden">
-              {QUICK_SERVICES.map((service) => (
-                <li key={service.id}>
-                  <ServiceCard service={service} compact className="w-full" />
-                </li>
-              ))}
-            </ul>
-          </Reveal>
+          <StaggerContainer as={motion.ul} className="mt-6 grid grid-cols-3 gap-2 sm:gap-3 md:mt-9 xl:hidden">
+            {QUICK_SERVICES.map((service) => (
+              <motion.li key={service.id} variants={STAGGER_ITEM}>
+                <ServiceCard service={service} compact className="w-full" />
+              </motion.li>
+            ))}
+          </StaggerContainer>
 
           {/* Desktop — 5 cards, then 4 centered beneath */}
-          <Reveal delay={0.1}>
-            <div
-              className="mx-auto mt-10 hidden flex-wrap justify-center gap-5 xl:flex"
-              style={{ maxWidth: DESKTOP_ROW_MAX }}
-            >
-              {QUICK_SERVICES.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  className="h-[212px] shrink-0"
-                  style={{ width: DESKTOP_CARD_W }}
-                />
-              ))}
-            </div>
-          </Reveal>
+          <StaggerContainer
+            className="mx-auto mt-10 hidden flex-wrap justify-center gap-5 xl:flex"
+            style={{ maxWidth: DESKTOP_ROW_MAX }}
+          >
+            {QUICK_SERVICES.map((service) => (
+              <motion.div key={service.id} variants={STAGGER_ITEM} style={{ width: DESKTOP_CARD_W }}>
+                <ServiceCard service={service} className="h-[212px] w-full shrink-0" />
+              </motion.div>
+            ))}
+          </StaggerContainer>
         </div>
       </div>
     </section>

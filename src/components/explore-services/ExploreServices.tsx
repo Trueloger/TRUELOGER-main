@@ -1,9 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { motion } from "motion/react";
 import { LotusIcon } from "@/components/quick-services/icons";
 import { EXPLORE_SERVICES, type ExploreService } from "./explore-services-data";
 import { EXPLORE_SERVICE_ART } from "./explore-service-art";
-import { Reveal } from "@/components/ui/Reveal";
+import { Reveal, StaggerContainer, STAGGER_ITEM } from "@/components/ui/Reveal";
 
 export function ExploreServices() {
   return (
@@ -37,15 +40,13 @@ export function ExploreServices() {
         {/* Cards — the images already contain title/description/CTA, so
             each card is just the image plus real (visually-hidden) text
             for accessibility and search crawlability. */}
-        <Reveal delay={0.1}>
-          <ul className="mt-8 grid grid-cols-3 gap-2 sm:gap-4 md:mt-14 lg:grid-cols-6 lg:gap-4">
-            {EXPLORE_SERVICES.map((service) => (
-              <li key={service.id}>
-                <ServiceCard service={service} />
-              </li>
-            ))}
-          </ul>
-        </Reveal>
+        <StaggerContainer as={motion.ul} className="mt-8 grid grid-cols-3 gap-2 sm:gap-4 md:mt-14 lg:grid-cols-6 lg:gap-4">
+          {EXPLORE_SERVICES.map((service) => (
+            <motion.li key={service.id} variants={STAGGER_ITEM}>
+              <ServiceCard service={service} />
+            </motion.li>
+          ))}
+        </StaggerContainer>
 
         {/* View All Services CTA */}
         <div className="mt-10 flex justify-center md:mt-14">

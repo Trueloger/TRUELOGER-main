@@ -1,8 +1,11 @@
+"use client";
+
 import { LotusIcon } from "@/components/quick-services/icons";
 import { PUJA_SERVICES } from "./puja-data";
 import { PujaCard } from "./PujaCard";
 import { PujaCarousel } from "./PujaCarousel";
-import { Reveal } from "@/components/ui/Reveal";
+import { motion } from "motion/react";
+import { Reveal, StaggerContainer, STAGGER_ITEM } from "@/components/ui/Reveal";
 
 /**
  * Puja & Rituals — six sacred-ritual booking cards. Each card is the
@@ -56,13 +59,16 @@ export function PujaSection() {
         <div className="mt-10 md:mt-14">
           <PujaCarousel />
 
-          <ul className="hidden md:grid md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:gap-8">
+          <StaggerContainer
+            as={motion.ul}
+            className="hidden md:grid md:grid-cols-2 md:gap-6 lg:grid-cols-3 lg:gap-8"
+          >
             {PUJA_SERVICES.map((service) => (
-              <li key={service.id}>
+              <motion.li key={service.id} variants={STAGGER_ITEM}>
                 <PujaCard service={service} />
-              </li>
+              </motion.li>
             ))}
-          </ul>
+          </StaggerContainer>
         </div>
       </div>
     </section>

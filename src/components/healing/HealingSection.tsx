@@ -1,10 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { LotusIcon } from "@/components/quick-services/icons";
 import { HEALING_SERVICES, type HealingService } from "./healing-data";
 import { HEALING_ART } from "./healing-art";
+import { motion } from "motion/react";
 import { CrystalCluster, DiyaCandle, FourPointStar, LavenderFlower, MandalaRing } from "./decorative";
-import { Reveal } from "@/components/ui/Reveal";
+import { Reveal, StaggerContainer, STAGGER_ITEM } from "@/components/ui/Reveal";
 
 /**
  * Restore Your Inner Balance — the four healing-service cards (Chakra
@@ -51,15 +54,16 @@ export function HealingSection() {
             already contains the title, description and CTA line, so we
             only add real (visually-hidden) text alongside for
             accessibility and search crawlability. */}
-        <Reveal delay={0.1}>
-          <ul className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-3 sm:gap-5 md:mt-14 lg:max-w-none lg:grid-cols-4 lg:gap-6">
-            {HEALING_SERVICES.map((service) => (
-              <li key={service.id}>
-                <HealingCard service={service} />
-              </li>
-            ))}
-          </ul>
-        </Reveal>
+        <StaggerContainer
+          as={motion.ul}
+          className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-3 sm:gap-5 md:mt-14 lg:max-w-none lg:grid-cols-4 lg:gap-6"
+        >
+          {HEALING_SERVICES.map((service) => (
+            <motion.li key={service.id} variants={STAGGER_ITEM}>
+              <HealingCard service={service} />
+            </motion.li>
+          ))}
+        </StaggerContainer>
 
         {/* Primary CTA */}
         <div className="mt-10 flex justify-center md:mt-14">
