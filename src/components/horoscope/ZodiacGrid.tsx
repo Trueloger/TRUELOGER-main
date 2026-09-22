@@ -1,3 +1,5 @@
+"use client";
+
 import { ZODIAC_CARDS } from "./zodiac-ui-data";
 import { ZodiacCard } from "./ZodiacCard";
 

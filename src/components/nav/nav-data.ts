@@ -80,7 +80,6 @@ export const NAV_ITEMS: NavItem[] = [
       "Daily Horoscope",
       "Weekly Horoscope",
       "Monthly Horoscope",
-      "Personalized Predictions",
     ]),
   },
   {

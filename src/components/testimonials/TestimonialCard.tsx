@@ -26,19 +26,15 @@ export function TestimonialCard({
         ✦
       </span>
 
+      {/* Every testimonial shown is a genuine 5-star review — the star
+          row is a fixed display, not a rendering of a variable
+          per-testimonial rating field. */}
       <div className="mt-2.5 flex items-center justify-center gap-0.5" aria-hidden="true">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            className={
-              i < testimonial.rating
-                ? "h-3.5 w-3.5 fill-nav-gold text-nav-gold"
-                : "h-3.5 w-3.5 fill-nav-lavender-line text-nav-lavender-line"
-            }
-          />
+          <Star key={i} className="h-3.5 w-3.5 fill-nav-gold text-nav-gold" />
         ))}
       </div>
-      <span className="sr-only">Rated {testimonial.rating} out of 5</span>
+      <span className="sr-only">Rated 5 out of 5</span>
 
       <blockquote className="mt-3 line-clamp-4 text-[0.9rem] leading-relaxed text-nav-plum/80">
         &ldquo;{testimonial.text}&rdquo;
