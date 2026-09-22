@@ -20,6 +20,7 @@ import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { KundliChartIcon } from "@/components/quick-services/icons";
 import { BirthChartCard } from "@/components/charts/BirthChartCard";
+import { SectionTabs, type SectionTab } from "@/components/ui/SectionTabs";
 import type { FreeKundliApiResponse } from "./types";
 
 const EMPTY_VALUES: BirthDetailsValues = {
@@ -170,173 +171,224 @@ export function FreeKundliForm() {
           </p>
         )}
 
-        <SummaryCard heading="At a Glance">
-          <dl className="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-[0.12em] text-nav-amethyst">
-                Ascendant
-              </dt>
-              <dd className="mt-1 font-serif text-xl text-nav-plum">{calculated.ascendant.sign}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-[0.12em] text-nav-amethyst">
-                Moon Sign
-              </dt>
-              <dd className="mt-1 font-serif text-xl text-nav-plum">
-                {calculated.moonSign ?? "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-[0.12em] text-nav-amethyst">
-                Nakshatra
-              </dt>
-              <dd className="mt-1 font-serif text-xl text-nav-plum">
-                {calculated.moonNakshatra
-                  ? `${calculated.moonNakshatra}${calculated.moonNakshatraPada ? ` (Pada ${calculated.moonNakshatraPada})` : ""}`
-                  : "—"}
-              </dd>
-            </div>
-          </dl>
-        </SummaryCard>
+        {(() => {
+          const tabs: SectionTab[] = [
+            {
+              id: "overview",
+              label: "Overview",
+              content: (
+                <SummaryCard heading="At a Glance">
+                  <dl className="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-[0.12em] text-nav-amethyst">
+                        Ascendant
+                      </dt>
+                      <dd className="mt-1 font-serif text-xl text-nav-plum">{calculated.ascendant.sign}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-[0.12em] text-nav-amethyst">
+                        Moon Sign
+                      </dt>
+                      <dd className="mt-1 font-serif text-xl text-nav-plum">
+                        {calculated.moonSign ?? "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-[0.12em] text-nav-amethyst">
+                        Nakshatra
+                      </dt>
+                      <dd className="mt-1 font-serif text-xl text-nav-plum">
+                        {calculated.moonNakshatra
+                          ? `${calculated.moonNakshatra}${calculated.moonNakshatraPada ? ` (Pada ${calculated.moonNakshatraPada})` : ""}`
+                          : "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                </SummaryCard>
+              ),
+            },
+            {
+              id: "charts",
+              label: "Charts",
+              content: (
+                <>
+                  {/* Real, locally-computed structured chart data
+                      rendered as a real React SVG component — never
+                      third-party markup, so there's nothing here to
+                      sanitize. BirthChartCard is the one shared entry
+                      point for every chart style. */}
+                  <div>
+                    <h2 className="mb-3 font-serif text-lg text-nav-plum">Rasi (D1) Chart</h2>
+                    <BirthChartCard ascendantSign={chart.ascendantSign} planets={chart.planets} />
+                  </div>
 
-        {/* Real, locally-computed structured chart data rendered as a
-            real React SVG component — never third-party markup, so
-            there's nothing here to sanitize. BirthChartCard is the one
-            shared entry point for every chart style. */}
-        <BirthChartCard ascendantSign={chart.ascendantSign} planets={chart.planets} />
+                  {/* D9 Navamsa — the chart traditionally consulted for
+                      marriage and a planet's deeper strength, real
+                      placements only. */}
+                  <div>
+                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Navamsa (D9) Chart</h2>
+                    <p className="mb-3 text-xs text-nav-plum/60">
+                      Each planet&rsquo;s Navamsa placement — traditionally consulted for marriage
+                      and a planet&rsquo;s deeper strength.
+                    </p>
+                    <BirthChartCard ascendantSign={navamsaChart.ascendantSign} planets={navamsaChart.planets} />
+                  </div>
+                </>
+              ),
+            },
+            {
+              id: "planets-houses",
+              label: "Planets & Houses",
+              content: (
+                <>
+                  <div>
+                    <h2 className="mb-3 font-serif text-lg text-nav-plum">Planetary Positions</h2>
+                    <PlanetaryTable rows={planetaryRows} caption="Planetary positions, houses, and degrees" />
+                  </div>
 
-        <div>
-          <h2 className="mb-3 font-serif text-lg text-nav-plum">Planetary Positions</h2>
-          <PlanetaryTable rows={planetaryRows} caption="Planetary positions, houses, and degrees" />
-        </div>
+                  {/* Bhava Bala — core/simplified classical house
+                      strength, not a full BPHS reproduction (see
+                      src/lib/astro-engine/bhavabala.ts). Real computed
+                      strength totals only, never an interpretive
+                      score. */}
+                  <div>
+                    <h2 className="mb-1 font-serif text-lg text-nav-plum">House Strength (Bhava Bala)</h2>
+                    <p className="mb-3 text-xs text-nav-plum/60">
+                      A simplified core version of the classical house-strength system, for all 12
+                      whole-sign houses counted from the Ascendant.
+                    </p>
+                    <ul className="grid gap-2 sm:grid-cols-2">
+                      {houseStrength.map((h) => (
+                        <li
+                          key={h.house}
+                          className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                        >
+                          <span className="font-medium">
+                            House {h.house} <span className="text-xs text-nav-plum/60">({h.houseLord})</span>
+                          </span>
+                          <span className="text-xs text-nav-plum/70">{h.totalStrength.toFixed(1)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              ),
+            },
+            {
+              id: "yogas-strength",
+              label: "Yogas & Strength",
+              content: (
+                <>
+                  {/* Yogas — real detected/not-detected data only, no
+                      invented interpretation. Only the hits are
+                      listed; the full checked set is in the API
+                      response for anyone who needs it. */}
+                  <div>
+                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
+                    <p className="mb-3 text-xs text-nav-plum/60">
+                      Classical planetary combinations this chart was checked against.
+                    </p>
+                    {presentYogas.length > 0 ? (
+                      <ul className="grid gap-2 sm:grid-cols-2">
+                        {presentYogas.map((y) => (
+                          <li
+                            key={y.id}
+                            className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                          >
+                            <span className="font-medium">{y.name}</span>
+                            {y.strength && (
+                              <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
+                                ({y.strength})
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-nav-plum/70">
+                        None of the classical yogas this engine checks for were detected in this chart.
+                      </p>
+                    )}
+                  </div>
 
-        {/* D9 Navamsa — the chart traditionally consulted for marriage and
-            a planet's deeper strength, real placements only. */}
-        <div>
-          <h2 className="mb-1 font-serif text-lg text-nav-plum">Navamsa (D9) Chart</h2>
-          <p className="mb-3 text-xs text-nav-plum/60">
-            Each planet&rsquo;s Navamsa placement — traditionally consulted for marriage and a
-            planet&rsquo;s deeper strength.
-          </p>
-          <BirthChartCard ascendantSign={navamsaChart.ascendantSign} planets={navamsaChart.planets} />
-        </div>
+                  {/* Shadbala — core/simplified classical planetary
+                      strength, not a full BPHS reproduction (see
+                      src/lib/astro-engine/shadbala.ts). Real computed
+                      Rupas only, never an interpretive score. */}
+                  <div>
+                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
+                    <p className="mb-3 text-xs text-nav-plum/60">
+                      A simplified core version of the classical six-fold strength system, for the 7
+                      classical planets. &ldquo;Meets requirement&rdquo; compares each planet&rsquo;s
+                      total against its own classical minimum.
+                    </p>
+                    <ul className="grid gap-2 sm:grid-cols-2">
+                      {planetaryStrength.map((s) => (
+                        <li
+                          key={s.planet}
+                          className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                        >
+                          <span className="font-medium">{s.planet}</span>
+                          <span className="text-xs text-nav-plum/70">
+                            {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
+                            {s.meetsRequirement ? " ✓" : ""}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              ),
+            },
+          ];
 
-        {/* Yogas — real detected/not-detected data only, no invented
-            interpretation. Only the hits are listed; the full checked
-            set is in the API response for anyone who needs it. */}
-        <div>
-          <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
-          <p className="mb-3 text-xs text-nav-plum/60">
-            Classical planetary combinations this chart was checked against.
-          </p>
-          {presentYogas.length > 0 ? (
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {presentYogas.map((y) => (
-                <li
-                  key={y.id}
-                  className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-                >
-                  <span className="font-medium">{y.name}</span>
-                  {y.strength && (
-                    <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
-                      ({y.strength})
-                    </span>
+          if (report || reportError) {
+            tabs.push({
+              id: "reading",
+              label: "Reading",
+              content: (
+                <>
+                  {report && (
+                    <>
+                      <SummaryCard heading="Overview" body={report.summary} />
+
+                      {report.sections.map((section) => (
+                        <InterpretationCard key={section.title} title={section.title} content={section.content} />
+                      ))}
+
+                      {report.highlights.length > 0 && (
+                        <div className="space-y-2">
+                          <h2 className="font-serif text-lg text-nav-plum">Highlights</h2>
+                          {report.highlights.map((h) => (
+                            <InsightCard key={h} icon={Sparkles} text={h} />
+                          ))}
+                        </div>
+                      )}
+
+                      {report.recommendations.length > 0 && (
+                        <div className="space-y-2">
+                          <h2 className="font-serif text-lg text-nav-plum">Recommendations</h2>
+                          {report.recommendations.map((r) => (
+                            <InsightCard key={r} text={r} />
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-nav-plum/70">
-              None of the classical yogas this engine checks for were detected in this chart.
-            </p>
-          )}
-        </div>
 
-        {/* Shadbala — core/simplified classical planetary strength, not
-            a full BPHS reproduction (see src/lib/astro-engine/shadbala.ts).
-            Real computed Rupas only, never an interpretive score. */}
-        <div>
-          <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
-          <p className="mb-3 text-xs text-nav-plum/60">
-            A simplified core version of the classical six-fold strength system, for the 7
-            classical planets. &ldquo;Meets requirement&rdquo; compares each planet&rsquo;s total
-            against its own classical minimum.
-          </p>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {planetaryStrength.map((s) => (
-              <li
-                key={s.planet}
-                className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-              >
-                <span className="font-medium">{s.planet}</span>
-                <span className="text-xs text-nav-plum/70">
-                  {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
-                  {s.meetsRequirement ? " ✓" : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+                  {reportError && (
+                    <p className="text-center text-sm text-nav-plum/60">
+                      Your calculated chart above is accurate. We couldn&apos;t generate the extended
+                      interpretation right now — please try again shortly for the full reading.
+                    </p>
+                  )}
+                </>
+              ),
+            });
+          }
 
-        {/* Bhava Bala — core/simplified classical house strength, not a
-            full BPHS reproduction (see src/lib/astro-engine/bhavabala.ts).
-            Real computed strength totals only, never an interpretive
-            score. */}
-        <div>
-          <h2 className="mb-1 font-serif text-lg text-nav-plum">House Strength (Bhava Bala)</h2>
-          <p className="mb-3 text-xs text-nav-plum/60">
-            A simplified core version of the classical house-strength system, for all 12
-            whole-sign houses counted from the Ascendant.
-          </p>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {houseStrength.map((h) => (
-              <li
-                key={h.house}
-                className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-              >
-                <span className="font-medium">
-                  House {h.house} <span className="text-xs text-nav-plum/60">({h.houseLord})</span>
-                </span>
-                <span className="text-xs text-nav-plum/70">{h.totalStrength.toFixed(1)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {report && (
-          <div className="space-y-4">
-            <SummaryCard heading="Overview" body={report.summary} />
-
-            {report.sections.map((section) => (
-              <InterpretationCard key={section.title} title={section.title} content={section.content} />
-            ))}
-
-            {report.highlights.length > 0 && (
-              <div className="space-y-2">
-                <h2 className="font-serif text-lg text-nav-plum">Highlights</h2>
-                {report.highlights.map((h) => (
-                  <InsightCard key={h} icon={Sparkles} text={h} />
-                ))}
-              </div>
-            )}
-
-            {report.recommendations.length > 0 && (
-              <div className="space-y-2">
-                <h2 className="font-serif text-lg text-nav-plum">Recommendations</h2>
-                {report.recommendations.map((r) => (
-                  <InsightCard key={r} text={r} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {reportError && (
-          <p className="text-center text-sm text-nav-plum/60">
-            Your calculated chart above is accurate. We couldn&apos;t generate the extended
-            interpretation right now — please try again shortly for the full reading.
-          </p>
-        )}
+          return <SectionTabs tabs={tabs} />;
+        })()}
 
         <div className="text-center">
           <button
