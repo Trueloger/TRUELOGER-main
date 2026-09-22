@@ -134,9 +134,20 @@ export function CartDrawer() {
           ) : (
             <>
               <ul className="flex flex-col gap-3">
-                {items.map((item) => (
-                  <CartLineRow key={item.id} item={item} onRemove={() => removeLine(item.id)} />
-                ))}
+                <AnimatePresence initial={false}>
+                  {items.map((item) => (
+                    <motion.li
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 40, scale: 0.95 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                    >
+                      <CartLineRow item={item} onRemove={() => removeLine(item.id)} />
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
               </ul>
               <div className="mt-5 flex flex-col gap-4 border-t border-nav-lavender-line pt-4">
                 <CouponSelector items={items} subtotal={subtotal} value={couponCode} onChange={setCouponCode} />
@@ -190,7 +201,7 @@ function CartLineRow({ item, onRemove }: { item: CartItem; onRemove: () => void 
   const gemstoneMeta = isGemstone ? (item.meta as { productName: string; ratti: number } | undefined) : undefined;
 
   return (
-    <li className="flex flex-col gap-1 rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-3">
+    <div className="flex flex-col gap-1 rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-3">
       <div className="flex items-start justify-between gap-3">
         <span className="text-sm font-medium text-nav-violet">
           {consultMeta?.serviceName ?? gemstoneMeta?.productName ?? item.name}
@@ -226,7 +237,7 @@ function CartLineRow({ item, onRemove }: { item: CartItem; onRemove: () => void 
           Remove
         </button>
       </div>
-    </li>
+    </div>
   );
 }
 
