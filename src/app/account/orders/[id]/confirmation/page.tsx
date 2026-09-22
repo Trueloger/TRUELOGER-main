@@ -35,6 +35,7 @@
 // more than that, and never surfaced to the user as something to click.
 import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { motion } from "motion/react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { CheckCircle2, Sparkles, XCircle } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -224,8 +225,19 @@ function NotFoundState() {
 
 function PaidState({ order, orderId }: { order: Order; orderId: string }) {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-white to-nav-lavender-mist px-6 py-14 text-center shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)] sm:rounded-[1.4rem]">
-      <CheckCircle2 aria-hidden="true" strokeWidth={1.5} className="h-12 w-12 text-emerald-600" />
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="flex flex-col items-center gap-4 rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-white to-nav-lavender-mist px-6 py-14 text-center shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)] sm:rounded-[1.4rem]"
+    >
+      <motion.div
+        initial={{ scale: 0.6, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut", delay: 0.1 }}
+      >
+        <CheckCircle2 aria-hidden="true" strokeWidth={1.5} className="h-12 w-12 text-emerald-600" />
+      </motion.div>
       <h1 className="font-serif text-2xl text-nav-violet">Payment Successful</h1>
       <p className="text-sm text-nav-plum/70">
         Order #{orderId.slice(-8).toUpperCase()} · {formatInr(order.total ?? order.subtotal)}
@@ -240,7 +252,7 @@ function PaidState({ order, orderId }: { order: Order; orderId: string }) {
       >
         View Order
       </Link>
-    </div>
+    </motion.div>
   );
 }
 
