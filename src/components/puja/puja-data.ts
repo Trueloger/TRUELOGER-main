@@ -18,7 +18,7 @@ export const PUJA_SERVICES: PujaService[] = [
     description:
       "Remove obstacles, invite new beginnings, and seek blessings for success, wisdom, and prosperity.",
     detail: "Ideal for new beginnings • 60–90 min",
-    href: "/consult/puja-and-rituals/ganesh-puja",
+    href: "/puja/ganesh-puja",
   },
   {
     id: "lakshmi-puja",
@@ -26,7 +26,7 @@ export const PUJA_SERVICES: PujaService[] = [
     description:
       "A sacred ritual for prosperity, abundance, financial wellbeing, and blessings of Goddess Lakshmi.",
     detail: "Prosperity & abundance • 60–90 min",
-    href: "/consult/puja-and-rituals/lakshmi-puja",
+    href: "/puja/lakshmi-puja",
   },
   {
     id: "navgraha-puja",
@@ -34,7 +34,7 @@ export const PUJA_SERVICES: PujaService[] = [
     description:
       "Traditional Vedic rituals to harmonize planetary influences and support balance, peace, and progress.",
     detail: "Planetary harmony • 60–90 min",
-    href: "/consult/puja-and-rituals/navgraha-puja",
+    href: "/puja/navgraha-puja",
   },
   {
     id: "rudrabhishek-puja",
@@ -42,7 +42,7 @@ export const PUJA_SERVICES: PujaService[] = [
     description:
       "A powerful Shiva ritual traditionally performed for purification, protection, inner peace, and spiritual strength.",
     detail: "Peace & purification • 60–90 min",
-    href: "/consult/puja-and-rituals/rudrabhishek-puja",
+    href: "/puja/rudrabhishek-puja",
   },
   {
     id: "grah-shanti-puja",
@@ -50,7 +50,7 @@ export const PUJA_SERVICES: PujaService[] = [
     description:
       "Vedic rituals performed to promote harmony, stability, peace, and positive energy within the home.",
     detail: "Home harmony • 60–90 min",
-    href: "/consult/puja-and-rituals/grah-shanti-puja",
+    href: "/puja/grah-shanti-puja",
   },
   {
     id: "maha-mrityunjaya-puja",
@@ -58,6 +58,6 @@ export const PUJA_SERVICES: PujaService[] = [
     description:
       "A sacred Vedic prayer ritual traditionally performed for protection, strength, peace, and spiritual wellbeing.",
     detail: "Protection & wellbeing • 60–90 min",
-    href: "/consult/puja-and-rituals/maha-mrityunjaya-puja",
+    href: "/puja/maha-mrityunjaya-puja",
   },
 ];

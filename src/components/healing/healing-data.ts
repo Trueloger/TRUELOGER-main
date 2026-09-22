@@ -15,27 +15,27 @@ export const HEALING_SERVICES: HealingService[] = [
     title: "Chakra Healing",
     description:
       "Balance and harmonize your seven chakras to restore natural energy flow and enhance well-being.",
-    href: "/consult/chakra-healing",
+    href: "/healing/chakra-healing",
   },
   {
     id: "aura-cleansing",
     title: "Aura Cleansing",
     description:
       "Purify your aura and clear negative energies to create a lighter, calmer and more positive you.",
-    href: "/consult/aura-cleansing",
+    href: "/healing/aura-cleansing",
   },
   {
     id: "relationship-healing",
     title: "Relationship Healing",
     description:
       "Heal emotional patterns, release past hurts and invite harmony, love and understanding into your relationships.",
-    href: "/consult/relationship-healing",
+    href: "/healing/relationship-healing",
   },
   {
     id: "money-healing",
     title: "Money Healing",
     description:
       "Clear financial blocks and negative patterns to attract abundance, prosperity and lasting stability.",
-    href: "/consult/money-healing",
+    href: "/healing/money-healing",
   },
 ];

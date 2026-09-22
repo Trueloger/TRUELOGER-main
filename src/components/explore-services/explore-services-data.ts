@@ -22,7 +22,7 @@ export const EXPLORE_SERVICES: ExploreService[] = [
     id: "tarot-reading",
     title: "Tarot Reading",
     description: "Gain clarity through intuitive tarot guidance.",
-    href: "/consult/tarot",
+    href: "/consult/tarot-reading",
   },
   {
     id: "vastu",
@@ -40,6 +40,6 @@ export const EXPLORE_SERVICES: ExploreService[] = [
     id: "puja-rituals",
     title: "Puja & Rituals",
     description: "Sacred rituals for blessings, protection and growth.",
-    href: "/consult/puja-and-rituals",
+    href: "/puja",
   },
 ];

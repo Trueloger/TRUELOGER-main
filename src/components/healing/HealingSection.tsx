@@ -61,7 +61,7 @@ export function HealingSection() {
         {/* Primary CTA */}
         <div className="mt-10 flex justify-center md:mt-14">
           <Link
-            href="/consult/healing"
+            href="/healing"
             className="group flex w-full items-center justify-center gap-3 rounded-full bg-gradient-to-b from-nav-amethyst to-nav-amethyst-deep px-7 py-4 text-nav-pearl shadow-[0_18px_40px_-16px_rgba(106,60,176,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_48px_-14px_rgba(106,60,176,0.65)] sm:w-auto sm:px-9"
           >
             <LotusIcon className="h-5 w-5 shrink-0 text-nav-pearl" strokeWidth={1.4} />

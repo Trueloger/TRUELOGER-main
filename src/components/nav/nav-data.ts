@@ -212,7 +212,7 @@ export const PROFILE_MENU: NavChild[] = [
 ];
 
 export const SUPPORT_LINKS: NavChild[] = [
-  { label: "Help & Support", href: "/support" },
+  { label: "Help & Support", href: "/help" },
   { label: "About TRUELOGER", href: "/about" },
-  { label: "Privacy & Security", href: "/privacy" },
+  { label: "Privacy & Security", href: "/privacy-security" },
 ];
