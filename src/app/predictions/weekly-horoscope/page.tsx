@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { LotusIcon } from "@/components/quick-services/icons";
-import { ZodiacGrid } from "@/components/horoscope/ZodiacGrid";
-import { ZodiacCarousel } from "@/components/horoscope/ZodiacCarousel";
+import { ZodiacFullGrid } from "@/components/horoscope/ZodiacFullGrid";
 import { getCurrentWeekIST } from "@/lib/horoscope/date";
 
 export const revalidate = 3600;
@@ -48,8 +47,7 @@ export default function WeeklyHoroscopeIndexPage() {
         </div>
 
         <div className="mt-10 md:mt-14">
-          <ZodiacGrid hrefBase="/horoscope/weekly" />
-          <ZodiacCarousel hrefBase="/horoscope/weekly" />
+          <ZodiacFullGrid hrefBase="/horoscope/weekly" />
         </div>
       </div>
     </section>

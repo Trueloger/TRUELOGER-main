@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { LotusIcon } from "@/components/quick-services/icons";
-import { ZodiacGrid } from "@/components/horoscope/ZodiacGrid";
-import { ZodiacCarousel } from "@/components/horoscope/ZodiacCarousel";
+import { ZodiacFullGrid } from "@/components/horoscope/ZodiacFullGrid";
 import { getCurrentMonthIST } from "@/lib/horoscope/date";
 
 export const revalidate = 3600;
@@ -40,8 +39,7 @@ export default function MonthlyHoroscopeIndexPage() {
         </div>
 
         <div className="mt-10 md:mt-14">
-          <ZodiacGrid hrefBase="/horoscope/monthly" />
-          <ZodiacCarousel hrefBase="/horoscope/monthly" />
+          <ZodiacFullGrid hrefBase="/horoscope/monthly" />
         </div>
       </div>
     </section>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LotusIcon } from "@/components/quick-services/icons";
-import { ZodiacGrid } from "@/components/horoscope/ZodiacGrid";
-import { ZodiacCarousel } from "@/components/horoscope/ZodiacCarousel";
+import { ZodiacFullGrid } from "@/components/horoscope/ZodiacFullGrid";
+import { getTodayIST } from "@/lib/horoscope/date";
 
 export const revalidate = 3600;
 
@@ -15,6 +15,11 @@ export const metadata: Metadata = {
 // dead — see nav-data.ts / quick-services-data.ts) into the same
 // zodiac-selection UI as the homepage section, as its own full page.
 export default function DailyHoroscopeIndexPage() {
+  const dateLabel = new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "full",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(`${getTodayIST()}T00:00:00Z`));
+
   return (
     <section
       aria-labelledby="daily-horoscope-index-heading"
@@ -33,14 +38,14 @@ export default function DailyHoroscopeIndexPage() {
           >
             Daily <span className="text-nav-amethyst">Horoscope</span>
           </h1>
+          <p className="mx-auto mt-2 text-sm text-nav-plum/60">Today: {dateLabel}</p>
           <p className="mx-auto mt-4 max-w-sm text-[0.95rem] leading-relaxed text-nav-plum/80 sm:max-w-md sm:text-base">
             Choose your zodiac sign for today&apos;s reading.
           </p>
         </div>
 
         <div className="mt-10 md:mt-14">
-          <ZodiacGrid />
-          <ZodiacCarousel />
+          <ZodiacFullGrid />
         </div>
       </div>
     </section>
