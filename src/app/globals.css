@@ -69,37 +69,12 @@ img {
   scrollbar-width: thin;
 }
 
-/* Testimonials — infinite marquee track. Track holds two back-to-back
-   copies of one row's cards; animating exactly -50% moves one full copy
-   out while its identical duplicate is already in position, so the loop
-   has no visible reset. Direction is flipped per-row via
-   animation-direction: reverse (see TestimonialMarqueeRow), not a second
-   keyframe. */
-@keyframes testimonial-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
-.testimonial-marquee-track {
-  animation-name: testimonial-marquee;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-
-/* Pause on hover — desktop only in practice, since hover doesn't fire on
-   touch. Intentional, not a full stop: releases on mouseleave. */
-@media (hover: hover) {
-  .testimonial-row:hover .testimonial-marquee-track {
-    animation-play-state: paused;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .testimonial-marquee-track {
-    animation: none !important;
-    transform: none !important;
-  }
-}
+/* Testimonials marquee — now a JS-driven transform (rAF loop, see
+   TestimonialMarqueeRow.tsx) rather than a CSS animation, so the same
+   offset can be grabbed and dragged by the user. Hover/hover-out pause
+   and reduced-motion are both handled in JS there (a `paused` prop and
+   a `prefers-reduced-motion` check gating the rAF loop's own advance),
+   not here. */
 
 /* DateOfBirthField / TimeOfBirthField custom pickers — mobile bottom
    sheet slides up, desktop popover fades/drops in slightly. Reduced

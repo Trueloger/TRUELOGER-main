@@ -48,7 +48,13 @@ export function DesktopNav() {
       }
     }
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpenKey(null);
+      if (e.key !== "Escape") return;
+      // Return focus to whichever trigger button was open — otherwise
+      // focus drops to <body> when Escape is pressed while focus is on
+      // a menuitem Link inside the now-closing panel.
+      const openTrigger = rootRef.current?.querySelector<HTMLElement>('[aria-expanded="true"]');
+      setOpenKey(null);
+      openTrigger?.focus();
     }
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);

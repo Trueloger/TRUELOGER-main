@@ -59,6 +59,22 @@ export function TestimonialsSection() {
   const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState<Testimonial | null>(null);
   const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The card that triggered the expand — so closing (Escape, backdrop,
+  // X) returns focus there instead of dropping it to <body>. Read at
+  // the moment of expand, not the moment of close, since the marquee
+  // keeps moving and a card can drift out of the DOM/viewport while
+  // the dialog is open.
+  const triggerElRef = useRef<HTMLElement | null>(null);
+
+  function handleExpand(testimonial: Testimonial) {
+    triggerElRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setExpanded(testimonial);
+  }
+
+  function handleCloseExpanded() {
+    setExpanded(null);
+    triggerElRef.current?.focus();
+  }
 
   function pauseNow() {
     if (resumeTimer.current) {
@@ -155,14 +171,14 @@ export function TestimonialsSection() {
               durationSec={isMobile ? Math.round(row.durationSec * 1.3) : row.durationSec}
               parallaxPx={isMobile ? Math.round(row.parallaxPx * 0.4) : row.parallaxPx}
               paused={paused}
-              onExpand={setExpanded}
+              onExpand={handleExpand}
             />
           ))}
         </div>
       </div>
 
       <AnimatePresence>
-        {expanded && <ExpandedTestimonial testimonial={expanded} onClose={() => setExpanded(null)} />}
+        {expanded && <ExpandedTestimonial testimonial={expanded} onClose={handleCloseExpanded} />}
       </AnimatePresence>
     </section>
   );

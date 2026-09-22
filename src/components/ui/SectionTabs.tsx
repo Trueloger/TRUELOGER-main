@@ -11,7 +11,7 @@
 // touch/trackpad swipe, works everywhere immediately. The dot row
 // below is a position indicator and an optional shortcut, never the
 // only way to move between sections.
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 export type SectionTab = {
@@ -21,9 +21,11 @@ export type SectionTab = {
 };
 
 export function SectionTabs({ tabs, defaultTabId }: { tabs: SectionTab[]; defaultTabId?: string }) {
+  const groupId = useId();
   const trackRef = useRef<HTMLDivElement>(null);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressScroll = useRef(false);
+  const dotRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const defaultIndex = Math.max(
     0,
@@ -64,6 +66,40 @@ export function SectionTabs({ tabs, defaultTabId }: { tabs: SectionTab[]; defaul
 
   if (tabs.length === 0) return null;
 
+  function activate(i: number) {
+    setIndex(i);
+    scrollToIndex(i);
+    dotRefs.current[i]?.focus();
+  }
+
+  // Standard ARIA tablist roving-tab pattern: Left/Right move between
+  // tabs (wrapping), Home/End jump to first/last, and moving also
+  // activates (matches this control's own click behavior — there's no
+  // separate "select" step). Real keyboard equivalent to swipe, not
+  // just the dots being individually Tab-reachable.
+  function handleDotKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, i: number) {
+    switch (e.key) {
+      case "ArrowRight":
+        e.preventDefault();
+        activate((i + 1) % tabs.length);
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        activate((i - 1 + tabs.length) % tabs.length);
+        break;
+      case "Home":
+        e.preventDefault();
+        activate(0);
+        break;
+      case "End":
+        e.preventDefault();
+        activate(tabs.length - 1);
+        break;
+      default:
+        break;
+    }
+  }
+
   return (
     <div>
       <div
@@ -73,10 +109,14 @@ export function SectionTabs({ tabs, defaultTabId }: { tabs: SectionTab[]; defaul
         aria-label="Report sections — swipe to browse"
         className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
       >
-        {tabs.map((tab) => (
+        {tabs.map((tab, i) => (
           <div
             key={tab.id}
-            className="w-full shrink-0 snap-start snap-always space-y-6"
+            id={`${groupId}-panel-${tab.id}`}
+            role="tabpanel"
+            aria-labelledby={`${groupId}-tab-${tab.id}`}
+            tabIndex={0}
+            className="w-full shrink-0 snap-start snap-always space-y-6 outline-none"
             style={{ scrollSnapStop: "always" }}
           >
             <div className="flex items-center gap-2">
@@ -84,7 +124,7 @@ export function SectionTabs({ tabs, defaultTabId }: { tabs: SectionTab[]; defaul
                 {tab.label}
               </span>
               <span className="text-xs text-nav-plum/40">
-                {tabs.findIndex((t) => t.id === tab.id) + 1} / {tabs.length}
+                {i + 1} / {tabs.length}
               </span>
             </div>
             {tab.content}
@@ -97,11 +137,18 @@ export function SectionTabs({ tabs, defaultTabId }: { tabs: SectionTab[]; defaul
           {tabs.map((tab, i) => (
             <button
               key={tab.id}
+              ref={(el) => {
+                dotRefs.current[i] = el;
+              }}
+              id={`${groupId}-tab-${tab.id}`}
               type="button"
               role="tab"
               aria-selected={i === index}
+              aria-controls={`${groupId}-panel-${tab.id}`}
               aria-label={`Go to ${tab.label}`}
-              onClick={() => scrollToIndex(i)}
+              tabIndex={i === index ? 0 : -1}
+              onClick={() => activate(i)}
+              onKeyDown={(e) => handleDotKeyDown(e, i)}
               className={`h-2 rounded-full transition-all duration-200 ${
                 i === index ? "w-6 bg-nav-amethyst" : "w-2 bg-nav-lavender-line hover:bg-nav-amethyst/40"
               }`}
