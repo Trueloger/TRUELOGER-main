@@ -19,6 +19,7 @@ import { Timeline } from "@/components/reports/Timeline";
 import { InterpretationCard } from "@/components/reports/InterpretationCard";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { BirthChartCard } from "@/components/charts/BirthChartCard";
+import { SectionTabs, type SectionTab } from "@/components/ui/SectionTabs";
 import { parseApiDate } from "@/lib/dasha/format";
 import type { DashaApiResponse } from "./types";
 
@@ -170,147 +171,187 @@ export function DashaForm() {
           </div>
         )}
 
-        <SummaryCard heading="Current Dasha">
-          <div className="space-y-1.5">
-            <p className="font-serif text-xl text-nav-plum">
-              {currentLord ? `${currentLord} Mahadasha` : "Not available"}
-            </p>
-            <p className="text-sm text-nav-violet/80">
-              {result.currentAntarDasha
-                ? `${result.currentAntarDasha.lord} Antardasha`
-                : "Antardasha currently unavailable"}
-            </p>
-          </div>
-        </SummaryCard>
+        {(() => {
+          const tabs: SectionTab[] = [
+            {
+              id: "timeline",
+              label: "Timeline",
+              content: (
+                <>
+                  <SummaryCard heading="Current Dasha">
+                    <div className="space-y-1.5">
+                      <p className="font-serif text-xl text-nav-plum">
+                        {currentLord ? `${currentLord} Mahadasha` : "Not available"}
+                      </p>
+                      <p className="text-sm text-nav-violet/80">
+                        {result.currentAntarDasha
+                          ? `${result.currentAntarDasha.lord} Antardasha`
+                          : "Antardasha currently unavailable"}
+                      </p>
+                    </div>
+                  </SummaryCard>
 
-        <div>
-          <h2 className="mb-4 font-serif text-lg text-nav-plum">Mahadasha Timeline</h2>
-          <Timeline
-            items={result.mahaDashaTimeline.map((entry) => ({
-              label: `${entry.lord} Mahadasha`,
-              startDate: formatDisplayDate(entry.start_time),
-              endDate: formatDisplayDate(entry.end_time),
-              active: currentLord === entry.lord,
-            }))}
-          />
-        </div>
+                  <div>
+                    <h2 className="mb-4 font-serif text-lg text-nav-plum">Mahadasha Timeline</h2>
+                    <Timeline
+                      items={result.mahaDashaTimeline.map((entry) => ({
+                        label: `${entry.lord} Mahadasha`,
+                        startDate: formatDisplayDate(entry.start_time),
+                        endDate: formatDisplayDate(entry.end_time),
+                        active: currentLord === entry.lord,
+                      }))}
+                    />
+                  </div>
+                </>
+              ),
+            },
+            {
+              id: "charts",
+              label: "Charts",
+              content: (
+                <>
+                  <div className="space-y-3">
+                    <h2 className="font-serif text-lg text-nav-plum">Birth Chart</h2>
+                    <BirthChartCard ascendantSign={result.chart.ascendantSign} planets={result.chart.planets} />
+                  </div>
 
-        <div className="space-y-3">
-          <h2 className="font-serif text-lg text-nav-plum">Birth Chart</h2>
-          <BirthChartCard ascendantSign={result.chart.ascendantSign} planets={result.chart.planets} />
-        </div>
-
-        <div className="space-y-3">
-          <h2 className="font-serif text-lg text-nav-plum">Navamsa (D9) Chart</h2>
-          <p className="text-xs text-nav-plum/60">
-            Each planet&rsquo;s Navamsa placement — traditionally consulted for marriage and a
-            planet&rsquo;s deeper strength.
-          </p>
-          <BirthChartCard
-            ascendantSign={result.navamsaChart.ascendantSign}
-            planets={result.navamsaChart.planets}
-          />
-        </div>
-
-        <div>
-          <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
-          <p className="mb-3 text-xs text-nav-plum/60">
-            Classical planetary combinations this chart was checked against.
-          </p>
-          {result.yogas.some((y) => y.present) ? (
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {result.yogas
-                .filter((y) => y.present)
-                .map((y) => (
-                  <li
-                    key={y.id}
-                    className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-                  >
-                    <span className="font-medium">{y.name}</span>
-                    {y.strength && (
-                      <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
-                        ({y.strength})
-                      </span>
+                  <div className="space-y-3">
+                    <h2 className="font-serif text-lg text-nav-plum">Navamsa (D9) Chart</h2>
+                    <p className="text-xs text-nav-plum/60">
+                      Each planet&rsquo;s Navamsa placement — traditionally consulted for marriage
+                      and a planet&rsquo;s deeper strength.
+                    </p>
+                    <BirthChartCard
+                      ascendantSign={result.navamsaChart.ascendantSign}
+                      planets={result.navamsaChart.planets}
+                    />
+                  </div>
+                </>
+              ),
+            },
+            {
+              id: "yogas-strength",
+              label: "Yogas & Strength",
+              content: (
+                <>
+                  <div>
+                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
+                    <p className="mb-3 text-xs text-nav-plum/60">
+                      Classical planetary combinations this chart was checked against.
+                    </p>
+                    {result.yogas.some((y) => y.present) ? (
+                      <ul className="grid gap-2 sm:grid-cols-2">
+                        {result.yogas
+                          .filter((y) => y.present)
+                          .map((y) => (
+                            <li
+                              key={y.id}
+                              className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                            >
+                              <span className="font-medium">{y.name}</span>
+                              {y.strength && (
+                                <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
+                                  ({y.strength})
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-nav-plum/70">
+                        None of the classical yogas this engine checks for were detected in this chart.
+                      </p>
                     )}
-                  </li>
-                ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-nav-plum/70">
-              None of the classical yogas this engine checks for were detected in this chart.
-            </p>
-          )}
-        </div>
+                  </div>
 
-        {/* Shadbala — core/simplified classical planetary strength, not
-            a full BPHS reproduction (see src/lib/astro-engine/shadbala.ts).
-            Real computed Rupas only, never an interpretive score. */}
-        <div>
-          <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
-          <p className="mb-3 text-xs text-nav-plum/60">
-            A simplified core version of the classical six-fold strength system, for the 7
-            classical planets. &ldquo;Meets requirement&rdquo; compares each planet&rsquo;s total
-            against its own classical minimum.
-          </p>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {result.planetaryStrength.map((s) => (
-              <li
-                key={s.planet}
-                className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-              >
-                <span className="font-medium">{s.planet}</span>
-                <span className="text-xs text-nav-plum/70">
-                  {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
-                  {s.meetsRequirement ? " ✓" : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
+                  {/* Shadbala — core/simplified classical planetary
+                      strength, not a full BPHS reproduction (see
+                      src/lib/astro-engine/shadbala.ts). Real computed
+                      Rupas only, never an interpretive score. */}
+                  <div>
+                    <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
+                    <p className="mb-3 text-xs text-nav-plum/60">
+                      A simplified core version of the classical six-fold strength system, for the 7
+                      classical planets. &ldquo;Meets requirement&rdquo; compares each planet&rsquo;s
+                      total against its own classical minimum.
+                    </p>
+                    <ul className="grid gap-2 sm:grid-cols-2">
+                      {result.planetaryStrength.map((s) => (
+                        <li
+                          key={s.planet}
+                          className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                        >
+                          <span className="font-medium">{s.planet}</span>
+                          <span className="text-xs text-nav-plum/70">
+                            {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
+                            {s.meetsRequirement ? " ✓" : ""}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              ),
+            },
+          ];
 
-        {result.report && (
-          <div className="space-y-4">
-            {result.report.summary && (
-              <div className="rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-nav-pearl to-nav-lavender-mist p-6 shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)]">
-                <p className="text-[0.7rem] font-medium uppercase tracking-[0.15em] text-nav-amethyst">
-                  Overview
-                </p>
-                <p className="mt-3 text-[1.05rem] leading-relaxed text-nav-violet">
-                  {result.report.summary}
-                </p>
-              </div>
-            )}
+          if (result.report || result.reportError) {
+            tabs.push({
+              id: "reading",
+              label: "Reading",
+              content: (
+                <>
+                  {result.report && (
+                    <>
+                      {result.report.summary && (
+                        <div className="rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-nav-pearl to-nav-lavender-mist p-6 shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)]">
+                          <p className="text-[0.7rem] font-medium uppercase tracking-[0.15em] text-nav-amethyst">
+                            Overview
+                          </p>
+                          <p className="mt-3 text-[1.05rem] leading-relaxed text-nav-violet">
+                            {result.report.summary}
+                          </p>
+                        </div>
+                      )}
 
-            {result.report.sections.map((section) => (
-              <InterpretationCard key={section.title} title={section.title} content={section.content} />
-            ))}
+                      {result.report.sections.map((section) => (
+                        <InterpretationCard key={section.title} title={section.title} content={section.content} />
+                      ))}
 
-            {result.report.highlights.length > 0 && (
-              <div className="space-y-2">
-                <h2 className="font-serif text-lg text-nav-plum">Highlights</h2>
-                {result.report.highlights.map((h) => (
-                  <InsightCard key={h} icon={Sparkles} text={h} />
-                ))}
-              </div>
-            )}
+                      {result.report.highlights.length > 0 && (
+                        <div className="space-y-2">
+                          <h2 className="font-serif text-lg text-nav-plum">Highlights</h2>
+                          {result.report.highlights.map((h) => (
+                            <InsightCard key={h} icon={Sparkles} text={h} />
+                          ))}
+                        </div>
+                      )}
 
-            {result.report.recommendations.length > 0 && (
-              <div className="space-y-2">
-                <h2 className="font-serif text-lg text-nav-plum">Recommendations</h2>
-                {result.report.recommendations.map((r) => (
-                  <InsightCard key={r} text={r} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                      {result.report.recommendations.length > 0 && (
+                        <div className="space-y-2">
+                          <h2 className="font-serif text-lg text-nav-plum">Recommendations</h2>
+                          {result.report.recommendations.map((r) => (
+                            <InsightCard key={r} text={r} />
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
 
-        {result.reportError && (
-          <p className="text-center text-sm text-nav-plum/60">
-            Your calculated dasha timeline above is accurate. We couldn&apos;t generate the
-            extended interpretation right now — please try again shortly for the full reading.
-          </p>
-        )}
+                  {result.reportError && (
+                    <p className="text-center text-sm text-nav-plum/60">
+                      Your calculated dasha timeline above is accurate. We couldn&apos;t generate
+                      the extended interpretation right now — please try again shortly for the
+                      full reading.
+                    </p>
+                  )}
+                </>
+              ),
+            });
+          }
+
+          return <SectionTabs tabs={tabs} />;
+        })()}
 
         <div className="text-center">
           <button

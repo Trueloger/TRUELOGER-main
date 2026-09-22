@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import {
   fieldLabelClass,
   fieldInputClass,
@@ -9,6 +9,7 @@ import {
   fieldErrorTextClass,
 } from "./field-styles";
 import { PickerShell } from "./PickerShell";
+import { WheelColumn } from "./WheelColumn";
 
 const DEFAULT_MIN_YEAR = 1900;
 
@@ -64,7 +65,6 @@ type DateOfBirthFieldProps = {
   maxYear?: number;
 };
 
-const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_LABELS = [
   "January",
   "February",
@@ -96,26 +96,6 @@ function toISODate({ year, month, day }: YMD): string {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function sameYMD(a: YMD, b: YMD): boolean {
-  return a.year === b.year && a.month === b.month && a.day === b.day;
-}
-
-function dateKey(d: YMD): string {
-  return `${d.year}-${d.month}-${d.day}`;
-}
-
-function clampYMD(d: YMD, min: YMD, max: YMD): YMD {
-  const asDate = new Date(d.year, d.month - 1, d.day).getTime();
-  if (asDate < new Date(min.year, min.month - 1, min.day).getTime()) return min;
-  if (asDate > new Date(max.year, max.month - 1, max.day).getTime()) return max;
-  return d;
-}
-
-function addDays(d: YMD, delta: number): YMD {
-  const next = new Date(d.year, d.month - 1, d.day + delta);
-  return { year: next.getFullYear(), month: next.getMonth() + 1, day: next.getDate() };
-}
-
 function formatDisplayDate(value: string): string | null {
   const parsed = parseISODate(value);
   if (!parsed) return null;
@@ -127,10 +107,18 @@ function formatDisplayDate(value: string): string | null {
   }).format(date);
 }
 
-/** Custom calendar picker (bottom sheet on mobile, anchored popover on
- * desktop — see PickerShell) replacing the native `<input type="date">`.
- * `value`/`onChange` keep the exact same "YYYY-MM-DD" string contract a
- * native date input used, so nothing downstream needs to change. */
+/** Custom Month / Day / Year wheel picker (bottom sheet on mobile,
+ * anchored popover on desktop — see PickerShell) replacing the native
+ * `<input type="date">`. `value`/`onChange` keep the exact same
+ * "YYYY-MM-DD" string contract a native date input used, so nothing
+ * downstream needs to change — the wheel only changes how the user
+ * assembles that string, never what gets stored. Shares WheelColumn
+ * (src/components/forms/WheelColumn.tsx) with TimeOfBirthField's
+ * hour/minute/AM-PM wheels, same scroll-snap interaction. Never lets
+ * the browser's own Date parsing/timezone touch the selected value —
+ * year/month/day are tracked as plain numbers and joined into the ISO
+ * string directly (toISODate), the same approach the calendar version
+ * of this component used. */
 export function DateOfBirthField({
   value,
   onChange,
@@ -150,157 +138,54 @@ export function DateOfBirthField({
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
   }, []);
-  const minDate: YMD = { year: minYear, month: 1, day: 1 };
-  const maxDateRaw: YMD = { year: maxYear, month: 12, day: 31 };
-  // Never allow a future date, regardless of maxYear.
-  const maxDate: YMD =
-    new Date(maxYear, 11, 31).getTime() > new Date(today.year, today.month - 1, today.day).getTime()
-      ? today
-      : maxDateRaw;
 
-  const selected = parseISODate(value);
-  const initialView = selected ?? clampYMD(today, minDate, maxDate);
-
-  const [open, setOpen] = useState(false);
-  const [viewYear, setViewYear] = useState(initialView.year);
-  const [viewMonth, setViewMonth] = useState(initialView.month);
-  const [yearPickerOpen, setYearPickerOpen] = useState(false);
-  const [focusDate, setFocusDate] = useState<YMD>(
-    selected ?? clampYMD(today, minDate, maxDate)
-  );
-
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const dayButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const gridRef = useRef<HTMLDivElement>(null);
-  const yearListRef = useRef<HTMLDivElement>(null);
-  const shouldFocusDay = useRef(false);
-
-  function openPanel() {
-    const base = selected ?? clampYMD(today, minDate, maxDate);
-    setViewYear(base.year);
-    setViewMonth(base.month);
-    setFocusDate(base);
-    setYearPickerOpen(false);
-    setOpen(true);
-  }
-
-  function closePanel() {
-    setOpen(false);
-    setYearPickerOpen(false);
-  }
-
-  useEffect(() => {
-    if (shouldFocusDay.current) {
-      shouldFocusDay.current = false;
-      const btn = dayButtonRefs.current.get(dateKey(focusDate));
-      btn?.focus();
-    }
-  }, [focusDate, viewYear, viewMonth]);
-
-  const isBeforeMin = (d: YMD) =>
-    new Date(d.year, d.month - 1, d.day).getTime() < new Date(minDate.year, minDate.month - 1, minDate.day).getTime();
-  const isAfterMax = (d: YMD) =>
-    new Date(d.year, d.month - 1, d.day).getTime() > new Date(maxDate.year, maxDate.month - 1, maxDate.day).getTime();
-  const isDisabled = (d: YMD) => isBeforeMin(d) || isAfterMax(d);
-
-  const canGoPrevMonth = !isBeforeMin({ year: viewYear, month: viewMonth, day: daysInMonth(viewYear, viewMonth) });
-  const canGoNextMonth = !isAfterMax({ year: viewYear, month: viewMonth, day: 1 });
-
-  function goPrevMonth() {
-    const m = viewMonth === 1 ? 12 : viewMonth - 1;
-    const y = viewMonth === 1 ? viewYear - 1 : viewYear;
-    setViewYear(y);
-    setViewMonth(m);
-  }
-  function goNextMonth() {
-    const m = viewMonth === 12 ? 1 : viewMonth + 1;
-    const y = viewMonth === 12 ? viewYear + 1 : viewYear;
-    setViewYear(y);
-    setViewMonth(m);
-  }
-
-  function selectDate(d: YMD) {
-    if (isDisabled(d)) return;
-    onChange(toISODate(d));
-    closePanel();
-    triggerRef.current?.focus();
-  }
-
-  function moveFocus(delta: number) {
-    const next = clampYMD(addDays(focusDate, delta), minDate, maxDate);
-    setFocusDate(next);
-    if (next.year !== viewYear || next.month !== viewMonth) {
-      setViewYear(next.year);
-      setViewMonth(next.month);
-    }
-    shouldFocusDay.current = true;
-  }
-
-  function onGridKeyDown(e: React.KeyboardEvent) {
-    switch (e.key) {
-      case "ArrowLeft":
-        e.preventDefault();
-        moveFocus(-1);
-        break;
-      case "ArrowRight":
-        e.preventDefault();
-        moveFocus(1);
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        moveFocus(-7);
-        break;
-      case "ArrowDown":
-        e.preventDefault();
-        moveFocus(7);
-        break;
-      case "Enter":
-      case " ":
-        e.preventDefault();
-        selectDate(focusDate);
-        break;
-      default:
-        break;
-    }
-  }
-
-  // Build the 6x7 day grid for the viewed month.
-  const cells = useMemo(() => {
-    const firstWeekday = new Date(viewYear, viewMonth - 1, 1).getDay();
-    const totalDaysInView = daysInMonth(viewYear, viewMonth);
-    const prevMonth = viewMonth === 1 ? 12 : viewMonth - 1;
-    const prevYear = viewMonth === 1 ? viewYear - 1 : viewYear;
-    const daysInPrev = daysInMonth(prevYear, prevMonth);
-
-    const list: { d: YMD; outside: boolean }[] = [];
-    for (let i = firstWeekday - 1; i >= 0; i--) {
-      list.push({ d: { year: prevYear, month: prevMonth, day: daysInPrev - i }, outside: true });
-    }
-    for (let day = 1; day <= totalDaysInView; day++) {
-      list.push({ d: { year: viewYear, month: viewMonth, day }, outside: false });
-    }
-    const nextMonth = viewMonth === 12 ? 1 : viewMonth + 1;
-    const nextYear = viewMonth === 12 ? viewYear + 1 : viewYear;
-    let nextDay = 1;
-    while (list.length < 42) {
-      list.push({ d: { year: nextYear, month: nextMonth, day: nextDay }, outside: true });
-      nextDay++;
-    }
-    return list;
-  }, [viewYear, viewMonth]);
-
+  // Most recent year first — a birth year is almost always within the
+  // last ~80 years, so this keeps the common case near the top of the
+  // wheel instead of a decades-long scroll from 1900.
   const years = useMemo(() => {
     const arr: number[] = [];
     for (let y = maxYear; y >= minYear; y--) arr.push(y);
     return arr;
   }, [minYear, maxYear]);
 
-  useEffect(() => {
-    if (yearPickerOpen) {
-      const el = yearListRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]');
-      el?.scrollIntoView({ block: "center" });
-    }
-  }, [yearPickerOpen]);
+  const selected = parseISODate(value);
+  const initial = selected ?? { year: Math.min(today.year, maxYear), month: today.month, day: today.day };
+
+  const [monthIndex, setMonthIndex] = useState(initial.month - 1);
+  const [dayIndex, setDayIndex] = useState(initial.day - 1);
+  const [yearIndex, setYearIndex] = useState(Math.max(0, years.indexOf(initial.year)));
+  const [open, setOpen] = useState(false);
+
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const daysInSelectedMonth = daysInMonth(years[yearIndex] ?? initial.year, monthIndex + 1);
+  const dayLabels = useMemo(
+    () => Array.from({ length: daysInSelectedMonth }, (_, i) => String(i + 1)),
+    [daysInSelectedMonth]
+  );
+  // Clamp the day wheel when a shorter month/a leap-year change makes
+  // the currently-selected day number impossible (e.g. Jan 31 -> Feb).
+  const clampedDayIndex = Math.min(dayIndex, daysInSelectedMonth - 1);
+
+  function openPanel() {
+    const base = selected ?? { year: Math.min(today.year, maxYear), month: today.month, day: today.day };
+    setMonthIndex(base.month - 1);
+    setDayIndex(base.day - 1);
+    setYearIndex(Math.max(0, years.indexOf(base.year)));
+    setOpen(true);
+  }
+
+  function closePanel() {
+    setOpen(false);
+  }
+
+  function commit(nextMonthIndex: number, nextDayIndex: number, nextYearIndex: number) {
+    const year = years[nextYearIndex] ?? initial.year;
+    const month = nextMonthIndex + 1;
+    const maxDay = daysInMonth(year, month);
+    const day = Math.min(nextDayIndex + 1, maxDay);
+    onChange(toISODate({ year, month, day }));
+  }
 
   const displayValue = formatDisplayDate(value);
 
@@ -344,130 +229,51 @@ export function DateOfBirthField({
         open={open}
         onClose={closePanel}
         triggerRef={triggerRef}
-        title={`${label} calendar`}
+        title={`${label} picker`}
         panelId={panelId}
       >
         <div className="p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={goPrevMonth}
-              disabled={!canGoPrevMonth}
-              aria-label="Previous month"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-nav-violet transition-colors duration-150 hover:bg-nav-lavender-soft disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setYearPickerOpen((v) => !v)}
-              aria-expanded={yearPickerOpen}
-              className="flex min-h-11 items-center gap-1 rounded-xl px-3 py-2 text-[0.95rem] font-semibold text-nav-violet transition-colors duration-150 hover:bg-nav-lavender-soft"
-            >
-              {MONTH_LABELS[viewMonth - 1]} {viewYear}
-            </button>
-
-            <button
-              type="button"
-              onClick={goNextMonth}
-              disabled={!canGoNextMonth}
-              aria-label="Next month"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-nav-violet transition-colors duration-150 hover:bg-nav-lavender-soft disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <ChevronRight className="h-5 w-5" aria-hidden="true" />
-            </button>
+          <div className="flex items-center justify-center gap-1.5">
+            <WheelColumn
+              label="Month"
+              values={MONTH_LABELS}
+              index={monthIndex}
+              className="min-w-[7rem]"
+              onSelect={(i) => {
+                setMonthIndex(i);
+                commit(i, clampedDayIndex, yearIndex);
+              }}
+            />
+            <WheelColumn
+              label="Day"
+              values={dayLabels}
+              index={clampedDayIndex}
+              onSelect={(i) => {
+                setDayIndex(i);
+                commit(monthIndex, i, yearIndex);
+              }}
+            />
+            <WheelColumn
+              label="Year"
+              values={years.map(String)}
+              index={yearIndex}
+              onSelect={(i) => {
+                setYearIndex(i);
+                commit(monthIndex, clampedDayIndex, i);
+              }}
+            />
           </div>
-
-          {yearPickerOpen ? (
-            <div
-              ref={yearListRef}
-              role="listbox"
-              aria-label="Select year"
-              className="grid max-h-64 grid-cols-4 gap-1.5 overflow-y-auto py-1"
-            >
-              {years.map((y) => (
-                <button
-                  key={y}
-                  type="button"
-                  role="option"
-                  aria-selected={y === viewYear}
-                  data-active={y === viewYear ? "true" : undefined}
-                  onClick={() => {
-                    setViewYear(y);
-                    setYearPickerOpen(false);
-                  }}
-                  className={`flex min-h-11 items-center justify-center rounded-lg text-sm transition-colors duration-150 ${
-                    y === viewYear
-                      ? "bg-nav-amethyst text-white"
-                      : "text-nav-plum hover:bg-nav-lavender-soft"
-                  }`}
-                >
-                  {y}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-nav-plum/50">
-                {WEEKDAY_LABELS.map((wd) => (
-                  <div key={wd} className="py-1">
-                    {wd}
-                  </div>
-                ))}
-              </div>
-              <div
-                ref={gridRef}
-                onKeyDown={onGridKeyDown}
-                role="grid"
-                aria-label={`${MONTH_LABELS[viewMonth - 1]} ${viewYear}`}
-                className="grid grid-cols-7 gap-1"
-              >
-                {cells.map(({ d, outside }) => {
-                  const disabled = isDisabled(d);
-                  const isSelected = selected ? sameYMD(d, selected) : false;
-                  const isToday = sameYMD(d, today);
-                  const isFocusable = sameYMD(d, focusDate);
-                  return (
-                    <button
-                      key={dateKey(d)}
-                      ref={(el) => {
-                        if (el) dayButtonRefs.current.set(dateKey(d), el);
-                        else dayButtonRefs.current.delete(dateKey(d));
-                      }}
-                      type="button"
-                      role="gridcell"
-                      tabIndex={isFocusable ? 0 : -1}
-                      disabled={disabled}
-                      aria-selected={isSelected}
-                      aria-current={isToday ? "date" : undefined}
-                      onClick={() => selectDate(d)}
-                      onFocus={() => setFocusDate(d)}
-                      className={`flex min-h-11 min-w-11 items-center justify-center rounded-lg text-sm transition-colors duration-150 ${
-                        outside ? "text-nav-plum/30" : "text-nav-plum"
-                      } ${
-                        isSelected
-                          ? "bg-nav-amethyst font-semibold text-white"
-                          : isToday
-                            ? "border border-nav-amethyst/60 font-medium"
-                            : "hover:bg-nav-lavender-soft"
-                      } ${disabled ? "cursor-not-allowed opacity-30 hover:bg-transparent" : ""}`}
-                    >
-                      {d.day}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
 
           <div className="mt-3 flex justify-end border-t border-nav-lavender-line pt-3">
             <button
               type="button"
-              onClick={closePanel}
-              className="min-h-11 rounded-full px-4 text-sm font-medium text-nav-amethyst-deep transition-colors duration-150 hover:bg-nav-lavender-soft"
+              onClick={() => {
+                closePanel();
+                triggerRef.current?.focus();
+              }}
+              className="min-h-11 rounded-full bg-nav-amethyst px-4 text-sm font-medium text-white transition-colors duration-150 hover:bg-nav-amethyst-deep"
             >
-              Close
+              Done
             </button>
           </div>
         </div>

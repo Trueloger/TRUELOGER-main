@@ -22,6 +22,7 @@ import { InsightCard } from "@/components/reports/InsightCard";
 import { KundliMatchIcon } from "@/components/quick-services/icons";
 import { buildKootaRows } from "@/lib/astrology/ashtakoot-view";
 import { BirthChartCard } from "@/components/charts/BirthChartCard";
+import { SectionTabs, type SectionTab } from "@/components/ui/SectionTabs";
 import type { KundliMatchingApiResponse } from "./types";
 
 const EMPTY_VALUES: BirthDetailsValues = {
@@ -206,214 +207,258 @@ export function KundliMatchingForm() {
           Icon={KundliMatchIcon}
         />
 
-        <ScoreCard
-          label="Guna Milan Score"
-          score={ashtakoot.totalScore}
-          maxScore={ashtakoot.outOf}
-          description={`${verdictFor(ashtakoot.totalScore)} — traditional Ashtakoot guidance, not a guarantee of relationship success or failure.`}
-        />
+        {(() => {
+          const tabs: SectionTab[] = [
+            {
+              id: "score",
+              label: "Score",
+              content: (
+                <>
+                  <ScoreCard
+                    label="Guna Milan Score"
+                    score={ashtakoot.totalScore}
+                    maxScore={ashtakoot.outOf}
+                    description={`${verdictFor(ashtakoot.totalScore)} — traditional Ashtakoot guidance, not a guarantee of relationship success or failure.`}
+                  />
 
-        <div className="space-y-6">
-          <h2 className="font-serif text-lg text-nav-plum">Birth Charts</h2>
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <div className="space-y-2 text-center">
-              <h3 className="text-sm font-medium text-nav-amethyst">Bride</h3>
-              <BirthChartCard ascendantSign={brideChart.ascendantSign} planets={brideChart.planets} />
-            </div>
-            <div className="space-y-2 text-center">
-              <h3 className="text-sm font-medium text-nav-amethyst">Groom</h3>
-              <BirthChartCard ascendantSign={groomChart.ascendantSign} planets={groomChart.planets} />
-            </div>
-          </div>
-        </div>
+                  <div className="space-y-3">
+                    <h2 className="font-serif text-lg text-nav-plum">Guna Milan Breakdown</h2>
+                    <KootaBreakdownTable rows={kootaRows} personALabel="Bride" personBLabel="Groom" />
+                  </div>
 
-        <div className="space-y-6">
-          <div>
-            <h2 className="font-serif text-lg text-nav-plum">Navamsa (D9) Charts</h2>
-            <p className="text-xs text-nav-plum/60">
-              Each person&rsquo;s Navamsa placement — traditionally consulted for marriage and a
-              planet&rsquo;s deeper strength.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <div className="space-y-2 text-center">
-              <h3 className="text-sm font-medium text-nav-amethyst">Bride</h3>
-              <BirthChartCard
-                ascendantSign={brideNavamsaChart.ascendantSign}
-                planets={brideNavamsaChart.planets}
-              />
-            </div>
-            <div className="space-y-2 text-center">
-              <h3 className="text-sm font-medium text-nav-amethyst">Groom</h3>
-              <BirthChartCard
-                ascendantSign={groomNavamsaChart.ascendantSign}
-                planets={groomNavamsaChart.planets}
-              />
-            </div>
-          </div>
-        </div>
+                  {timeUnknown && (
+                    <p className="text-center text-xs text-nav-plum/60">
+                      An exact birth time wasn&apos;t provided for at least one chart, so this
+                      reading used a default time of 12:00. Several kootas (Tara, Yoni, Gana,
+                      Bhakoot, Nadi) depend on the Moon&apos;s exact position and can shift with a
+                      more precise birth time.
+                    </p>
+                  )}
+                </>
+              ),
+            },
+            {
+              id: "charts",
+              label: "Charts",
+              content: (
+                <>
+                  <div className="space-y-6">
+                    <h2 className="font-serif text-lg text-nav-plum">Birth Charts</h2>
+                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+                      <div className="space-y-2 text-center">
+                        <h3 className="text-sm font-medium text-nav-amethyst">Bride</h3>
+                        <BirthChartCard ascendantSign={brideChart.ascendantSign} planets={brideChart.planets} />
+                      </div>
+                      <div className="space-y-2 text-center">
+                        <h3 className="text-sm font-medium text-nav-amethyst">Groom</h3>
+                        <BirthChartCard ascendantSign={groomChart.ascendantSign} planets={groomChart.planets} />
+                      </div>
+                    </div>
+                  </div>
 
-        <div className="space-y-6">
-          <div>
-            <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
-            <p className="mb-3 text-xs text-nav-plum/60">
-              Classical planetary combinations each chart was checked against.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div>
-              <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Bride</h3>
-              {brideYogas.some((y) => y.present) ? (
-                <ul className="grid gap-2">
-                  {brideYogas
-                    .filter((y) => y.present)
-                    .map((y) => (
-                      <li
-                        key={y.id}
-                        className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-                      >
-                        <span className="font-medium">{y.name}</span>
-                        {y.strength && (
-                          <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
-                            ({y.strength})
-                          </span>
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="font-serif text-lg text-nav-plum">Navamsa (D9) Charts</h2>
+                      <p className="text-xs text-nav-plum/60">
+                        Each person&rsquo;s Navamsa placement — traditionally consulted for
+                        marriage and a planet&rsquo;s deeper strength.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+                      <div className="space-y-2 text-center">
+                        <h3 className="text-sm font-medium text-nav-amethyst">Bride</h3>
+                        <BirthChartCard
+                          ascendantSign={brideNavamsaChart.ascendantSign}
+                          planets={brideNavamsaChart.planets}
+                        />
+                      </div>
+                      <div className="space-y-2 text-center">
+                        <h3 className="text-sm font-medium text-nav-amethyst">Groom</h3>
+                        <BirthChartCard
+                          ascendantSign={groomNavamsaChart.ascendantSign}
+                          planets={groomNavamsaChart.planets}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ),
+            },
+            {
+              id: "yogas-strength",
+              label: "Yogas & Strength",
+              content: (
+                <>
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="mb-1 font-serif text-lg text-nav-plum">Yogas</h2>
+                      <p className="mb-3 text-xs text-nav-plum/60">
+                        Classical planetary combinations each chart was checked against.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      <div>
+                        <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Bride</h3>
+                        {brideYogas.some((y) => y.present) ? (
+                          <ul className="grid gap-2">
+                            {brideYogas
+                              .filter((y) => y.present)
+                              .map((y) => (
+                                <li
+                                  key={y.id}
+                                  className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                                >
+                                  <span className="font-medium">{y.name}</span>
+                                  {y.strength && (
+                                    <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
+                                      ({y.strength})
+                                    </span>
+                                  )}
+                                </li>
+                              ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-nav-plum/70">
+                            None of the classical yogas this engine checks for were detected in
+                            this chart.
+                          </p>
                         )}
-                      </li>
-                    ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-nav-plum/70">
-                  None of the classical yogas this engine checks for were detected in this chart.
-                </p>
-              )}
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Groom</h3>
-              {groomYogas.some((y) => y.present) ? (
-                <ul className="grid gap-2">
-                  {groomYogas
-                    .filter((y) => y.present)
-                    .map((y) => (
-                      <li
-                        key={y.id}
-                        className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-                      >
-                        <span className="font-medium">{y.name}</span>
-                        {y.strength && (
-                          <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
-                            ({y.strength})
-                          </span>
+                      </div>
+                      <div>
+                        <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Groom</h3>
+                        {groomYogas.some((y) => y.present) ? (
+                          <ul className="grid gap-2">
+                            {groomYogas
+                              .filter((y) => y.present)
+                              .map((y) => (
+                                <li
+                                  key={y.id}
+                                  className="rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                                >
+                                  <span className="font-medium">{y.name}</span>
+                                  {y.strength && (
+                                    <span className="ml-1.5 text-xs uppercase tracking-wide text-nav-plum/60">
+                                      ({y.strength})
+                                    </span>
+                                  )}
+                                </li>
+                              ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-nav-plum/70">
+                            None of the classical yogas this engine checks for were detected in
+                            this chart.
+                          </p>
                         )}
-                      </li>
-                    ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-nav-plum/70">
-                  None of the classical yogas this engine checks for were detected in this chart.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+                      </div>
+                    </div>
+                  </div>
 
-        {/* Shadbala — core/simplified classical planetary strength, not
-            a full BPHS reproduction (see src/lib/astro-engine/shadbala.ts).
-            Real computed Rupas only, never an interpretive score. Each
-            person's own strength, computed from their own chart only. */}
-        <div className="space-y-6">
-          <div>
-            <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
-            <p className="mb-3 text-xs text-nav-plum/60">
-              A simplified core version of the classical six-fold strength system, for the 7
-              classical planets. &ldquo;Meets requirement&rdquo; compares each planet&rsquo;s
-              total against its own classical minimum.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div>
-              <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Bride</h3>
-              <ul className="grid gap-2">
-                {bridePlanetaryStrength.map((s) => (
-                  <li
-                    key={s.planet}
-                    className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-                  >
-                    <span className="font-medium">{s.planet}</span>
-                    <span className="text-xs text-nav-plum/70">
-                      {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
-                      {s.meetsRequirement ? " ✓" : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Groom</h3>
-              <ul className="grid gap-2">
-                {groomPlanetaryStrength.map((s) => (
-                  <li
-                    key={s.planet}
-                    className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
-                  >
-                    <span className="font-medium">{s.planet}</span>
-                    <span className="text-xs text-nav-plum/70">
-                      {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
-                      {s.meetsRequirement ? " ✓" : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
+                  {/* Shadbala — core/simplified classical planetary
+                      strength, not a full BPHS reproduction (see
+                      src/lib/astro-engine/shadbala.ts). Real computed
+                      Rupas only, never an interpretive score. Each
+                      person's own strength, computed from their own
+                      chart only. */}
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="mb-1 font-serif text-lg text-nav-plum">Planetary Strength (Shadbala)</h2>
+                      <p className="mb-3 text-xs text-nav-plum/60">
+                        A simplified core version of the classical six-fold strength system, for
+                        the 7 classical planets. &ldquo;Meets requirement&rdquo; compares each
+                        planet&rsquo;s total against its own classical minimum.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      <div>
+                        <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Bride</h3>
+                        <ul className="grid gap-2">
+                          {bridePlanetaryStrength.map((s) => (
+                            <li
+                              key={s.planet}
+                              className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                            >
+                              <span className="font-medium">{s.planet}</span>
+                              <span className="text-xs text-nav-plum/70">
+                                {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
+                                {s.meetsRequirement ? " ✓" : ""}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h3 className="mb-2 text-sm font-medium text-nav-amethyst">Groom</h3>
+                        <ul className="grid gap-2">
+                          {groomPlanetaryStrength.map((s) => (
+                            <li
+                              key={s.planet}
+                              className="flex items-center justify-between rounded-xl border border-nav-lavender-line bg-nav-pearl px-4 py-2.5 text-sm text-nav-plum"
+                            >
+                              <span className="font-medium">{s.planet}</span>
+                              <span className="text-xs text-nav-plum/70">
+                                {s.totalRupas.toFixed(1)} / {s.requiredRupas} Rupas
+                                {s.meetsRequirement ? " ✓" : ""}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ),
+            },
+          ];
 
-        <div className="space-y-3">
-          <h2 className="font-serif text-lg text-nav-plum">Guna Milan Breakdown</h2>
-          <KootaBreakdownTable rows={kootaRows} personALabel="Bride" personBLabel="Groom" />
-        </div>
+          if (report || reportError) {
+            tabs.push({
+              id: "reading",
+              label: "Reading",
+              content: (
+                <>
+                  {report && (
+                    <>
+                      <SummaryCard heading="Overview" body={report.summary} />
 
-        {timeUnknown && (
-          <p className="text-center text-xs text-nav-plum/60">
-            An exact birth time wasn&apos;t provided for at least one chart, so this reading used
-            a default time of 12:00. Several kootas (Tara, Yoni, Gana, Bhakoot, Nadi) depend on
-            the Moon&apos;s exact position and can shift with a more precise birth time.
-          </p>
-        )}
+                      {report.sections.map((section) => (
+                        <InterpretationCard key={section.title} title={section.title} content={section.content} />
+                      ))}
 
-        {report && (
-          <div className="space-y-4">
-            <SummaryCard heading="Overview" body={report.summary} />
+                      {report.highlights.length > 0 && (
+                        <div className="space-y-2">
+                          <h2 className="font-serif text-lg text-nav-plum">Highlights</h2>
+                          {report.highlights.map((h) => (
+                            <InsightCard key={h} icon={Sparkles} text={h} />
+                          ))}
+                        </div>
+                      )}
 
-            {report.sections.map((section) => (
-              <InterpretationCard key={section.title} title={section.title} content={section.content} />
-            ))}
+                      {report.recommendations.length > 0 && (
+                        <div className="space-y-2">
+                          <h2 className="font-serif text-lg text-nav-plum">Traditional Guidance</h2>
+                          {report.recommendations.map((r) => (
+                            <InsightCard key={r} text={r} />
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
 
-            {report.highlights.length > 0 && (
-              <div className="space-y-2">
-                <h2 className="font-serif text-lg text-nav-plum">Highlights</h2>
-                {report.highlights.map((h) => (
-                  <InsightCard key={h} icon={Sparkles} text={h} />
-                ))}
-              </div>
-            )}
+                  {reportError && (
+                    <p className="text-center text-sm text-nav-plum/60">
+                      Your calculated Guna Milan score above is accurate. We couldn&apos;t generate
+                      the extended interpretation right now — please try again shortly for the
+                      full reading.
+                    </p>
+                  )}
+                </>
+              ),
+            });
+          }
 
-            {report.recommendations.length > 0 && (
-              <div className="space-y-2">
-                <h2 className="font-serif text-lg text-nav-plum">Traditional Guidance</h2>
-                {report.recommendations.map((r) => (
-                  <InsightCard key={r} text={r} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {reportError && (
-          <p className="text-center text-sm text-nav-plum/60">
-            Your calculated Guna Milan score above is accurate. We couldn&apos;t generate the
-            extended interpretation right now — please try again shortly for the full reading.
-          </p>
-        )}
+          return <SectionTabs tabs={tabs} />;
+        })()}
 
         <div className="text-center">
           <button
