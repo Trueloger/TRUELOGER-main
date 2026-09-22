@@ -20,6 +20,7 @@ import type { ConsultationService } from "@/lib/consultation/types";
 import { getConsultationPrice, formatInr } from "@/lib/consultation/pricing";
 import { ConsultServiceIcon } from "./ConsultServiceIcon";
 import { DurationSheet } from "./DurationSheet";
+import { Card } from "@/components/ui/Card";
 
 export function ServiceCard({ service }: { service: ConsultationService }) {
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -33,9 +34,7 @@ export function ServiceCard({ service }: { service: ConsultationService }) {
   }
 
   return (
-    <div className="group relative flex h-full flex-col rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-white to-nav-lavender-mist p-3 text-center shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_34px_-14px_rgba(70,40,120,0.4)] sm:rounded-[1.4rem] sm:p-5 sm:text-left">
-      <CornerTicks />
-
+    <Card cornerTicks="compact" className="p-3 text-center sm:p-5 sm:text-left">
       {/* items-center (not items-start): a short, single-line service
           name sitting next to the icon badge needs to be vertically
           centered against it, not pinned to the top — a two-line
@@ -98,31 +97,6 @@ export function ServiceCard({ service }: { service: ConsultationService }) {
         onClose={() => setSheetOpen(false)}
         onConfirm={handleConfirm}
       />
-    </div>
-  );
-}
-
-/** Small diagonal-cross marks at each corner, matching QuickServices'
- * ServiceCard treatment. */
-function CornerTicks() {
-  const positions = [
-    "left-1.5 top-1.5 sm:left-2.5 sm:top-2.5",
-    "right-1.5 top-1.5 sm:right-2.5 sm:top-2.5",
-    "left-1.5 bottom-1.5 sm:left-2.5 sm:bottom-2.5",
-    "right-1.5 bottom-1.5 sm:right-2.5 sm:bottom-2.5",
-  ];
-  return (
-    <>
-      {positions.map((pos) => (
-        <svg
-          key={pos}
-          aria-hidden="true"
-          viewBox="0 0 10 10"
-          className={`pointer-events-none absolute h-2 w-2 text-nav-orchid/45 sm:h-2.5 sm:w-2.5 ${pos}`}
-        >
-          <path d="M1 1 9 9M9 1 1 9" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-        </svg>
-      ))}
-    </>
+    </Card>
   );
 }

@@ -10,6 +10,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { fieldLabelClass, fieldInputClass, fieldHintTextClass } from "@/components/forms/field-styles";
+import { Select } from "@/components/ui/Select";
 import { SUPPORT_CATEGORIES, type SupportCategory, type PrivacyRequestType } from "@/lib/support/types";
 
 const PRIVACY_REQUEST_TYPES: { value: PrivacyRequestType; label: string }[] = [
@@ -150,32 +151,26 @@ export function SupportForm({
       {!fixedCategory && (
         <div>
           <label htmlFor="support-category" className={fieldLabelClass}>Category</label>
-          <select
+          <Select
             id="support-category"
             value={category}
-            onChange={(e) => setCategory(e.target.value as SupportCategory)}
-            className={`mt-1.5 ${fieldInputClass}`}
-          >
-            {SUPPORT_CATEGORIES.filter((c) => c.value !== "grievance").map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
+            onChange={setCategory}
+            className="mt-1.5"
+            options={SUPPORT_CATEGORIES.filter((c) => c.value !== "grievance")}
+          />
         </div>
       )}
 
       {(category === "privacy" || fixedCategory === "privacy") && (
         <div>
           <label htmlFor="support-privacy-type" className={fieldLabelClass}>Type of request</label>
-          <select
+          <Select
             id="support-privacy-type"
             value={privacyRequestType}
-            onChange={(e) => setPrivacyRequestType(e.target.value as PrivacyRequestType)}
-            className={`mt-1.5 ${fieldInputClass}`}
-          >
-            {PRIVACY_REQUEST_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
+            onChange={setPrivacyRequestType}
+            className="mt-1.5"
+            options={PRIVACY_REQUEST_TYPES}
+          />
         </div>
       )}
 

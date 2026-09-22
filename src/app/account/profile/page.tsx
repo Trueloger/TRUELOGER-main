@@ -42,6 +42,7 @@ import { DateOfBirthField, validateDateOfBirth } from "@/components/forms/DateOf
 import { TimeOfBirthField, validateTimeOfBirth } from "@/components/forms/TimeOfBirthField";
 import { PlaceOfBirthField, validatePlaceOfBirth } from "@/components/forms/PlaceOfBirthField";
 import { fieldLabelClass, fieldInputClass, fieldErrorTextClass } from "@/components/forms/field-styles";
+import { Select } from "@/components/ui/Select";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -400,19 +401,17 @@ function PersonalDetailsCard({ profile }: { profile: UserProfile | null }) {
             <label htmlFor="account-profile-gender" className={fieldLabelClass}>
               Gender
             </label>
-            <select
+            <Select
               id="account-profile-gender"
               value={draft.gender}
-              onChange={(e) => setDraft((d) => ({ ...d, gender: e.target.value as Gender | "" }))}
-              className={`mt-1.5 ${fieldInputClass}`}
-            >
-              <option value="">Not specified</option>
-              {GENDER_OPTIONS.map((g) => (
-                <option key={g.value} value={g.value}>
-                  {g.label}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setDraft((d) => ({ ...d, gender: v }))}
+              className="mt-1.5"
+              placeholder="Not specified"
+              options={[
+                { value: "", label: "Not specified" },
+                ...GENDER_OPTIONS,
+              ]}
+            />
           </div>
 
           <div>

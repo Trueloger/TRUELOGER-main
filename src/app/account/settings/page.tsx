@@ -38,6 +38,7 @@ import { firebaseAuth } from "@/lib/firebase-client";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import type { UserProfile } from "@/lib/profile/types";
 import { fieldLabelClass, fieldInputClass, fieldInputErrorClass, fieldErrorTextClass } from "@/components/forms/field-styles";
+import { Select } from "@/components/ui/Select";
 
 type Status = "idle" | "saving" | "saved" | "error";
 
@@ -506,15 +507,16 @@ function PreferencesSection() {
                 Preferred language
               </span>
             </label>
-            <select
+            <Select
               id="account-settings-language"
               value={preferredLanguage}
-              onChange={(e) => setPreferredLanguage(e.target.value)}
-              className={`mt-1.5 ${fieldInputClass}`}
-            >
-              <option value="English">English</option>
-              <option value="Hindi">Hindi</option>
-            </select>
+              onChange={setPreferredLanguage}
+              className="mt-1.5"
+              options={[
+                { value: "English", label: "English" },
+                { value: "Hindi", label: "Hindi" },
+              ]}
+            />
           </div>
           <SaveButton status={status} />
         </form>

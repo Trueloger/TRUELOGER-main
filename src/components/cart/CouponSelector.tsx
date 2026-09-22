@@ -15,6 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { formatInr } from "@/lib/consultation/pricing";
 import { cartItemsToCategoriesAndProductIds } from "./cartLines";
+import { Select } from "@/components/ui/Select";
 
 type EligibleCoupon = {
   code: string;
@@ -112,20 +113,16 @@ export function CouponSelector({
         <Tag className="h-4 w-4" aria-hidden="true" />
         Coupon
       </label>
-      <select
+      <Select
         id="cart-coupon-select"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         disabled={loading || coupons.length === 0}
-        className="w-full rounded-lg border border-nav-lavender-line bg-white px-3 py-2 text-sm text-nav-violet disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-amethyst"
-      >
-        <option value="">No coupon</option>
-        {coupons.map((c) => (
-          <option key={c.code} value={c.code}>
-            {couponLabel(c)}
-          </option>
-        ))}
-      </select>
+        options={[
+          { value: "", label: "No coupon" },
+          ...coupons.map((c) => ({ value: c.code, label: couponLabel(c) })),
+        ]}
+      />
       {loading && <p className="text-xs text-nav-plum/70">Checking available coupons…</p>}
       {!loading && !error && coupons.length === 0 && (
         <p className="text-xs text-nav-plum/70">No coupons available right now.</p>

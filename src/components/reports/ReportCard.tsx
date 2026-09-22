@@ -13,14 +13,13 @@ import Link from "next/link";
 import { ScrollText, Clock } from "lucide-react";
 import type { ReportProduct } from "@/lib/reports/types";
 import { formatInr } from "@/lib/consultation/pricing";
+import { Card } from "@/components/ui/Card";
 
 export function ReportCard({ product }: { product: ReportProduct }) {
   const bullets = product.whatItCovers.slice(0, 4);
 
   return (
-    <div className="group relative flex h-full flex-col rounded-2xl border border-nav-lavender-line bg-gradient-to-b from-white to-nav-lavender-mist p-4 shadow-[0_10px_26px_-16px_rgba(70,40,120,0.35)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_34px_-14px_rgba(70,40,120,0.4)] sm:rounded-[1.4rem] sm:p-5">
-      <CornerTicks />
-
+    <Card className="p-4 sm:p-5">
       <div className="flex items-center gap-2">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-nav-amethyst/10 text-nav-amethyst-deep ring-1 ring-nav-amethyst/20">
           <ScrollText className="h-4.5 w-4.5" strokeWidth={1.4} aria-hidden="true" />
@@ -77,32 +76,6 @@ export function ReportCard({ product }: { product: ReportProduct }) {
           Demo Report
         </Link>
       </div>
-    </div>
-  );
-}
-
-/** Small diagonal-cross marks at each corner, matching GemstoneCard's
- * treatment — a self-contained copy since it's a tiny piece of markup,
- * not shared state. */
-function CornerTicks() {
-  const positions = [
-    "left-2 top-2",
-    "right-2 top-2",
-    "left-2 bottom-2",
-    "right-2 bottom-2",
-  ];
-  return (
-    <>
-      {positions.map((pos) => (
-        <svg
-          key={pos}
-          aria-hidden="true"
-          viewBox="0 0 10 10"
-          className={`pointer-events-none absolute h-2.5 w-2.5 text-nav-orchid/45 ${pos}`}
-        >
-          <path d="M1 1 9 9M9 1 1 9" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-        </svg>
-      ))}
-    </>
+    </Card>
   );
 }

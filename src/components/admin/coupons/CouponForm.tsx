@@ -13,6 +13,7 @@ import { useState } from "react";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS } from "@/lib/products/types";
 import { normalizeCouponCode, type Coupon, type CouponDiscountType } from "@/lib/coupons/types";
+import { Select } from "@/components/ui/Select";
 
 type CouponFormProps = {
   mode: "create" | "edit";
@@ -223,15 +224,15 @@ export default function CouponForm({ mode, initial, onCancel, onSaved }: CouponF
           <label htmlFor="coupon-discount-type" className={labelClass}>
             Discount Type
           </label>
-          <select
+          <Select
             id="coupon-discount-type"
             value={fields.discountType}
-            onChange={(e) => update("discountType", e.target.value as CouponDiscountType)}
-            className={inputClass}
-          >
-            <option value="percentage">Percentage</option>
-            <option value="fixed">Fixed Amount (₹)</option>
-          </select>
+            onChange={(v) => update("discountType", v)}
+            options={[
+              { value: "percentage", label: "Percentage" },
+              { value: "fixed", label: "Fixed Amount (₹)" },
+            ]}
+          />
         </div>
 
         <div>

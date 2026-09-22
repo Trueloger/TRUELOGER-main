@@ -8,6 +8,7 @@
 import { useState, type FormEvent } from "react";
 import { LotusIcon } from "@/components/quick-services/icons";
 import { fieldLabelClass, fieldInputClass, fieldHintTextClass } from "@/components/forms/field-styles";
+import { Select } from "@/components/ui/Select";
 import { EXPERTISE_OPTIONS, CONSULTATION_FORMATS } from "@/lib/astrologers/types";
 
 const LANGUAGE_SUGGESTIONS = ["Hindi", "English", "Punjabi", "Bengali", "Tamil", "Telugu", "Marathi", "Gujarati"];
@@ -176,18 +177,14 @@ export default function RegisterAsAstrologerPage() {
             </div>
             <div>
               <label htmlFor="primaryExpertise" className={fieldLabelClass}>Primary Expertise</label>
-              <select
+              <Select
                 id="primaryExpertise"
                 value={primaryExpertise}
-                onChange={(e) => setPrimaryExpertise(e.target.value)}
+                onChange={setPrimaryExpertise}
                 required
-                className={`mt-1.5 ${fieldInputClass}`}
-              >
-                <option value="">Select…</option>
-                {EXPERTISE_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
+                className="mt-1.5"
+                options={EXPERTISE_OPTIONS.map((opt) => ({ value: opt, label: opt }))}
+              />
             </div>
             <div>
               <p className={fieldLabelClass}>Secondary Expertise (optional)</p>

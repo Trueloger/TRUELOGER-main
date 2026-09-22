@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { APPLICATION_STATUSES, type AstrologerApplication, type ApplicationStatus } from "@/lib/astrologers/types";
+import { Select } from "@/components/ui/Select";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready" };
 
@@ -135,19 +136,17 @@ export default function AdminAstrologersPage() {
                         View / Download Resume
                       </button>
 
-                      <label className="flex items-center gap-2 text-sm text-nav-plum/70">
+                      <div className="flex items-center gap-2 text-sm text-nav-plum/70">
                         Status:
-                        <select
+                        <Select
+                          aria-label="Status"
                           value={app.status}
                           disabled={savingId === app.id}
-                          onChange={(e) => updateStatus(app.id, e.target.value as ApplicationStatus)}
-                          className="min-h-9 rounded-lg border border-nav-lavender-line bg-white px-2 text-sm text-nav-plum"
-                        >
-                          {APPLICATION_STATUSES.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                      </label>
+                          onChange={(v) => updateStatus(app.id, v)}
+                          className="w-40"
+                          options={APPLICATION_STATUSES.map((s) => ({ value: s, label: s }))}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

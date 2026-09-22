@@ -20,6 +20,7 @@ import {
 } from "@/lib/profile/types";
 import { LotusIcon } from "@/components/quick-services/icons";
 import { fieldLabelClass, fieldInputClass } from "@/components/forms/field-styles";
+import { Select } from "@/components/ui/Select";
 import { NameField } from "@/components/forms/NameField";
 import { DateOfBirthField } from "@/components/forms/DateOfBirthField";
 import { TimeOfBirthField } from "@/components/forms/TimeOfBirthField";
@@ -273,18 +274,19 @@ function ProfileCompleteForm() {
                   Gender{" "}
                   <span className="text-xs font-normal text-nav-plum/50">(optional)</span>
                 </label>
-                <select
+                <Select
                   id="profile-gender"
                   value={form.gender}
-                  onChange={(e) => update("gender", e.target.value as Gender | "")}
-                  className={`mt-1.5 ${fieldInputClass}`}
-                >
-                  <option value="">Select (optional)</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                  <option value="prefer_not_to_say">Prefer not to say</option>
-                </select>
+                  onChange={(v) => update("gender", v)}
+                  className="mt-1.5"
+                  options={[
+                    { value: "", label: "Select (optional)" },
+                    { value: "male", label: "Male" },
+                    { value: "female", label: "Female" },
+                    { value: "other", label: "Other" },
+                    { value: "prefer_not_to_say", label: "Prefer not to say" },
+                  ]}
+                />
               </div>
 
               <div>

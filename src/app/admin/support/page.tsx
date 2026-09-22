@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { authedFetch } from "@/lib/auth/authed-fetch";
 import { SUPPORT_CATEGORIES, TICKET_STATUSES, type SupportTicket, type TicketStatus } from "@/lib/support/types";
+import { Select } from "@/components/ui/Select";
 
 type LoadState = { status: "loading" } | { status: "error"; message: string } | { status: "ready" };
 
@@ -125,19 +126,17 @@ export default function AdminSupportPage() {
                       {t.meetingId && <div><dt className="font-semibold">Meeting</dt><dd>{t.meetingId}</dd></div>}
                       {t.privacyRequestType && <div><dt className="font-semibold">Privacy Type</dt><dd>{t.privacyRequestType}</dd></div>}
                     </dl>
-                    <label className="mt-4 flex items-center gap-2 text-sm text-nav-plum/70">
+                    <div className="mt-4 flex items-center gap-2 text-sm text-nav-plum/70">
                       Status:
-                      <select
+                      <Select
+                        aria-label="Status"
                         value={t.status}
                         disabled={savingId === t.id}
-                        onChange={(e) => updateTicket(t.id, { status: e.target.value as TicketStatus })}
-                        className="min-h-9 rounded-lg border border-nav-lavender-line bg-white px-2 text-sm text-nav-plum"
-                      >
-                        {TICKET_STATUSES.map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </label>
+                        onChange={(v) => updateTicket(t.id, { status: v })}
+                        className="w-40"
+                        options={TICKET_STATUSES.map((s) => ({ value: s, label: s }))}
+                      />
+                    </div>
                   </div>
                 )}
               </li>
