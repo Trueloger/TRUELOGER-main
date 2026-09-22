@@ -1,5 +1,6 @@
 import { HeroCarousel } from "@/components/hero/HeroCarousel";
 import { HeroToServicesCurve } from "@/components/hero/HeroToServicesCurve";
+import { Reveal } from "@/components/ui/Reveal";
 import { HoroscopeSection } from "@/components/horoscope/HoroscopeSection";
 import { QuickServices } from "@/components/quick-services/QuickServices";
 import { ExploreServices } from "@/components/explore-services/ExploreServices";
@@ -13,7 +14,9 @@ import { TestimonialsSection } from "@/components/testimonials/TestimonialsSecti
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col">
-      <HeroCarousel />
+      <Reveal>
+        <HeroCarousel />
+      </Reveal>
       <HeroToServicesCurve />
 
       {/* QuickServices, ExploreServices, PersonalizedReportsBanner and
