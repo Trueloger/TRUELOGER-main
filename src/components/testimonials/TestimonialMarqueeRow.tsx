@@ -11,6 +11,8 @@ type Props = {
   parallaxPx: number;
   paused?: boolean;
   onExpand?: (testimonial: Testimonial) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 };
 
 /**
@@ -32,7 +34,7 @@ type Props = {
  * Second copy is aria-hidden so screen readers hit each testimonial once
  * despite the doubled DOM.
  */
-export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxPx, paused, onExpand }: Props) {
+export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxPx, paused, onExpand, onDragStart, onDragEnd }: Props) {
   const track = [...items, ...items];
 
   const trackRef = useRef<HTMLDivElement>(null);
@@ -44,7 +46,13 @@ export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxP
   const draggingRef = useRef(false);
   const dragStartXRef = useRef(0);
   const dragStartOffsetRef = useRef(0);
+  const dragDistanceRef = useRef(0);
   const reducedMotionRef = useRef(false);
+
+  // Real pointer drag beyond this many px suppresses the click that
+  // fires on pointerup — otherwise dragging the row to scroll it also
+  // pops open whichever card happens to be under the cursor on release.
+  const CLICK_SUPPRESS_PX = 6;
 
   useEffect(() => {
     pausedRef.current = !!paused;
@@ -109,9 +117,11 @@ export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxP
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     draggingRef.current = true;
+    dragDistanceRef.current = 0;
     dragStartXRef.current = e.clientX;
     dragStartOffsetRef.current = offsetRef.current;
     e.currentTarget.setPointerCapture(e.pointerId);
+    onDragStart?.();
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -119,7 +129,9 @@ export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxP
     const el = trackRef.current;
     if (!el) return;
     const half = halfWidthRef.current;
-    let next = dragStartOffsetRef.current + (e.clientX - dragStartXRef.current);
+    const dragDelta = e.clientX - dragStartXRef.current;
+    dragDistanceRef.current = Math.max(dragDistanceRef.current, Math.abs(dragDelta));
+    let next = dragStartOffsetRef.current + dragDelta;
     if (half > 0) {
       while (next <= -half) next += half;
       while (next > 0) next -= half;
@@ -135,6 +147,17 @@ export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxP
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {
       /* already released */
+    }
+    onDragEnd?.();
+  }
+
+  // Click fires on the card under the cursor right after pointerup —
+  // capture-phase so it runs before the card's own onClick, and stop it
+  // outright once the pointer actually travelled (a real drag, not a tap).
+  function onClickCapture(e: React.MouseEvent<HTMLDivElement>) {
+    if (dragDistanceRef.current > CLICK_SUPPRESS_PX) {
+      e.stopPropagation();
+      e.preventDefault();
     }
   }
 
@@ -152,6 +175,7 @@ export function TestimonialMarqueeRow({ items, direction, durationSec, parallaxP
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
+          onClickCapture={onClickCapture}
         >
           {track.map((item, i) => (
             <TestimonialCard

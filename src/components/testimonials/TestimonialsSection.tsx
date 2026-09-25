@@ -172,6 +172,8 @@ export function TestimonialsSection() {
               parallaxPx={isMobile ? Math.round(row.parallaxPx * 0.4) : row.parallaxPx}
               paused={paused}
               onExpand={handleExpand}
+              onDragStart={pauseNow}
+              onDragEnd={scheduleResume}
             />
           ))}
         </div>
